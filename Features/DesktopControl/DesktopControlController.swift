@@ -30,9 +30,10 @@ final class DesktopControlController: NSObject {
         win.ignoresMouseEvents = false
         win.isMovableByWindowBackground = true
         win.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        // Desktop-adjacent: above wallpaper/icons area semantics, but NOT floating/status —
-        // normal app windows must be able to cover this control (Spec §2.7.2 / T16).
-        win.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)))
+        // Spec §2.7.2 / T16: must be coverable by Safari/Chrome etc. — use `.normal`, not
+        // `.floating` / status. Do NOT use `CGWindowLevelForKey(.desktopIconWindow)`: that
+        // sits under Finder desktop icons and the orb becomes invisible in normal bring-up.
+        win.level = .normal
         win.title = "ContextDay"
         win.isReleasedWhenClosed = false
 

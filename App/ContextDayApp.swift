@@ -8,7 +8,9 @@ enum ContextDayApp {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        app.setActivationPolicy(.accessory)
+        // Phase 0 bring-up: `.regular` so a Dock icon appears and the orb is easy to find.
+        // Spec accessory / menubar-only policy can return later once DesktopControl is stable.
+        app.setActivationPolicy(.regular)
         app.run()
     }
 }
