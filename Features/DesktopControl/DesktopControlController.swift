@@ -1,8 +1,11 @@
 import AppKit
+import QuartzCore
 
 /// Borderless transparent desktop orb window (Spec §2.7.2 / §2.7.3).
 /// Window level sits at/below normal apps so Safari etc. can cover it — not HUD / floating.
 final class DesktopControlController: NSObject, NSMenuItemValidation {
+    /// Short ease-in-out for 「调整大小」 presets — long enough to read as motion, short enough to feel snappy.
+    private static let orbResizeDuration: TimeInterval = 0.28
     private var window: NSWindow?
     private var orbView: DesktopOrbView?
     private var configWindow: ConfigWindowController?
@@ -143,20 +146,36 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
 
     @objc private func changeOrbSize(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? Double else { return }
-        applyOrbSize(CGFloat(value))
+        applyOrbSize(CGFloat(value), animated: true)
     }
 
-    private func applyOrbSize(_ pt: CGFloat) {
+    /// Resize orb window about its center. Persistence unchanged (`OrbSizeStore` / `orbSizePt`).
+    /// Animated path uses `NSAnimationContext` ease-in-out; contentView fills the window so
+    /// `DesktopOrbView.layout` keeps idle + AVPlayer layers in sync (no settle flicker).
+    private func applyOrbSize(_ pt: CGFloat, animated: Bool) {
         OrbSizeStore.save(pt)
         guard let window else { return }
         let size = NSSize(width: pt, height: pt)
         var frame = window.frame
+        if abs(frame.width - size.width) < 0.5, abs(frame.height - size.height) < 0.5 {
+            return
+        }
         let center = NSPoint(x: frame.midX, y: frame.midY)
         frame.size = size
         frame.origin = NSPoint(x: center.x - size.width / 2, y: center.y - size.height / 2)
-        window.setFrame(frame, display: true)
-        orbView?.frame = NSRect(origin: .zero, size: size)
-        orbView?.needsLayout = true
+
+        guard animated else {
+            window.setFrame(frame, display: true)
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.orbResizeDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.allowsImplicitAnimation = true
+            // Animator proxy drives a smooth window frame; contentView tracks automatically.
+            window.animator().setFrame(frame, display: true)
+        }
     }
 
     @objc private func openSettings() {

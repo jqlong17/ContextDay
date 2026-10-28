@@ -258,8 +258,13 @@ final class DesktopOrbView: NSView {
 
     override func layout() {
         super.layout()
+        // Sync layer frames without implicit CA actions so window-driven resize
+        // (NSAnimationContext ease-in-out) stays smooth and settle/idle don't lag.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         idleLayer.frame = bounds
         playerLayer?.frame = playerView.bounds
+        CATransaction.commit()
     }
 
     override func mouseDown(with event: NSEvent) {
