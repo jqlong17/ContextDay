@@ -7,7 +7,7 @@
 | Spec 版本 | **v0.2.0** |
 | 状态 | schema_drafted / 未开工实现（数据目录与 Segment schema 已定稿） |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-28 23:24 Asia/Shanghai |
+| 最后更新 | 2026-10-28 23:25 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
