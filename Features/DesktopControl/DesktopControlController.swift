@@ -104,10 +104,9 @@ final class DesktopControlController: NSObject {
         panel.canCreateDirectories = true
         panel.prompt = "选择"
         panel.message = "选择 ContextDay 记录保存文件夹（将在其下创建 db/、audio/ 等）"
-        panel.directoryURL = AppPaths.recordsRoot
+        panel.directoryURL = AppPaths.recordsRoot.deletingLastPathComponent()
 
-        let completion: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
+        let applySelection: (URL) -> Void = { url in
             AppPaths.setRecordsRoot(url)
             do {
                 try SegmentStore.shared.prepareApplicationSupport()
@@ -115,13 +114,16 @@ final class DesktopControlController: NSObject {
             } catch {
                 NSLog("ContextDay: prepare store after folder change failed: \(error)")
             }
-            _ = self
         }
 
         if let window {
-            panel.beginSheetModal(for: window, completionHandler: completion)
+            panel.beginSheetModal(for: window) { response in
+                guard response == .OK, let url = panel.url else { return }
+                applySelection(url)
+            }
         } else {
-            completion(panel.runModal())
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            applySelection(url)
         }
     }
 }

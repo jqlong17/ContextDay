@@ -1,36 +1,33 @@
 import Foundation
 
-/// Configurable on-disk records root (Phase 0 bring-up default: `~/Downloads/ContextDay`).
-/// Spec §3.4 still documents Application Support; runtime root is user-selectable.
+/// Configurable records root. Default: `~/Downloads/ContextDay`.
+/// Preference key: UserDefaults `recordsRootPath`.
 enum AppPaths {
     static let bundleIdentifier = "app.contextday"
     static let recordsRootPathKey = "recordsRootPath"
 
-    private static var defaults: UserDefaults {
-        UserDefaults(suiteName: bundleIdentifier) ?? .standard
-    }
-
-    /// Default records root when no preference is set: `~/Downloads/ContextDay`.
+    /// Default when `recordsRootPath` is unset: `~/Downloads/ContextDay`.
     static var defaultRecordsRoot: URL {
         let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads", isDirectory: true)
         return downloads.appendingPathComponent("ContextDay", isDirectory: true)
     }
 
-    /// Current records root (UserDefaults `recordsRootPath`, else `defaultRecordsRoot`).
+    /// Current records root (`recordsRootPath` → else `defaultRecordsRoot`).
     static var recordsRoot: URL {
-        if let path = defaults.string(forKey: recordsRootPathKey), !path.isEmpty {
-            return URL(fileURLWithPath: path, isDirectory: true)
+        if let path = UserDefaults.standard.string(forKey: recordsRootPathKey), !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true)
         }
         return defaultRecordsRoot
     }
 
-    /// Persists a new records root directory path.
+    /// Persist a new records root (stores absolute path in `recordsRootPath`).
     static func setRecordsRoot(_ url: URL) {
-        defaults.set(url.standardizedFileURL.path, forKey: recordsRootPathKey)
+        UserDefaults.standard.set(url.standardizedFileURL.path, forKey: recordsRootPathKey)
+        UserDefaults.standard.synchronize()
     }
 
-    /// Legacy alias — same as `recordsRoot` (call sites / prompt copy).
+    /// Alias → `recordsRoot` (legacy name from Spec §3.4 Application Support wording).
     static var applicationSupportRoot: URL { recordsRoot }
 
     static var databaseDirectory: URL {
@@ -53,7 +50,7 @@ enum AppPaths {
         recordsRoot.appendingPathComponent("scratch", isDirectory: true)
     }
 
-    /// Creates the records tree (`db/`, `audio/`, `logs/`, `scratch/`) under the current root.
+    /// Creates `db/` / `audio/` / `logs/` / `scratch/` under the current `recordsRoot`.
     @discardableResult
     static func ensureDirectoryTree() throws -> URL {
         let fm = FileManager.default

@@ -2,8 +2,8 @@ import Foundation
 
 /// Clipboard prompt for Grok Bot–class assistants (Spec §2.8).
 enum AgentPromptTemplate {
-    /// Fills absolute records-root paths into the §2.8 Chinese template.
-    /// Always prefer `AppPaths.recordsRoot` so clipboard paths follow folder changes.
+    /// Fills absolute paths from the current records root into the §2.8 template.
+    /// Call sites should pass `AppPaths.recordsRoot` so clipboard paths follow folder changes.
     static func makePrompt(recordsRoot: URL = AppPaths.recordsRoot) -> String {
         let root = recordsRoot.path
         return """

@@ -12,34 +12,25 @@ final class SegmentStore: @unchecked Sendable {
     private init() {}
 
     deinit {
-        if let db {
-            sqlite3_close(db)
-        }
+        closeDatabaseUnlocked()
     }
 
-    /// Ensures records dirs exist and opens / creates `contextday.sqlite` with Segment table.
-    /// Closes and reopens the DB when `AppPaths.recordsRoot` changed since the last open.
+    /// Ensures records dirs exist, then closes any open sqlite handle and reopens /
+    /// creates schema at `AppPaths.databaseFile` (follows `recordsRoot` changes).
     func prepareApplicationSupport() throws {
         try AppPaths.ensureDirectoryTree()
-        try openDatabaseIfNeeded()
+        try reopenDatabaseAtCurrentRoot()
         try createSchemaIfNeeded()
     }
 
-    private func openDatabaseIfNeeded() throws {
+    /// Close existing handle (if any), then open/create DB at the current records root.
+    private func reopenDatabaseAtCurrentRoot() throws {
         lock.lock()
         defer { lock.unlock() }
 
+        closeDatabaseUnlocked()
+
         let path = AppPaths.databaseFile.path
-        if let db, openDatabasePath == path {
-            return
-        }
-
-        if let db {
-            sqlite3_close(db)
-            self.db = nil
-            openDatabasePath = nil
-        }
-
         var handle: OpaquePointer?
         let flags = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
         guard sqlite3_open_v2(path, &handle, flags, nil) == SQLITE_OK, let handle else {
@@ -49,6 +40,14 @@ final class SegmentStore: @unchecked Sendable {
         }
         db = handle
         openDatabasePath = path
+    }
+
+    private func closeDatabaseUnlocked() {
+        if let db {
+            sqlite3_close(db)
+        }
+        db = nil
+        openDatabasePath = nil
     }
 
     private func createSchemaIfNeeded() throws {
