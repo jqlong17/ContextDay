@@ -17,6 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("ContextDay Disk: \(warning)")
         }
 
+        let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
+        NSLog("ContextDay AgentSkills: \(skillsRoot.path)")
+
         let preferredPort = AgentIOPort.preferred()
         DispatchQueue.global(qos: .utility).async {
             // Prefer --port / UserDefaults / Info.plist; scan upward in 18787…18797 if busy.

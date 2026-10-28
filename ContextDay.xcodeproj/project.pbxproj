@@ -54,6 +54,9 @@
 		B11AB0070000000000000004 /* AboutPrivacyWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */; };
 		B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11FE57E0000000000000005 /* RetentionDiskTests.swift */; };
 		B11A6E070000000000000001 /* AgentIOPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A6E070000000000000001 /* AgentIOPort.swift */; };
+		B12SKILL0000000000000001 /* AgentSkillsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12SKILL0000000000000001 /* AgentSkillsStore.swift */; };
+		B12SKILL0000000000000002 /* AgentSkills in Resources */ = {isa = PBXBuildFile; fileRef = A12SKILL0000000000000002 /* AgentSkills */; };
+		B12SKILL0000000000000003 /* AgentSkillsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -119,6 +122,9 @@
 		A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutPrivacyWindowController.swift; sourceTree = "<group>"; };
 		A11FE57E0000000000000005 /* RetentionDiskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionDiskTests.swift; sourceTree = "<group>"; };
 		A11A6E070000000000000001 /* AgentIOPort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOPort.swift; sourceTree = "<group>"; };
+		A12SKILL0000000000000001 /* AgentSkillsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSkillsStore.swift; sourceTree = "<group>"; };
+		A12SKILL0000000000000002 /* AgentSkills */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AgentSkills; sourceTree = "<group>"; };
+		A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSkillsStoreTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -225,6 +231,7 @@
 				950877B7B46B465E95561AC2 /* KeepAudioWriter.swift */,
 				A11D15C60000000000000001 /* DiskSpaceGuard.swift */,
 				A11FE7F00000000000000002 /* RetentionPurger.swift */,
+				A12SKILL0000000000000001 /* AgentSkillsStore.swift */,
 			);
 			path = Store;
 			sourceTree = "<group>";
@@ -268,6 +275,7 @@
 			children = (
 				494EF46EDE2F4D8A8BA4DDE5 /* DesktopOrb */,
 				0EAE3BA3FFFA42F5942DA65E /* Models */,
+				A12SKILL0000000000000002 /* AgentSkills */,
 				452FE66ACFF542188316C0F7 /* AppIcon */,
 				279C5789ECD642DF92FB5920 /* Assets.xcassets */,
 			);
@@ -282,6 +290,7 @@
 				1C6DE8860F0849AA89553C41 /* YamNetGateTests.swift */,
 				947DAE30A9634F3A9A18ACE5 /* SenseVoiceASRTests.swift */,
 				A11FE57E0000000000000005 /* RetentionDiskTests.swift */,
+				A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -397,6 +406,7 @@
 				8FC168026F2D4132B46E8699 /* Assets.xcassets in Resources */,
 				82B6367E91EE48D0B92DE21F /* DesktopOrb in Resources */,
 				47E999C170C94E56A4C6A82A /* Models in Resources */,
+				B12SKILL0000000000000002 /* AgentSkills in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -437,6 +447,7 @@
 				B11D15C60000000000000001 /* DiskSpaceGuard.swift in Sources */,
 				B11FE7F00000000000000002 /* RetentionPurger.swift in Sources */,
 				B11C95D10000000000000003 /* AgentIOMCPStdio.swift in Sources */,
+				B12SKILL0000000000000001 /* AgentSkillsStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -449,6 +460,7 @@
 				2A8A060D619643AD9C805B3B /* YamNetGateTests.swift in Sources */,
 				E695101F724B4A5CA70B0251 /* SenseVoiceASRTests.swift in Sources */,
 				B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */,
+				B12SKILL0000000000000003 /* AgentSkillsStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

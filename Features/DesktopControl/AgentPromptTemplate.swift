@@ -2,15 +2,17 @@ import Foundation
 
 /// Clipboard prompt for Grok Bot–class assistants (Spec §2.8).
 enum AgentPromptTemplate {
-    /// Fills absolute paths from the current records root into the §2.8 template.
-    /// Also points at repo `docs/agent-skills/` templates and Agent IO HTTP (default :18787).
+    /// Absolute Application Support skill paths + records root + Agent IO.
+    /// Seeds App Support from Bundle when needed. No repo-relative paths; no Spec § refs.
     static func makePrompt(recordsRoot: URL = AppPaths.recordsRoot) -> String {
+        let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
         let root = recordsRoot.path
-        // Skills live in the ContextDay git checkout (not Application Support). Prefer
-        // resolving next to a known checkout; fall back to Spec Mac path + relative hint.
-        let skillsRoot = Self.agentSkillsDirectoryPath()
+        let skills = skillsRoot.path
+        let port = AgentIOHTTPServer.shared.port
+        let healthPort = port > 0 ? port : AgentIOPort.preferred()
+
         return """
-        你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机数据，不要删除、移动或清空用户文件。
+        你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机转写数据，不要删除、移动或清空用户录音/数据库，除非用户在对话中明确要求并再次确认。
 
         产品一句话：ContextDay 在 macOS 本机持续采集麦克风/可选系统声，经门控与 ASR 后把时间线写入 SQLite；转写权威在数据库，不另写每日 txt。
 
@@ -20,44 +22,29 @@ enum AgentPromptTemplate {
         权威数据库：
         \(root)/db/contextday.sqlite
 
-        可选留音（仅当用户开启 keep_audio；Opus）：
+        可选留音（仅当用户开启 keep_audio）：
         \(root)/audio/YYYY-MM-DD/{mic|system}/<segment-uuid>.opus
 
-        Segment 字段摘要（详见产品 Spec §3.3）：
+        Segment 字段摘要：
         id(UUID), track(mic|system), t0_ms/t1_ms(UTC epoch ms), tz_at_capture(IANA?),
         text(转写), gate_label(speech|music|other?), audio_path(相对根路径?),
         source_segment_ids, created_at_ms, merged_at_ms?, merge_gap_ms?,
         asr_model_id?, asr_model_version?
 
-        本机 Agent IO（只读 HTTP，默认 18787；忙碌时可能为 18788–18797）：
-        http://127.0.0.1:18787/health
-        期望 JSON 含 "service":"ContextDay"。工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+        本机 Agent IO（只读转写 + 可读写助手技能模版；仅 127.0.0.1）：
+        http://127.0.0.1:\(healthPort)/health
+        期望 JSON 含 "service":"ContextDay"。
+        转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+        技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
 
-        助手技能模板（仓库内脱敏 Markdown，只读；无个人飞书 ID）：
-        \(skillsRoot)/README.md
-        \(skillsRoot)/meeting-minutes.md
-        \(skillsRoot)/daily-meeting-digest.md
-        \(skillsRoot)/feishu-minutes-lark-cli.md
+        助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
+        \(skills)/README.md
+        \(skills)/meeting-minutes.md
+        \(skills)/daily-meeting-digest.md
+        \(skills)/feishu-minutes-lark-cli.md
+        \(skills)/meeting-notes-weekly-wiki.md
 
-        建议做法：先 curl /health 确认 service=ContextDay；再用 Agent IO 或 sqlite3 只读按 t0_ms 检索 text；整理纪要时遵循 docs/agent-skills/ 对应模板。不要假设存在每日转写 .txt。不要修改表结构或删除行，除非用户在对话中明确要求并再次确认。飞书投递仅用本机私密占位符，勿把真实 chat_id 写入仓库。
+        建议做法：先 curl /health 确认 service=ContextDay；用 Agent IO 取 Segment 或 Read 上述技能文件；整理纪要遵循技能模版。不要假设存在每日转写 .txt。飞书相关占位符仅用本机私密配置，勿把真实 chat_id 写入仓库或公开回复。
         """
-    }
-
-    /// Best-effort absolute path to `docs/agent-skills` in a ContextDay checkout.
-    private static func agentSkillsDirectoryPath() -> String {
-        let candidates: [URL] = [
-            URL(fileURLWithPath: "/Users/ruska/projects/ContextDay/docs/agent-skills", isDirectory: true),
-            URL(fileURLWithPath: AppPaths.recordsRoot.path)
-                .deletingLastPathComponent()
-                .appendingPathComponent("ContextDay/docs/agent-skills", isDirectory: true),
-            Bundle.main.bundleURL
-                .deletingLastPathComponent()
-                .appendingPathComponent("docs/agent-skills", isDirectory: true),
-        ]
-        for url in candidates where FileManager.default.fileExists(atPath: url.path) {
-            return url.path
-        }
-        // Stable relative hint when checkout path is unknown at runtime.
-        return "docs/agent-skills"
     }
 }

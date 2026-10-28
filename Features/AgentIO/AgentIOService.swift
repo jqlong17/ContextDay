@@ -106,6 +106,76 @@ final class AgentIOService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Agent skills (App Support writable copy; never Bundle / never Segment)
+
+    /// `list_agent_skills`
+    func listAgentSkills() -> AgentSkillsListDTO {
+        _ = AgentSkillsStore.ensureSeededFromBundle()
+        return AgentSkillsListDTO(
+            rootPath: AgentSkillsStore.absoluteSkillsRootPath,
+            skills: AgentSkillsStore.listSkills().map {
+                AgentSkillFileDTO(
+                    name: $0.name,
+                    path: $0.path,
+                    bytes: $0.bytes,
+                    packaged: $0.packaged,
+                    localOverride: $0.localOverride
+                )
+            }
+        )
+    }
+
+    /// `get_agent_skill(name)`
+    func getAgentSkill(name: String) throws -> AgentSkillContentDTO {
+        do {
+            let result = try AgentSkillsStore.readSkill(named: name)
+            return AgentSkillContentDTO(name: name, path: result.path, content: result.content)
+        } catch let err as AgentSkillsStore.AgentSkillsError {
+            throw mapSkillsError(err)
+        }
+    }
+
+    /// `update_agent_skill(name, content)` — App Support only.
+    func updateAgentSkill(name: String, content: String) throws -> AgentSkillWriteDTO {
+        do {
+            let path = try AgentSkillsStore.updateSkill(named: name, content: content)
+            return AgentSkillWriteDTO(name: name, path: path, updated: true)
+        } catch let err as AgentSkillsStore.AgentSkillsError {
+            throw mapSkillsError(err)
+        }
+    }
+
+    /// `reset_agent_skill(name?)` — re-copy from Bundle; `name` nil resets all packaged templates.
+    func resetAgentSkill(name: String?) throws -> AgentSkillResetDTO {
+        do {
+            let paths = try AgentSkillsStore.resetToBundled(name: name)
+            return AgentSkillResetDTO(resetPaths: paths)
+        } catch let err as AgentSkillsStore.AgentSkillsError {
+            throw mapSkillsError(err)
+        }
+    }
+
+    /// `get_clipboard_prompt` — current §2.8 clipboard body (seeds skills if needed).
+    func getClipboardPrompt() -> AgentClipboardPromptDTO {
+        let text = AgentPromptTemplate.makePrompt(recordsRoot: AppPaths.recordsRoot)
+        return AgentClipboardPromptDTO(
+            text: text,
+            skillsRootPath: AgentSkillsStore.absoluteSkillsRootPath,
+            recordsRootPath: AppPaths.recordsRoot.path
+        )
+    }
+
+    private func mapSkillsError(_ err: AgentSkillsStore.AgentSkillsError) -> AgentIOError {
+        switch err {
+        case .notFound(let n):
+            return .notFound("skill not found: \(n)")
+        case .invalidName(let n), .notWritable(let n), .notResettable(let n):
+            return .invalidArgument(err.errorDescription ?? n)
+        case .bundleMissing:
+            return .invalidArgument(err.errorDescription ?? "bundle missing")
+        }
+    }
+
     // MARK: - Non-first-wave (explicit unavailable)
 
     /// `summarize_window` — 非首波；本机不做摘要。
@@ -122,5 +192,62 @@ final class AgentIOService: @unchecked Sendable {
             tool: "export_audio",
             reason: "not in first wave; audio export deferred"
         )
+    }
+}
+
+// MARK: - Skills DTOs
+
+struct AgentSkillsListDTO: Codable, Equatable, Sendable {
+    var rootPath: String
+    var skills: [AgentSkillFileDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case rootPath = "root_path"
+        case skills
+    }
+}
+
+struct AgentSkillFileDTO: Codable, Equatable, Sendable {
+    var name: String
+    var path: String
+    var bytes: Int
+    var packaged: Bool
+    var localOverride: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case name, path, bytes, packaged
+        case localOverride = "local_override"
+    }
+}
+
+struct AgentSkillContentDTO: Codable, Equatable, Sendable {
+    var name: String
+    var path: String
+    var content: String
+}
+
+struct AgentSkillWriteDTO: Codable, Equatable, Sendable {
+    var name: String
+    var path: String
+    var updated: Bool
+}
+
+struct AgentSkillResetDTO: Codable, Equatable, Sendable {
+    var resetPaths: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case resetPaths = "reset_paths"
+    }
+}
+
+struct AgentClipboardPromptDTO: Codable, Equatable, Sendable {
+    var text: String
+    var skillsRootPath: String
+    var recordsRootPath: String
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case skillsRootPath = "skills_root_path"
+        case recordsRootPath = "records_root_path"
     }
 }

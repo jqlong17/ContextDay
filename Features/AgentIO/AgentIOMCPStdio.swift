@@ -163,6 +163,45 @@ enum AgentIOMCPStdio {
                     ],
                 ],
             ],
+            [
+                "name": "list_agent_skills",
+                "description": "List agent-skill markdown files under Application Support (seeded from Bundle).",
+                "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+            ],
+            [
+                "name": "get_agent_skill",
+                "description": "Read one agent-skill file from Application Support.",
+                "inputSchema": [
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": ["name": ["type": "string"]],
+                ],
+            ],
+            [
+                "name": "update_agent_skill",
+                "description": "Overwrite one skill markdown under Application Support (never Bundle).",
+                "inputSchema": [
+                    "type": "object",
+                    "required": ["name", "content"],
+                    "properties": [
+                        "name": ["type": "string"],
+                        "content": ["type": "string"],
+                    ],
+                ],
+            ],
+            [
+                "name": "reset_agent_skill",
+                "description": "Reset one or all packaged skills from Bundle into Application Support.",
+                "inputSchema": [
+                    "type": "object",
+                    "properties": ["name": ["type": "string"]],
+                ],
+            ],
+            [
+                "name": "get_clipboard_prompt",
+                "description": "Return the current clipboard prompt text (absolute App Support skill paths).",
+                "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+            ],
         ]
         return first
     }

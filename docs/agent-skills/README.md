@@ -1,23 +1,21 @@
-# ContextDay agent skills（脱敏模板）
+# ContextDay Agent Skills（脱敏模版）
 
-本目录是给 Grok Bot / MCP / 本地助手用的**只读技能模板**，与 Spec §2.8 剪贴板提示词、Agent IO HTTP（默认 `127.0.0.1:18787`）配合使用。
+给 Grok Bot 类助手用的**思路模版**，不含个人姓名、飞书文档 ID、客户名。
 
-| 文件 | 用途 |
+| 位置 | 用途 |
 |------|------|
-| [meeting-minutes.md](./meeting-minutes.md) | 从本机 Segment 时间线整理单场会议纪要 |
-| [daily-meeting-digest.md](./daily-meeting-digest.md) | 按自然日汇总多场会议要点 |
-| [feishu-minutes-lark-cli.md](./feishu-minutes-lark-cli.md) | 用飞书 / Lark CLI 投递或拉取纪要（**无个人 ID**） |
+| 本目录 `docs/agent-skills/` | Git SSOT（脱敏；随 PR 评审） |
+| Bundle `Resources/AgentSkills/` | 随 App 打包 |
+| `~/Library/Application Support/ContextDay/agent-skills/` | 运行时**可发现 / 可经 Agent IO 更新**的副本 |
 
-## 硬性约定
+产品「复制提示词」与 Agent IO 指向 **Application Support 绝对路径**（启动时按 Bundle `VERSION` 播种）。助手可用 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill`（见 `docs/agent-io-mcp.md`），**无需** git checkout。
 
-- **脱敏**：仓库内不得出现真实 Feishu/Lark `chat_id` / `open_id` / 个人邮箱 / 内部群名。用占位符（如 `{FEISHU_CHAT_ID}`），由使用者在本机私密配置中替换。
-- **只读数据**：转写权威在 ContextDay SQLite；不要删改用户 `db/` / `audio/`，除非用户在对话中明确要求并再次确认。
-- **Agent IO**：优先 `http://127.0.0.1:18787`（`/health` 须含 `"service":"ContextDay"`）。端口可能在 `18787–18797` 空闲扫描；以 Console READY 行为准。
-- **技能不是可执行代码**：助手阅读本 Markdown 后按步骤操作；CLI 命令需本机已安装并登录对应工具。
+| 模版 | 用途 |
+|------|------|
+| `meeting-minutes.md` | 从 Segment 时间线整理一场会议纪要 |
+| `feishu-minutes-lark-cli.md` | 用 lark-cli 写入飞书（占位符，不写死文档） |
+| `daily-meeting-digest.md` | 定时：每日晚扫整理会议；「与主人相关」标黄 todo；静默若无会 |
+| `meeting-notes-weekly-wiki.md` | 周会 Wiki：合集父页 + 按周子节点；发现会议、防重复、有更新才通知 |
 
-## 推荐调用顺序
-
-1. 确认 Agent IO：`curl -s http://127.0.0.1:18787/health`
-2. 取段：`POST /v1/tools/get_window` 或 `get_recent` / `search_segments`
-3. 按目标技能整理输出（纪要 / 日摘要）
-4. 若需同步飞书：再读 `feishu-minutes-lark-cli.md`，用**本机私密**占位符配置执行
+配置约定：个人/团队绑定信息放本机 `AppConfig` 或用户自建 `agent-skills.local.md`（**勿提交仓库**；seed / reset 不会覆盖它）。
+Routine 只保留「何时跑 + 调用哪个 skill」；结构与落盘规则写在对应 skill 文件里。

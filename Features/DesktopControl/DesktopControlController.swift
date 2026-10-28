@@ -208,6 +208,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         } catch {
             NSLog("ContextDay: ensure dirs before copy prompt failed: \(error)")
         }
+        _ = AgentSkillsStore.ensureSeededFromBundle()
         let prompt = AgentPromptTemplate.makePrompt(recordsRoot: AppPaths.recordsRoot)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(prompt, forType: .string)

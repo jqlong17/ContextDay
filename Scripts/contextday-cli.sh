@@ -9,7 +9,8 @@ case "$cmd" in
   health)
     curl -fsS "$BASE/health"; echo
     ;;
-  get_recent|search_segments|get_window|list_activity)
+  get_recent|search_segments|get_window|list_activity|\
+  list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt)
     body="${1:-{}}"
     curl -fsS -X POST "$BASE/v1/tools/$cmd" \
       -H 'Content-Type: application/json' \
@@ -22,17 +23,26 @@ MCP stdio (no GUI):
   /path/to/ContextDay.app/Contents/MacOS/ContextDay --mcp
 
 Wire as an MCP server in your client with command = that binary, args = ["--mcp"].
-Tools: search_segments, get_recent, get_window, list_activity (read-only).
+Segment tools (read-only): search_segments, get_recent, get_window, list_activity
+Skills tools (App Support): list_agent_skills, get_agent_skill, update_agent_skill,
+  reset_agent_skill, get_clipboard_prompt
 EOF
     ;;
   help|*)
     cat <<EOF
-Usage: $0 <health|get_recent|search_segments|get_window|list_activity|mcp-help> [json-body]
+Usage: $0 <command> [json-body]
+Commands:
+  health
+  get_recent | search_segments | get_window | list_activity
+  list_agent_skills | get_agent_skill | update_agent_skill | reset_agent_skill | get_clipboard_prompt
+  mcp-help
 Env: CONTEXTDAY_AGENTIO=$BASE
 Example:
   $0 health
   $0 get_recent '{"limit":5}'
-  $0 search_segments '{"query":"会议","track":"mic"}'
+  $0 list_agent_skills '{}'
+  $0 get_agent_skill '{"name":"meeting-minutes.md"}'
+  $0 update_agent_skill '{"name":"meeting-minutes.md","content":"# custom\\n"}'
 EOF
     ;;
 esac

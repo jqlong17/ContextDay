@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.3** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`；§2.8 提示词指向 `docs/agent-skills/` + Agent IO `:18787`；正式公证/上架 **待人提交** |
+| Spec 版本 | **v0.3.4** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`；§2.8 剪贴板指向 Application Support `agent-skills/` 绝对路径；Agent IO 可读写技能模版；正式公证/上架 **待人提交** |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 01:50 Asia/Shanghai |
+| 最后更新 | 2026-10-29 02:20 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -170,52 +170,60 @@ MVP 视觉约定：
 ### 2.8 剪贴板提示词（Agent IO 轻量路径）
 
 > **定稿建议已采纳进 Spec**：MVP 用「复制提示词」先于完整 MCP（Phase 4 仍计划）；避免「给 AI 用」只停留在远期接口。  
-> **v0.3.3**：提示词须同时指向仓库内 **`docs/agent-skills/`**（脱敏技能模板）与本机 Agent IO HTTP（默认 **`127.0.0.1:18787`**，`/health` 含 `"service":"ContextDay"`）。仓库**禁止**提交个人 Feishu/Lark chat_id / open_id。
+> **v0.3.4**：提示词须指向本机 **Application Support** 下技能模版的**绝对路径**（由 Bundle `Resources/AgentSkills/` 播种到 `~/Library/Application Support/ContextDay/agent-skills/`），以及本机 Agent IO HTTP（默认 **`127.0.0.1:18787`**，忙碌回退 `18788–18797`；`/health` 含 `"service":"ContextDay"`）。剪贴板正文**不得**依赖仓库相对路径或 Spec 章节号。仓库 `docs/agent-skills/` 仍是 Git SSOT；**禁止**提交个人 Feishu/Lark chat_id / open_id。
 
-实现须把下列中文模板复制到剪贴板（花括号处由运行时替换为**本机绝对路径**；字段摘要可随 Spec 小改但不得删掉「只读 / 勿删用户数据 / 转写在 SQLite / agent-skills / Agent IO」要点）：
+实现须把下列中文模板复制到剪贴板（花括号处由运行时替换为**本机绝对路径**；字段摘要可随 Spec 小改但不得删掉「勿删用户数据 / 转写在 SQLite / agent-skills 绝对路径 / Agent IO」要点）：
 
 ```text
-你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机数据，不要删除、移动或清空用户文件。
+你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机转写数据，不要删除、移动或清空用户录音/数据库，除非用户在对话中明确要求并再次确认。
 
 产品一句话：ContextDay 在 macOS 本机持续采集麦克风/可选系统声，经门控与 ASR 后把时间线写入 SQLite；转写权威在数据库，不另写每日 txt。
 
 数据根目录（记录文件夹）：
-{APPLICATION_SUPPORT_ROOT}
+{RECORDS_ROOT}
 
 权威数据库：
-{APPLICATION_SUPPORT_ROOT}/db/contextday.sqlite
+{RECORDS_ROOT}/db/contextday.sqlite
 
-可选留音（仅当用户开启 keep_audio；Opus）：
-{APPLICATION_SUPPORT_ROOT}/audio/YYYY-MM-DD/{mic|system}/<segment-uuid>.opus
+可选留音（仅当用户开启 keep_audio）：
+{RECORDS_ROOT}/audio/YYYY-MM-DD/{mic|system}/<segment-uuid>.opus
 
-Segment 字段摘要（详见产品 Spec §3.3）：
+Segment 字段摘要：
 id(UUID), track(mic|system), t0_ms/t1_ms(UTC epoch ms), tz_at_capture(IANA?),
 text(转写), gate_label(speech|music|other?), audio_path(相对根路径?),
 source_segment_ids, created_at_ms, merged_at_ms?, merge_gap_ms?,
 asr_model_id?, asr_model_version?
 
-本机 Agent IO（只读 HTTP，默认 18787；忙碌时可落在 18788–18797）：
-http://127.0.0.1:18787/health
-期望 JSON 含 "service":"ContextDay"。工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+本机 Agent IO（只读转写 + 可读写助手技能模版；仅 127.0.0.1）：
+http://127.0.0.1:{AGENT_IO_PORT}/health
+期望 JSON 含 "service":"ContextDay"。
+转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
 
-助手技能模板（ContextDay 仓库 docs/agent-skills/，脱敏、只读；无个人飞书 ID）：
+助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
 {AGENT_SKILLS_ROOT}/README.md
 {AGENT_SKILLS_ROOT}/meeting-minutes.md
 {AGENT_SKILLS_ROOT}/daily-meeting-digest.md
 {AGENT_SKILLS_ROOT}/feishu-minutes-lark-cli.md
+{AGENT_SKILLS_ROOT}/meeting-notes-weekly-wiki.md
 
-建议做法：先确认 /health 的 service=ContextDay；再用 Agent IO 或 sqlite3 只读按 t0_ms 检索 text；整理纪要遵循 docs/agent-skills/。不要假设存在每日转写 .txt。不要修改表结构或删除行，除非用户在对话中明确要求并再次确认。
+建议做法：先 curl /health 确认 service=ContextDay；用 Agent IO 取 Segment 或 Read 上述技能文件；整理纪要遵循技能模版。不要假设存在每日转写 .txt。飞书相关占位符仅用本机私密配置，勿把真实 chat_id 写入仓库或公开回复。
 ```
+
+其中 `{AGENT_SKILLS_ROOT}` = `~/Library/Application Support/ContextDay/agent-skills`（展开后的绝对路径）。
 
 ### 2.9 Agent IO 语义工具（首波定稿）
 
-> **v0.3.2**：在 §2.8 剪贴板轻量路径之上，定稿**只读语义工具**表面，供本机 MCP / 本地服务 / 测试直接调用。字段与 §3.3 Segment 对齐；**不改 schema**。
+> **v0.3.2**：在 §2.8 剪贴板轻量路径之上，定稿**只读语义工具**表面，供本机 MCP / 本地服务 / 测试直接调用。字段与 §3.3 Segment 对齐；**不改 schema**。  
+> **v0.3.4**：同层增加**助手技能**工具（读写 Application Support 副本；永不改 Bundle / Segment）。
 
 原则：
 
-- **只读**：不得删除、移动、清空用户数据；不得改表结构。
+- **Segment 只读**：不得删除、移动、清空用户录音/数据库；不得改表结构。
 - **权威在 SQLite**：返回转写文本来自 `Segment.text`，不假设每日 `.txt`。
+- **技能可写（App Support only）**：`update_agent_skill` / `reset_agent_skill` 只动 Application Support；助手**无需** git checkout。
 - **JSON 友好**：对外 DTO 使用 snake_case 字段名（见下）。
+- **沙盒友好**：HTTP 仅 `127.0.0.1`。
 
 #### 2.9.1 首波工具（必须实现 / stub 可查）
 
@@ -238,6 +246,18 @@ http://127.0.0.1:18787/health
 
 空库 / 无命中：**返回空数组**，不得崩溃。
 
+#### 2.9.1b 助手技能工具（v0.3.4）
+
+| 工具 | 参数 | 说明 |
+|------|------|------|
+| `list_agent_skills` | — | 列出 App Support `agent-skills/` 下 `.md` 与 `VERSION` |
+| `get_agent_skill` | `name` | 读单个技能文件 |
+| `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（packaged `.md` 或 `agent-skills.local.md`） |
+| `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged；**跳过** `agent-skills.local.md` |
+| `get_clipboard_prompt` | — | 返回当前 §2.8 剪贴板全文 |
+
+播种：启动时若缺文件或 Bundle `VERSION` 与 `.seeded-from-version` 不一致，从 Bundle 复制 packaged 文件；永不覆盖 `agent-skills.local.md`。
+
 #### 2.9.2 非首波（明确不可用）
 
 | 工具 | 状态 |
@@ -249,8 +269,8 @@ http://127.0.0.1:18787/health
 
 #### 2.9.3 承载
 
-- 源码：`Features/AgentIO/`（服务 API + JSON DTO；可选本地 MCP skeleton）。
-- MVP 仍保留 §2.8 剪贴板；完整 MCP 传输层可 Phase 4 再挂同一套工具名。
+- 源码：`Features/AgentIO/`（服务 API + JSON DTO；HTTP + MCP stdio）；`Features/Store/AgentSkillsStore.swift`；Bundle `Resources/AgentSkills/`。
+- MVP 仍保留 §2.8 剪贴板；样例见 `docs/agent-io-mcp.md`。
 
 
 ---
@@ -267,10 +287,10 @@ http://127.0.0.1:18787/health
 | `Features/Gate` | YAMNet-ONNX，~5s 窗，双轨独立标签，Music>Speech 偏置 |
 | `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
 | `Features/ASR` | SenseVoice Core ML int8（主力）；失败时明确降级策略（不默认偷开 ONNX） |
-| `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt |
+| `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt；`AgentSkillsStore`（Bundle→App Support） |
 | `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI（偏好见 §3.4） |
-| `Features/AgentIO` | §2.9 只读语义工具；HTTP + MCP stdio 传输；MVP 另见 §2.8 剪贴板 |
-| `Resources` | `DesktopOrb/`、`AppIcon/`（`AppIcon.appiconset`）等打包资源 |
+| `Features/AgentIO` | §2.9 Segment 只读 + 技能读写工具；HTTP + MCP stdio；MVP 另见 §2.8 剪贴板 |
+| `Resources` | `DesktopOrb/`、`AppIcon/`、`AgentSkills/`（打包技能模版）等 |
 
 源码树草图（实现期可微调文件名，**模块边界与资源路径保持一致**）：
 
@@ -283,20 +303,21 @@ ContextDay/
     Gate/
     VAD/
     ASR/
-    Store/                     # SQLite only；无每日 txt writer
+    Store/                     # SQLite + AgentSkillsStore；无每日 txt writer
     Config/
-    AgentIO/                   # §2.9 语义工具 + 协议类型；Phase 4 可挂 MCP
+    AgentIO/                   # §2.9 语义工具 + HTTP / MCP
   Resources/
     DesktopOrb/
       idle.png                 # 透明 1024；产品 + 桌面
       eye-click-2s.mp4         # ~2s 眼神微动；首帧=尾帧
     AppIcon/
       icon-1024.png            # 与 idle 同款 → Assets.xcassets/AppIcon.appiconset
+    AgentSkills/               # 打包技能模版 → Application Support
   docs/
     01_spec.md
-    agent-io-mcp.md            # HTTP / MCP / Grok 样例
+    agent-io-mcp.md            # HTTP / MCP / 技能工具 / Grok 样例
     store-review-notes.md      # 商店审核说明草稿
-    agent-skills/              # 脱敏助手技能模板（纪要 / 日摘要 / 飞书 CLI）
+    agent-skills/              # Git SSOT 脱敏技能模板（与 Bundle 同步）
   Tests/                       # ContextDayTests (XCTest)
   Scripts/
     fetch-models.sh
@@ -620,7 +641,7 @@ flowchart TB
 - 与既有 YamnetGate / AsrCompare 实验代码可参考，但 ContextDay 工程独立，避免绑听写 ONNX 生命周期。
 - 中文连续数字 Core ML 仍可能弱于 ONNX；生活日志可接受，需在已知问题中披露。
 - **已知限制**：Music>Speech 偏置可能导致「有 BGM 的说话」被标成 music 而不送 ASR；须在产品已知问题 / 设置说明中披露，不可静默。
-- Agent IO：§2.8 剪贴板 + HTTP `:8787` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
+- Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
@@ -636,6 +657,7 @@ flowchart TB
 | v0.3.1 | 2026-10-29 00:07 | 产品图标改为双眼 3D 拟物球：`Resources/DesktopOrb/idle.png` + `eye-click-2s.mp4`；App Icon 源=`Resources/AppIcon/icon-1024.png`（同 idle）；废弃 `DesktopButton/` raised/pressed；左键播眼神微动；MVP 录制态可与 idle 同视觉（二期可加录制线索）；窗口层级 / 右键 / SQLite / 剪贴板提示词 / Segment schema **不变** |
 | v0.3.2 | 2026-10-29 00:45 | 定稿 Agent IO 语义工具首波（§2.9）：`search_segments` / `get_recent` / `get_window` / `list_activity`；`summarize_window` / `export_audio` 标为非首波 unavailable；源码树增加 `Features/AgentIO`；右键菜单补 **开始录音 / 暂停录音**（与左键同一激活路径）及 **修改保存文件夹…**；**Segment schema 不变** |
 | v0.3.3 | 2026-10-29 01:50 | §2.8 提示词增加仓库 `docs/agent-skills/`（脱敏技能模板）与 Agent IO 默认 `:18787`（`service=ContextDay`）；禁止入库个人 Feishu ID；**Segment schema 不变** |
+| v0.3.4 | 2026-10-29 02:20 | 技能模版随 Bundle 播种到 Application Support；§2.8 剪贴板改用绝对路径（无仓库相对路径）；Agent IO / MCP 增加 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill` / `get_clipboard_prompt`；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
 
@@ -657,7 +679,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.3 | **已完成** | v0.3.3 = §2.8 agent-skills + Agent IO 端口；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.4 | **已完成** | v0.3.4 = App Support agent-skills + Agent IO 技能读写；schema 自 v0.2.0 未破改 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
@@ -665,7 +687,7 @@ flowchart TB
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
-| Agent IO | **已完成** | 剪贴板 + HTTP `18787–18797` + MCP `--mcp` |
+| Agent IO | **已完成** | 剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 list/get/update/reset |
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
