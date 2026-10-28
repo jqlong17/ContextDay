@@ -22,7 +22,7 @@
 3. 选中 target **ContextDay** → Signing & Capabilities 里选你的 Team（Automatic signing）。
 4. Run（⌘R）。期望：桌面底部附近出现透明背景的双眼球浮控（可被其它 App 窗口遮盖）。
 5. 左键：切换 `isRecording` 占位布尔，并播放一次 `eye-click-2s.mp4` 眼神微动。
-6. 右键：**打开记录文件夹**（默认 `~/Downloads/ContextDay/`）、**复制提示词**（Spec §2.8 模板 + 当前根路径绝对路径）、**修改保存文件夹…**（NSOpenPanel；UserDefaults `recordsRootPath`）。
+6. 右键：**开始录音** / **暂停录音**（与左键同一激活/停止路径）、**打开记录文件夹**（默认 `~/Downloads/ContextDay/`）、**复制提示词**（Spec §2.8 + 当前根路径）、**修改保存文件夹…**（`recordsRootPath`）。
 
 > 当前云端 / Linux CI **无法**真正编译或运行该 AppKit 工程；请在 Apple Silicon Mac + Xcode 上验证。
 

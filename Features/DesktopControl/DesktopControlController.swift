@@ -2,11 +2,11 @@ import AppKit
 
 /// Borderless transparent desktop orb window (Spec §2.7.2 / §2.7.3).
 /// Window level sits at/below normal apps so Safari etc. can cover it — not HUD / floating.
-final class DesktopControlController: NSObject {
+final class DesktopControlController: NSObject, NSMenuItemValidation {
     private var window: NSWindow?
     private var orbView: DesktopOrbView?
 
-    /// Phase 0 placeholder for activate ↔ stop capture. Wired to left-click; real Capture later.
+    /// Phase 0 placeholder for activate ↔ stop capture. Wired to left-click / 右键录音项.
     private(set) var isRecording = false
     private let capture = CapturePipeline()
 
@@ -39,7 +39,7 @@ final class DesktopControlController: NSObject {
 
         let orb = DesktopOrbView(frame: NSRect(origin: .zero, size: size))
         orb.onPrimaryClick = { [weak self] in
-            self?.handlePrimaryClick()
+            self?.toggleRecording(playEyeClick: true)
         }
         orb.onSecondaryClick = { [weak self] point in
             self?.showContextMenu(at: point)
@@ -51,29 +51,59 @@ final class DesktopControlController: NSObject {
         win.orderFrontRegardless()
     }
 
-    private func handlePrimaryClick() {
-        isRecording.toggle()
+    /// Same activate/stop path for left-click and 开始录音 / 暂停录音.
+    private func toggleRecording(playEyeClick: Bool) {
+        setRecording(!isRecording, playEyeClick: playEyeClick)
+    }
+
+    private func setRecording(_ recording: Bool, playEyeClick: Bool) {
+        guard recording != isRecording else { return }
+        isRecording = recording
         if isRecording {
             capture.start()
         } else {
             capture.stop()
         }
         NSLog("ContextDay: isRecording → \(isRecording) (Capture pipeline still stub)")
-        orbView?.playEyeClickOnce()
+        if playEyeClick {
+            orbView?.playEyeClickOnce()
+        }
     }
 
     private func showContextMenu(at point: NSPoint) {
         guard let orbView else { return }
 
         let menu = NSMenu()
+        menu.addItem(withTitle: "开始录音", action: #selector(startRecordingFromMenu), keyEquivalent: "")
+        menu.addItem(withTitle: "暂停录音", action: #selector(pauseRecordingFromMenu), keyEquivalent: "")
+        menu.addItem(.separator())
         menu.addItem(withTitle: "打开记录文件夹", action: #selector(openRecordsFolder), keyEquivalent: "")
         menu.addItem(withTitle: "复制提示词", action: #selector(copyAgentPrompt), keyEquivalent: "")
         menu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
-        for item in menu.items {
+        for item in menu.items where item.action != nil {
             item.target = self
         }
 
         menu.popUp(positioning: nil, at: point, in: orbView)
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(startRecordingFromMenu):
+            return !isRecording
+        case #selector(pauseRecordingFromMenu):
+            return isRecording
+        default:
+            return true
+        }
+    }
+
+    @objc private func startRecordingFromMenu() {
+        setRecording(true, playEyeClick: true)
+    }
+
+    @objc private func pauseRecordingFromMenu() {
+        setRecording(false, playEyeClick: true)
     }
 
     @objc private func openRecordsFolder() {

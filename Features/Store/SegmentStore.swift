@@ -50,6 +50,160 @@ final class SegmentStore: @unchecked Sendable {
         openDatabasePath = nil
     }
 
+    // MARK: - Read queries (Agent IO §2.9; empty DB → [])
+
+    /// Overlap with `[t0Ms, t1Ms]` when provided; optional track / LIKE query; newest-first.
+    func querySegments(
+        t0Ms: Int64?,
+        t1Ms: Int64?,
+        track: SegmentTrack?,
+        textQuery: String?,
+        limit: Int,
+        offset: Int
+    ) -> [Segment] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let db else { return [] }
+
+        var sql = """
+        SELECT id, track, t0_ms, t1_ms, tz_at_capture, text, gate_label,
+               audio_path, source_segment_ids, created_at_ms, merged_at_ms,
+               merge_gap_ms, asr_model_id, asr_model_version
+        FROM segment
+        WHERE 1=1
+        """
+        var args: [BindValue] = []
+        if let t0Ms {
+            sql += " AND t1_ms >= ?"
+            args.append(.int64(t0Ms))
+        }
+        if let t1Ms {
+            sql += " AND t0_ms <= ?"
+            args.append(.int64(t1Ms))
+        }
+        if let track {
+            sql += " AND track = ?"
+            args.append(.text(track.rawValue))
+        }
+        if let textQuery {
+            let trimmed = textQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                sql += " AND IFNULL(text, '') LIKE ?"
+                args.append(.text("%\(trimmed)%"))
+            }
+        }
+        sql += " ORDER BY t0_ms DESC LIMIT ? OFFSET ?"
+        args.append(.int64(Int64(max(0, limit))))
+        args.append(.int64(Int64(max(0, offset))))
+
+        return Self.runSelect(db: db, sql: sql, args: args)
+    }
+
+    func queryRecent(limit: Int, track: SegmentTrack?) -> [Segment] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let db else { return [] }
+
+        var sql = """
+        SELECT id, track, t0_ms, t1_ms, tz_at_capture, text, gate_label,
+               audio_path, source_segment_ids, created_at_ms, merged_at_ms,
+               merge_gap_ms, asr_model_id, asr_model_version
+        FROM segment
+        WHERE 1=1
+        """
+        var args: [BindValue] = []
+        if let track {
+            sql += " AND track = ?"
+            args.append(.text(track.rawValue))
+        }
+        sql += " ORDER BY t0_ms DESC LIMIT ?"
+        args.append(.int64(Int64(max(0, limit))))
+        return Self.runSelect(db: db, sql: sql, args: args)
+    }
+
+    private enum BindValue {
+        case text(String)
+        case int64(Int64)
+    }
+
+    /// SQLITE_TRANSIENT — copy bind text; string lifetime is not guaranteed after bind returns.
+    private static let sqliteTransient = unsafeBitCast(
+        -1,
+        to: sqlite3_destructor_type.self
+    )
+
+    private static func runSelect(db: OpaquePointer, sql: String, args: [BindValue]) -> [Segment] {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            NSLog("ContextDay SegmentStore: prepare failed: \(String(cString: sqlite3_errmsg(db)))")
+            return []
+        }
+        defer { sqlite3_finalize(statement) }
+
+        for (i, arg) in args.enumerated() {
+            let idx = Int32(i + 1)
+            switch arg {
+            case .text(let s):
+                sqlite3_bind_text(statement, idx, s, -1, sqliteTransient)
+            case .int64(let v):
+                sqlite3_bind_int64(statement, idx, v)
+            }
+        }
+
+        var rows: [Segment] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let segment = mapRow(statement) {
+                rows.append(segment)
+            }
+        }
+        return rows
+    }
+
+    private static func mapRow(_ statement: OpaquePointer) -> Segment? {
+        func text(_ col: Int32) -> String? {
+            guard let c = sqlite3_column_text(statement, col) else { return nil }
+            return String(cString: c)
+        }
+        func int64(_ col: Int32) -> Int64 { sqlite3_column_int64(statement, col) }
+        func intOpt(_ col: Int32) -> Int? {
+            sqlite3_column_type(statement, col) == SQLITE_NULL ? nil : Int(sqlite3_column_int64(statement, col))
+        }
+        func int64Opt(_ col: Int32) -> Int64? {
+            sqlite3_column_type(statement, col) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, col)
+        }
+
+        guard let idText = text(0), let id = UUID(uuidString: idText),
+              let trackRaw = text(1), let track = SegmentTrack(rawValue: trackRaw) else {
+            return nil
+        }
+        let gate: GateLabel? = text(6).flatMap { GateLabel(rawValue: $0) }
+        let sourceIds: [UUID]
+        if let raw = text(8),
+           let data = raw.data(using: .utf8),
+           let arr = try? JSONDecoder().decode([String].self, from: data) {
+            sourceIds = arr.compactMap { UUID(uuidString: $0) }
+        } else {
+            sourceIds = []
+        }
+
+        return Segment(
+            id: id,
+            track: track,
+            t0Ms: int64(2),
+            t1Ms: int64(3),
+            tzAtCapture: text(4),
+            text: text(5),
+            gateLabel: gate,
+            audioPath: text(7),
+            sourceSegmentIds: sourceIds,
+            createdAtMs: int64(9),
+            mergedAtMs: int64Opt(10),
+            mergeGapMs: intOpt(11),
+            asrModelId: text(12),
+            asrModelVersion: text(13)
+        )
+    }
+
     private func createSchemaIfNeeded() throws {
         let sql = """
         CREATE TABLE IF NOT EXISTS segment (

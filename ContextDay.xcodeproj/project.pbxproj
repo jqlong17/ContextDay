@@ -26,6 +26,10 @@
 		29B7ED2FF52F4364BB76AEF4 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6E410AE7E6AB41809AAB897D /* AVFoundation.framework */; };
 		CC25282C8CF84FCEB18654C2 /* AVKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D9707A53FEC44CBD839A4BC9 /* AVKit.framework */; };
 		D48BB24506014DEBB50BA355 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C284B4D946844848A62D6CCE /* libsqlite3.tbd */; };
+		4A8B8A9121A347CCBA82D239 /* AgentSegmentDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFAA310AFF9B497DBAD93271 /* AgentSegmentDTO.swift */; };
+		0F9025C722234D91B7029921 /* AgentIOError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A01F83146AF43D99FDE1F80 /* AgentIOError.swift */; };
+		D74B7368E31D49A0B7DB6AB7 /* AgentIOService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2F913402B041D1B47B83B5 /* AgentIOService.swift */; };
+		A1921AAAD1594F519111301E /* AgentIOProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +56,10 @@
 		6E410AE7E6AB41809AAB897D /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		D9707A53FEC44CBD839A4BC9 /* AVKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVKit.framework; path = System/Library/Frameworks/AVKit.framework; sourceTree = SDKROOT; };
 		C284B4D946844848A62D6CCE /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		BFAA310AFF9B497DBAD93271 /* AgentSegmentDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSegmentDTO.swift; sourceTree = "<group>"; };
+		3A01F83146AF43D99FDE1F80 /* AgentIOError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOError.swift; sourceTree = "<group>"; };
+		2B2F913402B041D1B47B83B5 /* AgentIOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOService.swift; sourceTree = "<group>"; };
+		F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOProtocol.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +77,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AAA38DAE3BA14AB19583E145 /* AgentIO */ = {
+			isa = PBXGroup;
+			children = (
+				BFAA310AFF9B497DBAD93271 /* AgentSegmentDTO.swift */,
+				3A01F83146AF43D99FDE1F80 /* AgentIOError.swift */,
+				2B2F913402B041D1B47B83B5 /* AgentIOService.swift */,
+				F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */,
+			);
+			path = AgentIO;
+			sourceTree = "<group>";
+		};
+
 		890A1D27C28D4ADBBA0C9B13 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -141,6 +161,7 @@
 		CF726A925FA946A59D665F5E /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				AAA38DAE3BA14AB19583E145 /* AgentIO */,
 				83F6205C836546B6AE69E137 /* DesktopControl */,
 				09E05BC9B76547388BD2558A /* Capture */,
 				2ABA446001844151AD76858B /* Gate */,
@@ -254,6 +275,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4A8B8A9121A347CCBA82D239 /* AgentSegmentDTO.swift in Sources */,
+				0F9025C722234D91B7029921 /* AgentIOError.swift in Sources */,
+				D74B7368E31D49A0B7DB6AB7 /* AgentIOService.swift in Sources */,
+				A1921AAAD1594F519111301E /* AgentIOProtocol.swift in Sources */,
 				D8A14DDB3FCC49818DFB886D /* ContextDayApp.swift in Sources */,
 				2E22C58D34EB4C7F86A7C2EF /* AppDelegate.swift in Sources */,
 				B55CBF16D61A43CCBFC8BB85 /* DesktopControlController.swift in Sources */,
