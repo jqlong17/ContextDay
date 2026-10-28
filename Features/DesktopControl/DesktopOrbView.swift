@@ -216,9 +216,8 @@ final class DesktopOrbView: NSView {
         addSubview(playerView)
     }
 
-    /// Plays rematted `eye-click-2s.mov` (ProRes 4444 / yuva) once, then settles by
-    /// holding the last AV frame (clip first≈last). Legacy greenscreen `.mp4` is never
-    /// overlaid — holding its last frame is the #00FF00 square regression after `7f1a2e7`.
+    /// Plays rematted `eye-click-2s.mov` (ProRes 4444 / yuva) once, then settles to
+    /// keyed `idle.png` (player torn down). Legacy greenscreen `.mp4` is never used.
     func playEyeClickOnce() {
         guard let url = Self.eyeClickURL() else {
             NSLog("ContextDay: eye-click-2s.mov not found in bundle (alpha rematte required)")
@@ -263,20 +262,19 @@ final class DesktopOrbView: NSView {
     }
 
     private func settleToIdle() {
-        // Hold the last AVPlayer frame (clip first≈last) so settle color-matches the
-        // eye-click end instead of snapping to keyed idle (flicker / plate mismatch).
-        // Safe with alpha rematte (.mov). #3 tore the player down to dodge greenscreen mp4;
-        // with ProRes yuva we restore last-frame settle and never composite that mp4.
+        // Tear down AVPlayer and show keyed idle.png. Holding the rematted last frame
+        // still left ~1% green fringe (soft rematte leftovers) in screenshot QA; idle
+        // stays under the player during play, so hide+teardown snaps cleanly (greenish=0).
         idleLayer.isHidden = false
-        playerView.isHidden = false
         player?.pause()
-        if let item = player?.currentItem {
-            let end = item.duration
-            if end.isNumeric, end.isValid, !end.isIndefinite, end.seconds > 0 {
-                player?.seek(to: end, toleranceBefore: .zero, toleranceAfter: .zero)
-            }
+        playerLayer?.removeFromSuperlayer()
+        playerLayer = nil
+        player = nil
+        playerView.isHidden = true
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
         }
-        // Keep player + layer alive paused on the end frame until the next playEyeClickOnce.
     }
 
     private static func eyeClickURL() -> URL? {
