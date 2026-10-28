@@ -23,7 +23,7 @@ enum AgentIOMCPStdio {
     private static func readMessage(from handle: FileHandle) -> [String: Any]? {
         var header = Data()
         while true {
-            guard let b = handle.read(upToCount: 1), !b.isEmpty else { return nil }
+            guard let b = try? handle.read(upToCount: 1), !b.isEmpty else { return nil }
             header.append(b)
             if header.count >= 4, header.suffix(4) == Data([13, 10, 13, 10]) { // \r\n\r\n
                 break
@@ -42,13 +42,13 @@ enum AgentIOMCPStdio {
                 length = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
             }
         }
-        guard length > 0, let body = handle.read(upToCount: length), body.count == length else { return nil }
+        guard length > 0, let body = try? handle.read(upToCount: length), body.count == length else { return nil }
         return (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
     }
 
     private static func writeMessage(_ object: [String: Any], to handle: FileHandle) {
         guard let body = try? JSONSerialization.data(withJSONObject: object) else { return }
-        var header = "Content-Length: \(body.count)\r\n\r\n"
+        let header = "Content-Length: \(body.count)\r\n\r\n"
         if let data = header.data(using: .utf8) {
             handle.write(data)
         }
