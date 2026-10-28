@@ -183,12 +183,12 @@ final class AgentIOHTTPServer {
             let bound = port
             let listening = isListening
             stateLock.unlock()
+            // Smoke must see service=ContextDay (not another local app on a reused port).
             return httpJSON(200, [
                 "ok": listening,
-                "app": "ContextDay",
-                "service": "ContextDay-AgentIO",
-                "port": bound,
-                "listening": listening
+                "service": "ContextDay",
+                "port": Int(bound),
+                "listening": listening,
             ])
         }
 

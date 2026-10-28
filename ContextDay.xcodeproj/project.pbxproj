@@ -53,6 +53,7 @@
 		B11C95D10000000000000003 /* AgentIOMCPStdio.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11C95D10000000000000003 /* AgentIOMCPStdio.swift */; };
 		B11AB0070000000000000004 /* AboutPrivacyWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */; };
 		B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11FE57E0000000000000005 /* RetentionDiskTests.swift */; };
+		B11A6E070000000000000001 /* AgentIOPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A6E070000000000000001 /* AgentIOPort.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -117,6 +118,7 @@
 		A11C95D10000000000000003 /* AgentIOMCPStdio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOMCPStdio.swift; sourceTree = "<group>"; };
 		A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutPrivacyWindowController.swift; sourceTree = "<group>"; };
 		A11FE57E0000000000000005 /* RetentionDiskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionDiskTests.swift; sourceTree = "<group>"; };
+		A11A6E070000000000000001 /* AgentIOPort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOPort.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,6 +155,7 @@
 				2B2F913402B041D1B47B83B5 /* AgentIOService.swift */,
 				F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */,
 				8D7B7D29CAA64B74B54389A6 /* AgentIOHTTPServer.swift */,
+				A11A6E070000000000000001 /* AgentIOPort.swift */,
 				A11C95D10000000000000003 /* AgentIOMCPStdio.swift */,
 			);
 			path = AgentIO;
@@ -411,6 +414,7 @@
 				D74B7368E31D49A0B7DB6AB7 /* AgentIOService.swift in Sources */,
 				A1921AAAD1594F519111301E /* AgentIOProtocol.swift in Sources */,
 				9BF73502A13E4970920DB393 /* AgentIOHTTPServer.swift in Sources */,
+				B11A6E070000000000000001 /* AgentIOPort.swift in Sources */,
 				D8A14DDB3FCC49818DFB886D /* ContextDayApp.swift in Sources */,
 				2E22C58D34EB4C7F86A7C2EF /* AppDelegate.swift in Sources */,
 				B55CBF16D61A43CCBFC8BB85 /* DesktopControlController.swift in Sources */,

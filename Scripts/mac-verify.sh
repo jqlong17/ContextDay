@@ -44,9 +44,14 @@ cat <<'EOF'
 3. 右键 → 打开记录文件夹 → sqlite3 db/contextday.sqlite \
      "SELECT track, gate_label, substr(text,1,40) FROM segment ORDER BY t0_ms DESC LIMIT 5;"
 4. curl -s http://127.0.0.1:18787/health
+   Expect JSON containing: "service":"ContextDay"  (and bound "port")
+   If 18787 busy, App scans 18788–18797 — check Console for READY line.
+   Do NOT use :8787 (often another「生活日志」node service).
 5. curl -s -X POST http://127.0.0.1:18787/v1/tools/get_recent -H 'Content-Type: application/json' -d '{"limit":5}'
 6. Optional MCP: ~/Applications/ContextDay.app/Contents/MacOS/ContextDay --mcp
 7. 右键 → 关于与隐私… 核对路径与睡眠说明
 
+Port override: defaults write app.contextday agentIOHTTPPort <port>
+            or ContextDay --port <port>
 Models: ./Scripts/fetch-models.sh  (SenseVoice / YAMNet tests XCTSkip if absent)
 EOF

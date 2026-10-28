@@ -17,8 +17,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("ContextDay Disk: \(warning)")
         }
 
+        let preferredPort = AgentIOPort.preferred()
         DispatchQueue.global(qos: .utility).async {
-            AgentIOHTTPServer.shared.start()  // first free in 18787…18797, 127.0.0.1 only
+            // Prefer --port / UserDefaults / Info.plist; scan upward in 18787…18797 if busy.
+            AgentIOHTTPServer.shared.start(port: preferredPort)
+            let bound = AgentIOHTTPServer.shared.port
+            if AgentIOHTTPServer.shared.isListening {
+                NSLog(
+                    "ContextDay AgentIO HTTP READY 127.0.0.1:\(bound) service=ContextDay "
+                        + "(preferred \(preferredPort); override: --port N / defaults \(AgentIOPort.defaultsKey))"
+                )
+            } else {
+                NSLog(
+                    "ContextDay AgentIO HTTP NOT LISTENING — preferred \(preferredPort) and fallback range exhausted. "
+                        + "Try: defaults write app.contextday \(AgentIOPort.defaultsKey) <free-port>"
+                )
+            }
         }
 
         let controller = DesktopControlController()
