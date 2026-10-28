@@ -1,6 +1,6 @@
 import AppKit
 
-/// Application lifecycle. Phase 0: ensure data dirs, show DesktopControl orb.
+/// Application lifecycle: data dirs, DesktopControl orb, Agent IO HTTP (:8787).
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var desktopControl: DesktopControlController?
 
@@ -11,9 +11,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("ContextDay: failed to prepare Application Support: \(error)")
         }
 
+        AgentIOHTTPServer.shared.start(port: 8787)
+
         let controller = DesktopControlController()
         controller.show()
         desktopControl = controller
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AgentIOHTTPServer.shared.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

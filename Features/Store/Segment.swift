@@ -14,7 +14,6 @@ enum GateLabel: String, Codable, Sendable {
 }
 
 /// Timeline row — sole transcription authority lives in SQLite (Spec §3.3.3).
-/// Phase 0: model + schema stub only; no merge / ASR writes yet.
 struct Segment: Identifiable, Codable, Sendable {
     var id: UUID
     var track: SegmentTrack

@@ -5,13 +5,16 @@ import AppKit
 final class DesktopControlController: NSObject, NSMenuItemValidation {
     private var window: NSWindow?
     private var orbView: DesktopOrbView?
+    private var configWindow: ConfigWindowController?
+    private var timelineWindow: TimelineWindowController?
 
     /// Phase 0 placeholder for activate ↔ stop capture. Wired to left-click / 右键录音项.
     private(set) var isRecording = false
     private let capture = CapturePipeline()
 
     func show() {
-        let size = NSSize(width: 96, height: 96)
+        let pt = OrbSizeStore.load()
+        let size = NSSize(width: pt, height: pt)
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         let origin = NSPoint(
             x: screen.midX - size.width / 2,
@@ -64,7 +67,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         } else {
             capture.stop()
         }
-        NSLog("ContextDay: isRecording → \(isRecording) (Capture pipeline still stub)")
+        NSLog("ContextDay: isRecording → \(isRecording)")
         if playEyeClick {
             orbView?.playEyeClickOnce()
         }
@@ -80,8 +83,28 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         menu.addItem(withTitle: "打开记录文件夹", action: #selector(openRecordsFolder), keyEquivalent: "")
         menu.addItem(withTitle: "复制提示词", action: #selector(copyAgentPrompt), keyEquivalent: "")
         menu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
-        for item in menu.items where item.action != nil {
+        menu.addItem(.separator())
+
+        let sizeMenu = NSMenu(title: "调整大小")
+        for pt in OrbSizeStore.allowed {
+            let title = "\(Int(pt)) pt" + (pt == OrbSizeStore.default ? "（默认）" : "")
+            let item = NSMenuItem(title: title, action: #selector(changeOrbSize(_:)), keyEquivalent: "")
+            item.representedObject = Double(pt)
+            item.state = OrbSizeStore.load() == pt ? .on : .off
+            sizeMenu.addItem(item)
+        }
+        let sizeRoot = NSMenuItem(title: "调整大小", action: nil, keyEquivalent: "")
+        sizeRoot.submenu = sizeMenu
+        menu.addItem(sizeRoot)
+
+        menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: "")
+        menu.addItem(withTitle: "时间线…", action: #selector(openTimeline), keyEquivalent: "")
+
+        for item in menu.items {
             item.target = self
+            if let sub = item.submenu {
+                for child in sub.items { child.target = self }
+            }
         }
 
         menu.popUp(positioning: nil, at: point, in: orbView)
@@ -104,6 +127,43 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
 
     @objc private func pauseRecordingFromMenu() {
         setRecording(false, playEyeClick: true)
+    }
+
+    @objc private func changeOrbSize(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? Double else { return }
+        applyOrbSize(CGFloat(value))
+    }
+
+    private func applyOrbSize(_ pt: CGFloat) {
+        OrbSizeStore.save(pt)
+        guard let window else { return }
+        let size = NSSize(width: pt, height: pt)
+        var frame = window.frame
+        let center = NSPoint(x: frame.midX, y: frame.midY)
+        frame.size = size
+        frame.origin = NSPoint(x: center.x - size.width / 2, y: center.y - size.height / 2)
+        window.setFrame(frame, display: true)
+        orbView?.frame = NSRect(origin: .zero, size: size)
+        orbView?.needsLayout = true
+    }
+
+    @objc private func openSettings() {
+        if configWindow == nil {
+            configWindow = ConfigWindowController()
+        }
+        configWindow?.showWindow(nil)
+        configWindow?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func openTimeline() {
+        if timelineWindow == nil {
+            timelineWindow = TimelineWindowController()
+        }
+        timelineWindow?.reload()
+        timelineWindow?.showWindow(nil)
+        timelineWindow?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func openRecordsFolder() {

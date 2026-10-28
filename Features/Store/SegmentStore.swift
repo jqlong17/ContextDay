@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-/// SQLite timeline store (Spec §3.3 / §3.4). Phase 0: create empty DB + Segment schema.
+/// SQLite timeline store (Spec §3.3 / §3.4) with gap-aware merge inserts.
 final class SegmentStore: @unchecked Sendable {
     static let shared = SegmentStore()
 
@@ -19,18 +19,29 @@ final class SegmentStore: @unchecked Sendable {
     /// creates schema at `AppPaths.databaseFile` (follows `recordsRoot` changes).
     func prepareApplicationSupport() throws {
         try AppPaths.ensureDirectoryTree()
-        try reopenDatabaseAtCurrentRoot()
+        try openDatabase(at: AppPaths.databaseFile)
         try createSchemaIfNeeded()
     }
 
-    /// Close existing handle (if any), then open/create DB at the current records root.
-    private func reopenDatabaseAtCurrentRoot() throws {
+    /// Isolated store for XCTest — does not touch `.shared` or `AppPaths`.
+    static func openIsolated(databaseURL: URL) throws -> SegmentStore {
+        let store = SegmentStore()
+        try store.openDatabase(at: databaseURL)
+        try store.createSchemaIfNeeded()
+        return store
+    }
+
+    /// Close existing handle (if any), then open/create DB at `url`.
+    private func openDatabase(at url: URL) throws {
         lock.lock()
         defer { lock.unlock() }
 
         closeDatabaseUnlocked()
 
-        let path = AppPaths.databaseFile.path
+        let parent = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+
+        let path = url.path
         var handle: OpaquePointer?
         let flags = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
         guard sqlite3_open_v2(path, &handle, flags, nil) == SQLITE_OK, let handle else {
@@ -52,11 +63,61 @@ final class SegmentStore: @unchecked Sendable {
 
     // MARK: - Writes
 
-    func insertSegment(_ segment: Segment) throws {
+    /// Insert a segment, merging into the latest same-track row when gap ≤ `mergeGapMs` (Spec §3.3.4).
+    @discardableResult
+    func insertSegment(_ segment: Segment, mergeGapMs: Int = AppConfigStore.load().mergeGapMs) throws -> Segment {
         lock.lock()
         defer { lock.unlock() }
-        guard let db else { throw StoreError.notOpen }
+        guard db != nil else { throw StoreError.notOpen }
 
+        if let previous = latestSegmentUnlocked(track: segment.track),
+           let merged = SegmentMerger.mergedIfNeeded(
+            previous: previous, incoming: segment, mergeGapMs: mergeGapMs
+           ) {
+            try updateSegmentUnlocked(merged)
+            if let dropped = Self.orphanedAudioPath(previous: previous, incoming: segment, merged: merged) {
+                Self.scheduleDeleteAudio(relativePath: dropped)
+            }
+            return merged
+        }
+        try insertRowUnlocked(segment)
+        return segment
+    }
+
+    private func latestSegmentUnlocked(track: SegmentTrack) -> Segment? {
+        guard let db else { return nil }
+        let sql = """
+        SELECT id, track, t0_ms, t1_ms, tz_at_capture, text, gate_label,
+               audio_path, source_segment_ids, created_at_ms, merged_at_ms,
+               merge_gap_ms, asr_model_id, asr_model_version
+        FROM segment WHERE track = ? ORDER BY t0_ms DESC LIMIT 1;
+        """
+        return Self.runSelect(db: db, sql: sql, args: [.text(track.rawValue)]).first
+    }
+
+    private func updateSegmentUnlocked(_ segment: Segment) throws {
+        guard let db else { throw StoreError.notOpen }
+        let sql = """
+        UPDATE segment SET
+            t0_ms = ?, t1_ms = ?, tz_at_capture = ?, text = ?, gate_label = ?,
+            audio_path = ?, source_segment_ids = ?, merged_at_ms = ?, merge_gap_ms = ?,
+            asr_model_id = ?, asr_model_version = ?
+        WHERE id = ?;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(statement) }
+        let sourceJSON = Self.encodeSourceIds(segment.sourceSegmentIds)
+        Self.bindSegmentUpdate(statement, segment: segment, sourceJSON: sourceJSON)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    private func insertRowUnlocked(_ segment: Segment) throws {
+        guard let db else { throw StoreError.notOpen }
         let sql = """
         INSERT INTO segment (
             id, track, t0_ms, t1_ms, tz_at_capture, text, gate_label, audio_path,
@@ -69,41 +130,72 @@ final class SegmentStore: @unchecked Sendable {
             throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
         }
         defer { sqlite3_finalize(statement) }
-
-        let sourceJSON: String
-        if let data = try? JSONEncoder().encode(segment.sourceSegmentIds.map { $0.uuidString.lowercased() }),
-           let s = String(data: data, encoding: .utf8) {
-            sourceJSON = s
-        } else {
-            sourceJSON = "[]"
+        let sourceJSON = Self.encodeSourceIds(segment.sourceSegmentIds)
+        Self.bindSegmentInsert(statement, segment: segment, sourceJSON: sourceJSON)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
         }
+    }
 
+    private static func encodeSourceIds(_ ids: [UUID]) -> String {
+        let arr = ids.map { $0.uuidString.lowercased() }
+        if let data = try? JSONEncoder().encode(arr), let s = String(data: data, encoding: .utf8) {
+            return s
+        }
+        return "[]"
+    }
+
+    private static func orphanedAudioPath(previous: Segment, incoming: Segment, merged: Segment) -> String? {
+        guard let kept = merged.audioPath else { return nil }
+        let candidates = [previous.audioPath, incoming.audioPath].compactMap { $0 }
+        return candidates.first { $0 != kept }
+    }
+
+    private static func scheduleDeleteAudio(relativePath: String) {
+        let url = AppPaths.recordsRoot.appendingPathComponent(relativePath)
+        DispatchQueue.global(qos: .utility).async {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private static func bindSegmentInsert(_ statement: OpaquePointer, segment: Segment, sourceJSON: String) {
         func bindText(_ idx: Int32, _ value: String?) {
-            if let value {
-                sqlite3_bind_text(statement, idx, value, -1, Self.sqliteTransient)
-            } else {
-                sqlite3_bind_null(statement, idx)
-            }
+            if let value { sqlite3_bind_text(statement, idx, value, -1, sqliteTransient) }
+            else { sqlite3_bind_null(statement, idx) }
         }
-
-        sqlite3_bind_text(statement, 1, segment.id.uuidString.lowercased(), -1, Self.sqliteTransient)
-        sqlite3_bind_text(statement, 2, segment.track.rawValue, -1, Self.sqliteTransient)
+        sqlite3_bind_text(statement, 1, segment.id.uuidString.lowercased(), -1, sqliteTransient)
+        sqlite3_bind_text(statement, 2, segment.track.rawValue, -1, sqliteTransient)
         sqlite3_bind_int64(statement, 3, segment.t0Ms)
         sqlite3_bind_int64(statement, 4, segment.t1Ms)
         bindText(5, segment.tzAtCapture)
         bindText(6, segment.text)
         bindText(7, segment.gateLabel?.rawValue)
         bindText(8, segment.audioPath)
-        sqlite3_bind_text(statement, 9, sourceJSON, -1, Self.sqliteTransient)
+        sqlite3_bind_text(statement, 9, sourceJSON, -1, sqliteTransient)
         sqlite3_bind_int64(statement, 10, segment.createdAtMs)
         if let v = segment.mergedAtMs { sqlite3_bind_int64(statement, 11, v) } else { sqlite3_bind_null(statement, 11) }
         if let v = segment.mergeGapMs { sqlite3_bind_int64(statement, 12, Int64(v)) } else { sqlite3_bind_null(statement, 12) }
         bindText(13, segment.asrModelId)
         bindText(14, segment.asrModelVersion)
+    }
 
-        guard sqlite3_step(statement) == SQLITE_DONE else {
-            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+    private static func bindSegmentUpdate(_ statement: OpaquePointer, segment: Segment, sourceJSON: String) {
+        func bindText(_ idx: Int32, _ value: String?) {
+            if let value { sqlite3_bind_text(statement, idx, value, -1, sqliteTransient) }
+            else { sqlite3_bind_null(statement, idx) }
         }
+        sqlite3_bind_int64(statement, 1, segment.t0Ms)
+        sqlite3_bind_int64(statement, 2, segment.t1Ms)
+        bindText(3, segment.tzAtCapture)
+        bindText(4, segment.text)
+        bindText(5, segment.gateLabel?.rawValue)
+        bindText(6, segment.audioPath)
+        sqlite3_bind_text(statement, 7, sourceJSON, -1, sqliteTransient)
+        if let v = segment.mergedAtMs { sqlite3_bind_int64(statement, 8, v) } else { sqlite3_bind_null(statement, 8) }
+        if let v = segment.mergeGapMs { sqlite3_bind_int64(statement, 9, Int64(v)) } else { sqlite3_bind_null(statement, 9) }
+        bindText(10, segment.asrModelId)
+        bindText(11, segment.asrModelVersion)
+        sqlite3_bind_text(statement, 12, segment.id.uuidString.lowercased(), -1, sqliteTransient)
     }
 
     // MARK: - Read queries (Agent IO §2.9; empty DB → [])

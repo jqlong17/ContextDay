@@ -28,6 +28,7 @@ let package = Package(
                 "docs",
                 "Scripts",
                 "scripts",
+                "Tests",
                 "ContextDay.xcodeproj",
                 "README.md",
                 "Info.plist",

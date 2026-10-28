@@ -5,9 +5,9 @@
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
 | Spec 版本 | **v0.3.2** |
-| 状态 | `schema_drafted` + UI shell drafted + Agent IO 语义工具首波定稿（§2.9）；工程骨架 / DesktopControl bring-up 进行中 |
+| 状态 | Phase 0–2 / Phase 4 轻量路径落地中：DesktopControl + 双轨采集 + SenseVoice/YAMNet + Agent IO HTTP + XCTest |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 00:45 Asia/Shanghai |
+| 最后更新 | 2026-10-29 01:10 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -162,6 +162,9 @@ MVP 视觉约定：
 | **打开记录文件夹** | `NSWorkspace` 在 Finder 中打开**当前记录根**（默认 `~/Downloads/ContextDay/`，或用户「修改保存文件夹」所选；可见 `db/` 与 `audio/`；**不**打开虚构的「每日 txt 目录」） |
 | **复制提示词** | 将 §2.8 定稿模板（运行时填入**当前记录根**绝对路径）写入系统剪贴板（general pasteboard） |
 | **修改保存文件夹…** | `NSOpenPanel` 选择目录，写入 UserDefaults `recordsRootPath`；Store 按新根重开 DB |
+| **调整大小** | 子菜单：48 / 64 / 80 / 96 / 128 pt；默认 **64**；持久化 UserDefaults `orbSizePt` |
+| **设置…** | 打开配置窗：门控、留音/Opus、保留天数、系统声 |
+| **时间线…** | 打开只读时间线（读自 SQLite） |
 
 ### 2.8 剪贴板提示词（Agent IO 轻量路径）
 
@@ -511,25 +514,27 @@ flowchart TB
 - [x] 数据目录与 schema 定稿（v0.2.0）
 - [x] 桌面浮控 / 右键与剪贴板提示词写入 Spec（v0.3.0）
 - [x] 双眼 3D 球定稿：`DesktopOrb/idle.png`、`eye-click-2s.mp4`、`AppIcon/icon-1024.png`；Spec → v0.3.1
-- [ ] Asset Catalog：`DesktopOrbIdle` + 打包 `eye-click-2s.mp4`；可选清理废弃 `DesktopButton/`
-- [ ] App Icon 自 `icon-1024.png` 导出 `AppIcon.appiconset` 各尺寸
-- [ ] Xcode / SPM 工程骨架、bundle id、权限 plist 草案
+- [x] 打包 `DesktopOrb/`（idle + eye-click）；idle 走 Bundle PNG + 运行时 chroma-key（不依赖 Assets `DesktopOrbIdle`）
+- [x] App Icon：`AppIcon.appiconset` 自 `icon-1024.png` 导出各尺寸（炭灰不透明底）
+- [x] Xcode / SPM 工程骨架、bundle id `app.contextday`、权限 plist / entitlements
 - [x] Spec v0.3.2 §2.9 Agent IO 语义工具首波定稿
+- [ ] 可选：清理废弃 `DesktopButton/` 目录残留（若仍存在）
 
 ### Phase 1 — 采集 + 门控 + 桌面壳 MVP
 
-- [ ] 双轨采集 + 环缓冲
-- [ ] YAMNet 5s 双轨标签 + Music 优先
-- [ ] DesktopControl：底层窗口、orb idle + 左键播 eye-click、激活/停止、权限引导
-- [ ] 右键：打开 Application Support 根；复制 §2.8 提示词
-- [ ] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
+- [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
+- [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
+- [x] DesktopControl：`.normal` 窗口、orb idle + 左键播 eye-click（末帧 settle）、激活/停止、麦权限引导
+- [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小；设置/时间线
+- [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
 
 ### Phase 2 — ASR + 时间线
 
-- [ ] SenseVoice Core ML int8 接入
-- [ ] VAD 3–30s + 落库合并（多段音频保留最早文件）
-- [ ] 时间线 UI（时间点 + 文本；读自 SQLite）
-- [ ] 配置：门控开关、留音、Opus 质量、预估占用、仅人声约束、`retention_days`（建议默认 30）
+- [x] SenseVoice Core ML int8 接入（失败明确报错；禁止静默 ONNX ASR）
+- [x] VAD 3–30s + 落库合并（多段音频保留最早文件；XCTest 覆盖）
+- [x] 时间线 UI（时间点 + 文本；读自 SQLite）
+- [x] 配置：门控开关、留音、Opus 质量、预估占用、`retention_days`（默认 30）、系统声开关
+- [ ] 配置「仅人声 / 全部」约束的完整 UI 禁用态（逻辑已在 `AppConfig.normalize`）
 
 ### Phase 3 — 稳固与商店向
 
@@ -540,9 +545,11 @@ flowchart TB
 
 ### Phase 4 — Agent 供数（完整接口）
 
-- [ ] 只读 MCP 或本地 HTTP/CLI（字段同 §3.3）
+- [x] 本地 HTTP JSON（`:8787`）挂 §2.9 四工具；剪贴板 MVP 仍可用
+- [ ] 正式 MCP SDK / CLI 包装（传输层；服务层已是 `AgentIOProtocol.dispatch`）
+- [x] 查询：按时间范围 / 关键词 / 轨（`search_segments` / `get_window` / `get_recent` / `list_activity`）
+- [x] XCTest：`ContextDayTests`（merge / Agent IO / YamNet bias / SenseVoice load-skip）
 - [ ] 与 Grok Bot 类产品对接样例（可衔接 §2.8 提示词路径）
-- [ ] 查询：按时间范围 / 关键词 / 轨
 
 ---
 
@@ -626,18 +633,20 @@ flowchart TB
 | Spec v0.3.0 | 已完成 | 桌面壳 + 剪贴板提示词 + 无 txt + 合并/保留/日界定稿建议入 Spec |
 | Spec v0.3.1 | **已完成** | 双眼 3D 球资源路径写入 Spec；废弃 DesktopButton；交互改为眼神微动 |
 | Spec v0.3.2 | **已完成** | §2.9 Agent IO 语义工具首波定稿；schema 未改 |
-| DesktopOrb / App Icon 资源入库 | **已完成（文件）** | `DesktopOrb/idle.png`、`eye-click-2s.mp4`、`AppIcon/icon-1024.png`；Asset Catalog / appiconset 导出仍待 |
-| 工程骨架 | 未开始 | Bundle ID 拟用 `app.contextday`（§3.4） |
-| DesktopControl 实现 | 未开始 | 层级 / orb 播片 / 菜单 / pasteboard |
-| 采集 / 门控 | 未开始 | 可复用 YamnetGate 经验 |
-| Core ML ASR | 未开始 | 可复用 AsrCompare 模型路径经验 |
-| 时间线 / 配置 UI | 未开始 | |
-| Agent IO（剪贴板 MVP） | Spec 已定 | 实现随 Phase 1 桌面壳 |
-| Agent IO（§2.9 语义工具） | Spec 已定；工程 stub | `Features/AgentIO` 首波四工具 + unavailable 桩 |
+| DesktopOrb / App Icon 资源入库 | **已完成** | idle.png + eye-click + `AppIcon.appiconset`；运行时 chroma-key idle |
+| 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；Bundle ID `app.contextday` |
+| DesktopControl 实现 | **已完成（MVP）** | `.normal` / orb / 末帧 settle / 菜单 / 64pt 默认 / 调整大小 |
+| 采集 / 门控 | **已完成（MVP）** | 双轨 + VAD + YAMNet Music>Speech；模型需 fetch |
+| Core ML ASR | **已完成（MVP）** | SenseVoice int8 only；缺模型明确失败 |
+| 时间线 / 配置 UI | **已完成（轻量）** | 右键「设置…」「时间线…」 |
+| 落库合并 / keep-audio | **已完成（MVP）** | gap≤2s 合并；keep-audio 写 CAF 树（Opus 编码器待替） |
+| Agent IO（剪贴板 MVP） | **已完成** | §2.8 模板 |
+| Agent IO（§2.9 语义工具） | **已完成** | 四工具真查 SQLite + HTTP `:8787` |
 | Agent IO（MCP 传输） | 未开始 | Phase 4 挂同一工具名；只读同 §3.3 |
+| XCTest | **已完成** | `ContextDayTests`；SenseVoice/YAMNet 模型缺失时 XCTSkip |
 | Mac App Store | 未开始 | |
 
-**当前总状态：`schema_drafted` + UI shell drafted + Agent IO §2.9 定稿（文档含语义工具首波；工程骨架 / DesktopControl / AgentIO stub 在 PR 推进）**
+**当前总状态：Phase 0–2 MVP + Phase 4 HTTP 轻量路径已落地；正式 MCP / Phase 3 商店向仍待；Mac 上 `Scripts/mac-verify.sh` + speak-smoke 验收**
 
 ---
 

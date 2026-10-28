@@ -228,13 +228,18 @@ final class DesktopOrbView: NSView {
     }
 
     private func settleToIdle() {
-        // Unhide idle first (already visible underneath), then tear down the movie layer.
+        // Prefer holding the last AVPlayer frame (clip first≈last) so settle color-matches
+        // the eye-click end instead of snapping to keyed idle (flicker / plate mismatch).
         idleLayer.isHidden = false
-        playerView.isHidden = true
+        playerView.isHidden = false
         player?.pause()
-        playerLayer?.removeFromSuperlayer()
-        playerLayer = nil
-        player = nil
+        if let item = player?.currentItem {
+            let end = item.duration
+            if end.isNumeric, end.isValid, !end.isIndefinite, end.seconds > 0 {
+                player?.seek(to: end, toleranceBefore: .zero, toleranceAfter: .zero)
+            }
+        }
+        // Keep player + layer alive paused on the end frame until the next playEyeClickOnce.
     }
 
     private static func eyeClickURL() -> URL? {
