@@ -13,7 +13,7 @@ ContextDay 是用户**显式激活**的本机 24h 语音上下文工具，服务
 | 麦克风 | 麦轨采集 → 门控 / ASR |
 | 屏幕录制（ScreenCaptureKit） | 可选系统声音轨 |
 | 文件（Downloads / 用户自选） | 记录根 `db/` + `audio/` |
-| 本机网络 server | 仅 `127.0.0.1:8787` Agent IO |
+| 本机网络 server | 仅 `127.0.0.1:18787–18797` Agent IO（loopback） |
 
 Usage 字符串见 `Info.plist`；关于页见 App 内「关于与隐私…」。
 

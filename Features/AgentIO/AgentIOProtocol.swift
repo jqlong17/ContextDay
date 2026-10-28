@@ -112,7 +112,7 @@ enum AgentIOProtocol {
 /*
  Phase 4 传输层（无第三方 MCP SDK）：
 
-   HTTP :8787  (AgentIOHTTPServer)     MCP stdio (--mcp → AgentIOMCPStdio)
+   HTTP :18787  (AgentIOHTTPServer; fallback 18787–18797)     MCP stdio (--mcp → AgentIOMCPStdio)
         │                                         │
         └────────────┬────────────────────────────┘
                      ▼

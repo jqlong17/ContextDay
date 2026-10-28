@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Thin HTTP CLI over Agent IO :8787 (and helpers). Same tools as MCP / §2.9.
+# Thin HTTP CLI over Agent IO :18787 (and helpers). Same tools as MCP / §2.9.
 set -euo pipefail
-BASE="${CONTEXTDAY_AGENTIO:-http://127.0.0.1:8787}"
+BASE="${CONTEXTDAY_AGENTIO:-http://127.0.0.1:18787}"
 cmd="${1:-help}"
 shift || true
 

@@ -4,10 +4,10 @@
 
 ## HTTP（App 运行中）
 
-默认仅绑定 `127.0.0.1:8787`。
+默认绑定 `127.0.0.1` 上首个空闲端口 `18787–18797`（隐私：不监听局域网）。
 
 ```bash
-curl -s http://127.0.0.1:8787/health
+curl -s http://127.0.0.1:18787/health
 ./Scripts/contextday-cli.sh get_recent '{"limit":5}'
 ./Scripts/contextday-cli.sh search_segments '{"query":"会议","track":"mic"}'
 ./Scripts/contextday-cli.sh get_window '{"t0_ms":0,"t1_ms":9999999999999}'

@@ -12,7 +12,7 @@
 | 部署 | macOS 14+ |
 | 工程 | `ContextDay.xcodeproj` |
 | 测试 | `ContextDayTests`（scheme `ContextDay`） |
-| Agent IO HTTP | `http://127.0.0.1:8787` |
+| Agent IO HTTP | `http://127.0.0.1:18787` (fallback 18787–18797) |
 | Agent IO MCP | `ContextDay --mcp`（stdio） |
 
 ```bash

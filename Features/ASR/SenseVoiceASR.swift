@@ -49,8 +49,9 @@ final class SenseVoiceASR {
             preprocessor = try MLModel(contentsOf: prepURL, configuration: prepConfig)
 
             let encConfig = MLModelConfiguration()
-            // int8/fp16 encoder is for ANE; Spec forbids silent ONNX fallback.
-            encConfig.computeUnits = .cpuAndNeuralEngine
+            // Prefer CPU: .cpuAndNeuralEngine can hang on ANE compile on some Macs.
+            // Still Core ML int8 (Spec forbids SenseVoice ONNX fallback).
+            encConfig.computeUnits = .cpuOnly
             encoder = try MLModel(contentsOf: encURL, configuration: encConfig)
 
             let data = try Data(contentsOf: vocabURL)

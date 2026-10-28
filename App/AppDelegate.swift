@@ -1,6 +1,6 @@
 import AppKit
 
-/// Application lifecycle: data dirs, retention, DesktopControl orb, Agent IO HTTP (:8787).
+/// Application lifecycle: data dirs, retention, DesktopControl orb, Agent IO HTTP (:18787–18797).
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var desktopControl: DesktopControlController?
     private var sleepObservers: [NSObjectProtocol] = []
@@ -17,13 +17,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("ContextDay Disk: \(warning)")
         }
 
-        AgentIOHTTPServer.shared.start(port: 8787)
+        DispatchQueue.global(qos: .utility).async {
+            AgentIOHTTPServer.shared.start()  // first free in 18787…18797, 127.0.0.1 only
+        }
 
         let controller = DesktopControlController()
         controller.show()
         desktopControl = controller
 
         registerSleepWakeObservers()
+
+        if let seconds = Self.smokeRecordSeconds() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                controller.smokeRecord(forSeconds: seconds)
+            }
+        }
+    }
+
+    private static func smokeRecordSeconds() -> TimeInterval? {
+        for arg in CommandLine.arguments {
+            if arg.hasPrefix("--smoke-record-seconds=") {
+                let raw = String(arg.dropFirst("--smoke-record-seconds=".count))
+                if let v = Double(raw), v > 0 { return v }
+            }
+        }
+        return nil
     }
 
     func applicationWillTerminate(_ notification: Notification) {

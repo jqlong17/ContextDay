@@ -550,7 +550,7 @@ flowchart TB
 
 ### Phase 4 — Agent 供数（完整接口）
 
-- [x] 本地 HTTP JSON（`127.0.0.1:8787`）挂 §2.9 四工具；剪贴板 MVP 仍可用
+- [x] 本地 HTTP JSON（`127.0.0.1:18787`（空闲回退 18787–18797））挂 §2.9 四工具；剪贴板 MVP 仍可用
 - [x] MCP stdio 传输（`ContextDay --mcp`，无第三方 SDK）+ `Scripts/contextday-cli.sh`
 - [x] 查询：按时间范围 / 关键词 / 轨（`search_segments` / `get_window` / `get_recent` / `list_activity`）
 - [x] XCTest：`ContextDayTests`（merge / Agent IO / YamNet bias / SenseVoice load-skip / retention）
@@ -646,7 +646,7 @@ flowchart TB
 | 时间线 / 配置 UI | **已完成（轻量）** | 右键「设置…」「时间线…」 |
 | 落库合并 / keep-audio | **已完成（MVP）** | gap≤2s 合并；keep-audio 写 CAF 树（Opus 编码器待替） |
 | Agent IO（剪贴板 MVP） | **已完成** | §2.8 模板 |
-| Agent IO（§2.9 语义工具） | **已完成** | 四工具真查 SQLite + HTTP `:8787` |
+| Agent IO（§2.9 语义工具） | **已完成** | 四工具真查 SQLite + HTTP `:18787`（空闲回退 18787–18797） |
 | Agent IO（MCP 传输） | **已完成（stdio）** | `AgentIOMCPStdio` + `--mcp`；无第三方 SDK；见 `docs/agent-io-mcp.md` |
 | 睡眠 / 磁盘 / 隐私 | **已完成（MVP）** | sleep 停采；retention + DiskSpaceGuard；关于与隐私窗 |
 | XCTest | **已完成** | `ContextDayTests`；SenseVoice/YAMNet 模型缺失时 XCTSkip |

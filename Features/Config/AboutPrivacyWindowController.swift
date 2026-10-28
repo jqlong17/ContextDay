@@ -85,7 +85,7 @@ final class AboutPrivacyWindowController: NSWindowController {
         • 正式 24h 无人值守仍需保持 Mac 唤醒或接电源 + 防止自动睡眠。
 
         Agent IO
-        • 剪贴板提示词（右键）与本机 HTTP 127.0.0.1:8787 / MCP stdio（--mcp）只读暴露同一 SQLite。
+        • 剪贴板提示词（右键）与本机 HTTP 127.0.0.1:18787（空闲回退 18787–18797） / MCP stdio（--mcp）只读暴露同一 SQLite。
         • 详见 docs/agent-io-mcp.md。
 
         ASR：SenseVoice Core ML int8（本机）。门控：YAMNet；Music 与 Speech 同高时 Music 优先（有 BGM 的说话可能被标成 music）。

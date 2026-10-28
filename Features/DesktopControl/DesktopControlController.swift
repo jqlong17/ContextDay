@@ -74,6 +74,16 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         }
     }
 
+    /// Debug/smoke: --smoke-record-seconds=N
+    func smokeRecord(forSeconds seconds: TimeInterval) {
+        NSLog("ContextDay: smokeRecord begin \(seconds)s")
+        setRecording(true, playEyeClick: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1.0, seconds)) { [weak self] in
+            NSLog("ContextDay: smokeRecord end")
+            self?.setRecording(false, playEyeClick: true)
+        }
+    }
+
     private func showContextMenu(at point: NSPoint) {
         guard let orbView else { return }
 

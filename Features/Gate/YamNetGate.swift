@@ -103,13 +103,24 @@ final class YamNetGate {
             elementType: .float,
             shape: inputShape
         )
-        let outputs = try session.run(
-            withInputs: ["waveform": input],
-            outputNames: Set(["scores"]),
-            runOptions: nil
-        )
-        guard let scoresValue = outputs["scores"] else {
-            throw GateError.inferenceFailed("missing 'scores' output — check yamnet.onnx export I/O names")
+        // Bundle yamnet.onnx exports class scores as output_0 [frames,521].
+        // (Some alternate exports use "scores"; try that only if output_0 missing.)
+        var outputs: [String: ORTValue]
+        do {
+            outputs = try session.run(
+                withInputs: ["waveform": input],
+                outputNames: Set(["output_0"]),
+                runOptions: nil
+            )
+        } catch {
+            outputs = try session.run(
+                withInputs: ["waveform": input],
+                outputNames: Set(["scores"]),
+                runOptions: nil
+            )
+        }
+        guard let scoresValue = outputs["output_0"] ?? outputs["scores"] else {
+            throw GateError.inferenceFailed("missing class-scores output (tried output_0 / scores)")
         }
         let scoresData = try scoresValue.tensorData() as Data
         let count = scoresData.count / MemoryLayout<Float>.size
