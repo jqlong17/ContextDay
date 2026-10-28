@@ -184,11 +184,17 @@ final class DesktopOrbView: NSView {
         addSubview(playerView)
     }
 
-    /// Plays `eye-click-2s.mp4` once, then settles back to idle (first≈last frame).
-    /// Note: mp4 still has greenscreen — rematte is a follow-up; idle path is keyed.
+    /// Plays rematted `eye-click-2s.mov` (alpha) once when present; greenscreen `.mp4`
+    /// is never overlaid (would leave a #00FF00 plate). Then settles back to keyed idle.
     func playEyeClickOnce() {
         guard let url = Self.eyeClickURL() else {
-            NSLog("ContextDay: eye-click-2s.mp4 not found in bundle")
+            NSLog("ContextDay: eye-click clip not found in bundle (want .mov with alpha)")
+            return
+        }
+        // Never composite the legacy greenscreen H.264 — it has no alpha and settle used
+        // to leave its last frame up (green square regression after 7f1a2e7).
+        if url.pathExtension.lowercased() == "mp4" {
+            NSLog("ContextDay: skip greenscreen eye-click mp4; package eye-click-2s.mov instead")
             return
         }
 
@@ -228,22 +234,23 @@ final class DesktopOrbView: NSView {
     }
 
     private func settleToIdle() {
-        // Prefer holding the last AVPlayer frame (clip first≈last) so settle color-matches
-        // the eye-click end instead of snapping to keyed idle (flicker / plate mismatch).
+        // Always tear down the movie and show keyed idle. Holding the last AVPlayer frame
+        // (7f1a2e7) left the greenscreen mp4 plate visible as a #00FF00 square.
         idleLayer.isHidden = false
-        playerView.isHidden = false
         player?.pause()
-        if let item = player?.currentItem {
-            let end = item.duration
-            if end.isNumeric, end.isValid, !end.isIndefinite, end.seconds > 0 {
-                player?.seek(to: end, toleranceBefore: .zero, toleranceAfter: .zero)
-            }
+        playerLayer?.removeFromSuperlayer()
+        playerLayer = nil
+        player = nil
+        playerView.isHidden = true
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
         }
-        // Keep player + layer alive paused on the end frame until the next playEyeClickOnce.
     }
 
     private static func eyeClickURL() -> URL? {
-        // Prefer rematted .mov when present; fall back to greenscreen .mp4.
+        // Prefer rematted ProRes-4444 .mov (yuva). Legacy greenscreen .mp4 is listed
+        // only so callers can detect it and refuse to composite (see playEyeClickOnce).
         let names = [("eye-click-2s", "mov"), ("eye-click-2s", "mp4")]
         for (name, ext) in names {
             if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "DesktopOrb") {
