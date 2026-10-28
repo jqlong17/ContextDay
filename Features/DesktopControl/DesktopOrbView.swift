@@ -12,6 +12,9 @@ final class DesktopOrbView: NSView {
     var onPrimaryClick: (() -> Void)?
     var onSecondaryClick: ((NSPoint) -> Void)?
 
+    /// Must be false so AppKit composites the clear/orb alpha instead of filling an opaque plate.
+    override var isOpaque: Bool { false }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -35,15 +38,19 @@ final class DesktopOrbView: NSView {
         idleImageView.imageScaling = .scaleProportionallyUpOrDown
         idleImageView.imageAlignment = .alignCenter
         idleImageView.wantsLayer = true
-        // Prefer Asset Catalog name; fall back to bundle PNG under DesktopOrb/.
-        if let named = NSImage(named: "DesktopOrbIdle") {
-            idleImageView.image = named
-        } else if let url = Bundle.main.url(forResource: "idle", withExtension: "png", subdirectory: "DesktopOrb"),
-                  let image = NSImage(contentsOf: url) {
+        idleImageView.layer?.backgroundColor = NSColor.clear.cgColor
+        // Do NOT use NSImage(named: "DesktopOrbIdle") — Assets.car can keep a stale
+        // greenscreen plate. Always load the keyed Bundle file under DesktopOrb/.
+        if let url = Bundle.main.url(forResource: "idle", withExtension: "png", subdirectory: "DesktopOrb"),
+           let image = NSImage(contentsOf: url) {
             idleImageView.image = image
         } else if let url = Bundle.main.url(forResource: "idle", withExtension: "png"),
                   let image = NSImage(contentsOf: url) {
+            // Flattened-copy fallback if folder reference packaging differs.
             idleImageView.image = image
+            NSLog("ContextDay: loaded idle.png without DesktopOrb/ subdirectory")
+        } else {
+            NSLog("ContextDay: idle.png not found in bundle (DesktopOrb/)")
         }
         idleImageView.frame = bounds
         idleImageView.autoresizingMask = [.width, .height]
