@@ -68,6 +68,7 @@ final class DesktopControlController: NSObject {
         let menu = NSMenu()
         menu.addItem(withTitle: "打开记录文件夹", action: #selector(openRecordsFolder), keyEquivalent: "")
         menu.addItem(withTitle: "复制提示词", action: #selector(copyAgentPrompt), keyEquivalent: "")
+        menu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
         for item in menu.items {
             item.target = self
         }
@@ -90,8 +91,37 @@ final class DesktopControlController: NSObject {
         } catch {
             NSLog("ContextDay: ensure dirs before copy prompt failed: \(error)")
         }
-        let prompt = AgentPromptTemplate.makePrompt()
+        let prompt = AgentPromptTemplate.makePrompt(recordsRoot: AppPaths.recordsRoot)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(prompt, forType: .string)
+    }
+
+    @objc private func changeRecordsFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = "选择"
+        panel.message = "选择 ContextDay 记录保存文件夹（将在其下创建 db/、audio/ 等）"
+        panel.directoryURL = AppPaths.recordsRoot
+
+        let completion: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            AppPaths.setRecordsRoot(url)
+            do {
+                try SegmentStore.shared.prepareApplicationSupport()
+                NSLog("ContextDay: records root → \(AppPaths.recordsRoot.path)")
+            } catch {
+                NSLog("ContextDay: prepare store after folder change failed: \(error)")
+            }
+            _ = self
+        }
+
+        if let window {
+            panel.beginSheetModal(for: window, completionHandler: completion)
+        } else {
+            completion(panel.runModal())
+        }
     }
 }

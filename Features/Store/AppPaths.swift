@@ -1,18 +1,40 @@
 import Foundation
 
-/// Absolute paths under Application Support for Bundle ID `app.contextday` (Spec §3.4).
+/// Configurable on-disk records root (Phase 0 bring-up default: `~/Downloads/ContextDay`).
+/// Spec §3.4 still documents Application Support; runtime root is user-selectable.
 enum AppPaths {
     static let bundleIdentifier = "app.contextday"
+    static let recordsRootPathKey = "recordsRootPath"
 
-    /// `~/Library/Application Support/app.contextday/`
-    static var applicationSupportRoot: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent(bundleIdentifier, isDirectory: true)
+    private static var defaults: UserDefaults {
+        UserDefaults(suiteName: bundleIdentifier) ?? .standard
     }
 
+    /// Default records root when no preference is set: `~/Downloads/ContextDay`.
+    static var defaultRecordsRoot: URL {
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
+        return downloads.appendingPathComponent("ContextDay", isDirectory: true)
+    }
+
+    /// Current records root (UserDefaults `recordsRootPath`, else `defaultRecordsRoot`).
+    static var recordsRoot: URL {
+        if let path = defaults.string(forKey: recordsRootPathKey), !path.isEmpty {
+            return URL(fileURLWithPath: path, isDirectory: true)
+        }
+        return defaultRecordsRoot
+    }
+
+    /// Persists a new records root directory path.
+    static func setRecordsRoot(_ url: URL) {
+        defaults.set(url.standardizedFileURL.path, forKey: recordsRootPathKey)
+    }
+
+    /// Legacy alias — same as `recordsRoot` (call sites / prompt copy).
+    static var applicationSupportRoot: URL { recordsRoot }
+
     static var databaseDirectory: URL {
-        applicationSupportRoot.appendingPathComponent("db", isDirectory: true)
+        recordsRoot.appendingPathComponent("db", isDirectory: true)
     }
 
     static var databaseFile: URL {
@@ -20,24 +42,25 @@ enum AppPaths {
     }
 
     static var audioDirectory: URL {
-        applicationSupportRoot.appendingPathComponent("audio", isDirectory: true)
+        recordsRoot.appendingPathComponent("audio", isDirectory: true)
     }
 
     static var logsDirectory: URL {
-        applicationSupportRoot.appendingPathComponent("logs", isDirectory: true)
+        recordsRoot.appendingPathComponent("logs", isDirectory: true)
     }
 
     static var scratchDirectory: URL {
-        applicationSupportRoot.appendingPathComponent("scratch", isDirectory: true)
+        recordsRoot.appendingPathComponent("scratch", isDirectory: true)
     }
 
-    /// Creates the Application Support tree (`db/`, `audio/`, `logs/`, `scratch/`).
+    /// Creates the records tree (`db/`, `audio/`, `logs/`, `scratch/`) under the current root.
     @discardableResult
     static func ensureDirectoryTree() throws -> URL {
         let fm = FileManager.default
-        for dir in [applicationSupportRoot, databaseDirectory, audioDirectory, logsDirectory, scratchDirectory] {
+        let root = recordsRoot
+        for dir in [root, databaseDirectory, audioDirectory, logsDirectory, scratchDirectory] {
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         }
-        return applicationSupportRoot
+        return root
     }
 }

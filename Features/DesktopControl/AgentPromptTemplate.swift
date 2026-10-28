@@ -2,15 +2,16 @@ import Foundation
 
 /// Clipboard prompt for Grok Bot–class assistants (Spec §2.8).
 enum AgentPromptTemplate {
-    /// Fills absolute Application Support paths into the §2.8 Chinese template.
-    static func makePrompt(applicationSupportRoot: URL = AppPaths.applicationSupportRoot) -> String {
-        let root = applicationSupportRoot.path
+    /// Fills absolute records-root paths into the §2.8 Chinese template.
+    /// Always prefer `AppPaths.recordsRoot` so clipboard paths follow folder changes.
+    static func makePrompt(recordsRoot: URL = AppPaths.recordsRoot) -> String {
+        let root = recordsRoot.path
         return """
         你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机数据，不要删除、移动或清空用户文件。
 
         产品一句话：ContextDay 在 macOS 本机持续采集麦克风/可选系统声，经门控与 ASR 后把时间线写入 SQLite；转写权威在数据库，不另写每日 txt。
 
-        数据根目录（Application Support）：
+        数据根目录（记录文件夹）：
         \(root)
 
         权威数据库：
