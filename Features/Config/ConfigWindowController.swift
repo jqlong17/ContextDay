@@ -4,6 +4,7 @@ import AppKit
 final class ConfigWindowController: NSWindowController {
     private var gateButton: NSButton!
     private var keepAudioButton: NSButton!
+    private var scopePopup: NSPopUpButton!
     private var qualityPopup: NSPopUpButton!
     private var retentionField: NSTextField!
     private var systemAudioButton: NSButton!
@@ -11,7 +12,7 @@ final class ConfigWindowController: NSWindowController {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 280),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 320),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -25,7 +26,7 @@ final class ConfigWindowController: NSWindowController {
 
     private func buildUI() {
         guard let content = window?.contentView else { return }
-        var y = 230.0
+        var y = 270.0
 
         gateButton = NSButton(checkboxWithTitle: "分类过滤（YAMNet）", target: self, action: #selector(changed))
         gateButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
@@ -37,10 +38,20 @@ final class ConfigWindowController: NSWindowController {
         content.addSubview(keepAudioButton)
         y -= 36
 
+        let sLabel = NSTextField(labelWithString: "音频范围")
+        sLabel.frame = NSRect(x: 24, y: y, width: 100, height: 24)
+        content.addSubview(sLabel)
+        scopePopup = NSPopUpButton(frame: NSRect(x: 130, y: y, width: 200, height: 26))
+        scopePopup.addItems(withTitles: ["仅人声", "全部"])
+        scopePopup.target = self
+        scopePopup.action = #selector(changed)
+        content.addSubview(scopePopup)
+        y -= 36
+
         let qLabel = NSTextField(labelWithString: "音频质量")
         qLabel.frame = NSRect(x: 24, y: y, width: 100, height: 24)
         content.addSubview(qLabel)
-        qualityPopup = NSPopUpButton(frame: NSRect(x: 130, y: y, width: 160, height: 26))
+        qualityPopup = NSPopUpButton(frame: NSRect(x: 130, y: y, width: 180, height: 26))
         qualityPopup.addItems(withTitles: ["Opus 12 kbps", "Opus 24 kbps（默认）", "Opus 64 kbps"])
         qualityPopup.target = self
         qualityPopup.action = #selector(changed)
@@ -76,6 +87,7 @@ final class ConfigWindowController: NSWindowController {
         let cfg = AppConfigStore.load()
         gateButton.state = cfg.gateEnabled ? .on : .off
         keepAudioButton.state = cfg.keepAudio ? .on : .off
+        scopePopup.selectItem(at: cfg.audioScope == .speechOnly ? 0 : 1)
         switch cfg.audioQuality {
         case .opus12: qualityPopup.selectItem(at: 0)
         case .opus24: qualityPopup.selectItem(at: 1)
@@ -93,7 +105,16 @@ final class ConfigWindowController: NSWindowController {
     @objc private func changed() { refreshEstimate() }
 
     private func refreshEstimate() {
-        var cfg = currentConfig()
+        let gateOn = gateButton.state == .on
+        // Spec T11: gate off → scope forced to「全部」, speech-only disabled.
+        scopePopup.isEnabled = gateOn
+        if !gateOn {
+            scopePopup.selectItem(at: 1)
+        }
+        qualityPopup.isEnabled = keepAudioButton.state == .on
+        scopePopup.isEnabled = gateOn && keepAudioButton.state == .on
+
+        let cfg = currentConfig()
         estimateLabel.stringValue = cfg.keepAudio
             ? String(format: "开留音时约 %.2f GB/天（全天粗算，未计门控折扣）", cfg.estimatedKeepAudioGBPerDay)
             : "留音默认关；开启后按 Opus 档估算占用。"
@@ -103,6 +124,7 @@ final class ConfigWindowController: NSWindowController {
         var cfg = AppConfigStore.load()
         cfg.gateEnabled = gateButton.state == .on
         cfg.keepAudio = keepAudioButton.state == .on
+        cfg.audioScope = scopePopup.indexOfSelectedItem == 0 ? .speechOnly : .all
         switch qualityPopup.indexOfSelectedItem {
         case 0: cfg.audioQuality = .opus12
         case 2: cfg.audioQuality = .opus64

@@ -533,8 +533,7 @@ flowchart TB
 - [x] SenseVoice Core ML int8 接入（失败明确报错；禁止静默 ONNX ASR）
 - [x] VAD 3–30s + 落库合并（多段音频保留最早文件；XCTest 覆盖）
 - [x] 时间线 UI（时间点 + 文本；读自 SQLite）
-- [x] 配置：门控开关、留音、Opus 质量、预估占用、`retention_days`（默认 30）、系统声开关
-- [ ] 配置「仅人声 / 全部」约束的完整 UI 禁用态（逻辑已在 `AppConfig.normalize`）
+- [x] 配置：门控开关、留音、Opus 质量、预估占用、仅人声/全部约束、`retention_days`（默认 30）、系统声开关
 
 ### Phase 3 — 稳固与商店向
 
