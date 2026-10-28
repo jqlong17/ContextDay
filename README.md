@@ -2,7 +2,9 @@
 
 本机 24h 语音上下文（Mac App Store 向），供 Grok Bot 类助手使用。
 
-产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（SSOT，当前 **v0.3.2**）。
+产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（SSOT，当前 **v0.3.3**）。
+
+助手技能模板（脱敏）：[docs/agent-skills/](docs/agent-skills/) — 纪要 / 日摘要 / 飞书 CLI 占位流程。
 
 ## 在 Mac 上打开
 

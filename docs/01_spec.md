@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.2** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（父机 mac-verify 确认）；正式公证/上架 **待人提交** |
+| Spec 版本 | **v0.3.3** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`；§2.8 提示词指向 `docs/agent-skills/` + Agent IO `:18787`；正式公证/上架 **待人提交** |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 01:40 Asia/Shanghai |
+| 最后更新 | 2026-10-29 01:50 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -169,16 +169,17 @@ MVP 视觉约定：
 
 ### 2.8 剪贴板提示词（Agent IO 轻量路径）
 
-> **定稿建议已采纳进 Spec**：MVP 用「复制提示词」先于完整 MCP（Phase 4 仍计划）；避免「给 AI 用」只停留在远期接口。
+> **定稿建议已采纳进 Spec**：MVP 用「复制提示词」先于完整 MCP（Phase 4 仍计划）；避免「给 AI 用」只停留在远期接口。  
+> **v0.3.3**：提示词须同时指向仓库内 **`docs/agent-skills/`**（脱敏技能模板）与本机 Agent IO HTTP（默认 **`127.0.0.1:18787`**，`/health` 含 `"service":"ContextDay"`）。仓库**禁止**提交个人 Feishu/Lark chat_id / open_id。
 
-实现须把下列中文模板复制到剪贴板（花括号处由运行时替换为**本机绝对路径**；字段摘要可随 Spec 小改但不得删掉「只读 / 勿删用户数据 / 转写在 SQLite」要点）：
+实现须把下列中文模板复制到剪贴板（花括号处由运行时替换为**本机绝对路径**；字段摘要可随 Spec 小改但不得删掉「只读 / 勿删用户数据 / 转写在 SQLite / agent-skills / Agent IO」要点）：
 
 ```text
 你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机数据，不要删除、移动或清空用户文件。
 
 产品一句话：ContextDay 在 macOS 本机持续采集麦克风/可选系统声，经门控与 ASR 后把时间线写入 SQLite；转写权威在数据库，不另写每日 txt。
 
-数据根目录（Application Support）：
+数据根目录（记录文件夹）：
 {APPLICATION_SUPPORT_ROOT}
 
 权威数据库：
@@ -193,7 +194,17 @@ text(转写), gate_label(speech|music|other?), audio_path(相对根路径?),
 source_segment_ids, created_at_ms, merged_at_ms?, merge_gap_ms?,
 asr_model_id?, asr_model_version?
 
-建议做法：用只读方式打开 SQLite（如 `sqlite3` 查询），按 t0_ms 时间范围检索 text；若需核对语音，再按 audio_path 拼绝对路径播放。不要假设存在每日转写 .txt。不要修改表结构或删除行，除非用户在对话中明确要求并再次确认。
+本机 Agent IO（只读 HTTP，默认 18787；忙碌时可落在 18788–18797）：
+http://127.0.0.1:18787/health
+期望 JSON 含 "service":"ContextDay"。工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+
+助手技能模板（ContextDay 仓库 docs/agent-skills/，脱敏、只读；无个人飞书 ID）：
+{AGENT_SKILLS_ROOT}/README.md
+{AGENT_SKILLS_ROOT}/meeting-minutes.md
+{AGENT_SKILLS_ROOT}/daily-meeting-digest.md
+{AGENT_SKILLS_ROOT}/feishu-minutes-lark-cli.md
+
+建议做法：先确认 /health 的 service=ContextDay；再用 Agent IO 或 sqlite3 只读按 t0_ms 检索 text；整理纪要遵循 docs/agent-skills/。不要假设存在每日转写 .txt。不要修改表结构或删除行，除非用户在对话中明确要求并再次确认。
 ```
 
 ### 2.9 Agent IO 语义工具（首波定稿）
@@ -285,6 +296,7 @@ ContextDay/
     01_spec.md
     agent-io-mcp.md            # HTTP / MCP / Grok 样例
     store-review-notes.md      # 商店审核说明草稿
+    agent-skills/              # 脱敏助手技能模板（纪要 / 日摘要 / 飞书 CLI）
   Tests/                       # ContextDayTests (XCTest)
   Scripts/
     fetch-models.sh
@@ -623,8 +635,9 @@ flowchart TB
 | v0.3.0 | 2026-10-29 00:01 | 桌面拟物浮控（双态透明资源、底层窗口、App Icon）；右键打开 Application Support / 复制提示词（§2.8 模板）；SQLite 唯一转写权威、明确无每日 txt；合并音频保留最早文件；`retention_days` 建议默认 30；audio 日界用 tz_at_capture；源码树与拓扑补 DesktopControl；状态 → `schema_drafted` + UI shell drafted |
 | v0.3.1 | 2026-10-29 00:07 | 产品图标改为双眼 3D 拟物球：`Resources/DesktopOrb/idle.png` + `eye-click-2s.mp4`；App Icon 源=`Resources/AppIcon/icon-1024.png`（同 idle）；废弃 `DesktopButton/` raised/pressed；左键播眼神微动；MVP 录制态可与 idle 同视觉（二期可加录制线索）；窗口层级 / 右键 / SQLite / 剪贴板提示词 / Segment schema **不变** |
 | v0.3.2 | 2026-10-29 00:45 | 定稿 Agent IO 语义工具首波（§2.9）：`search_segments` / `get_recent` / `get_window` / `list_activity`；`summarize_window` / `export_audio` 标为非首波 unavailable；源码树增加 `Features/AgentIO`；右键菜单补 **开始录音 / 暂停录音**（与左键同一激活路径）及 **修改保存文件夹…**；**Segment schema 不变** |
+| v0.3.3 | 2026-10-29 01:50 | §2.8 提示词增加仓库 `docs/agent-skills/`（脱敏技能模板）与 Agent IO 默认 `:18787`（`service=ContextDay`）；禁止入库个人 Feishu ID；**Segment schema 不变** |
 
-变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。**实现落地不等于升版**：§5 Phase 0–4 工程清单在 v0.3.2 下全部 `[x]`，未改需求/schema，故不升 v0.3.3。
+变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
 
 ### §5 清单对齐快照（相对 v0.3.2，无升版）
 
@@ -644,7 +657,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.2 | **已完成** | 需求定稿；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.3 | **已完成** | v0.3.3 = §2.8 agent-skills + Agent IO 端口；schema 自 v0.2.0 未破改 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
