@@ -54,7 +54,8 @@ final class DesktopOrbView: NSView {
         }
     }
 
-    /// Bundle `DesktopOrb/idle.png` only, then hard chroma-key lime/green plate → alpha 0.
+    /// Bundle `DesktopOrb/idle.png` only. Skip hard-key when corners are already transparent;
+    /// otherwise chroma-key lime/green plate → alpha 0.
     private static func loadKeyedIdleImage() -> CGImage? {
         let url =
             Bundle.main.url(forResource: "idle", withExtension: "png", subdirectory: "DesktopOrb")
@@ -64,7 +65,38 @@ final class DesktopOrbView: NSView {
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             return nil
         }
+        if cornersAlreadyTransparent(cgImage) {
+            return cgImage
+        }
         return chromaKeyGreenPlate(cgImage)
+    }
+
+    /// True when all four corners are already alpha≈0 (shipped idle.png) — no need to re-key.
+    private static func cornersAlreadyTransparent(_ image: CGImage) -> Bool {
+        let width = image.width
+        let height = image.height
+        guard width > 0, height > 0 else { return false }
+        let points = [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
+        for (x, y) in points {
+            guard let crop = image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)) else {
+                return false
+            }
+            var pixel = [UInt8](repeating: 0, count: 4)
+            guard let ctx = CGContext(
+                data: &pixel,
+                width: 1,
+                height: 1,
+                bitsPerComponent: 8,
+                bytesPerRow: 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else {
+                return false
+            }
+            ctx.draw(crop, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            if Int(pixel[3]) >= 16 { return false }
+        }
+        return true
     }
 
     /// Runtime hard key: edge-connected green / near-transparent → true alpha 0.
@@ -184,17 +216,12 @@ final class DesktopOrbView: NSView {
         addSubview(playerView)
     }
 
-    /// Plays rematted `eye-click-2s.mov` (alpha) once when present; greenscreen `.mp4`
-    /// is never overlaid (would leave a #00FF00 plate). Then settles back to keyed idle.
+    /// Plays rematted `eye-click-2s.mov` (ProRes 4444 / yuva) once, then settles by
+    /// holding the last AV frame (clip first≈last). Legacy greenscreen `.mp4` is never
+    /// overlaid — holding its last frame is the #00FF00 square regression after `7f1a2e7`.
     func playEyeClickOnce() {
         guard let url = Self.eyeClickURL() else {
-            NSLog("ContextDay: eye-click clip not found in bundle (want .mov with alpha)")
-            return
-        }
-        // Never composite the legacy greenscreen H.264 — it has no alpha and settle used
-        // to leave its last frame up (green square regression after 7f1a2e7).
-        if url.pathExtension.lowercased() == "mp4" {
-            NSLog("ContextDay: skip greenscreen eye-click mp4; package eye-click-2s.mov instead")
+            NSLog("ContextDay: eye-click-2s.mov not found in bundle (alpha rematte required)")
             return
         }
 
@@ -212,9 +239,11 @@ final class DesktopOrbView: NSView {
         layer.backgroundColor = NSColor.clear.cgColor
         layer.isOpaque = false
         layer.frame = playerView.bounds
+        playerView.layer?.backgroundColor = NSColor.clear.cgColor
+        playerView.layer?.isOpaque = false
         playerView.layer?.sublayers?.forEach { $0.removeFromSuperlayer() }
         playerView.layer?.addSublayer(layer)
-        // Keep idleLayer visible underneath so end-of-clip teardown cannot blink/vanish the orb.
+        // Keep idleLayer visible underneath so end-of-clip / settle never blinks the orb away.
         idleLayer.isHidden = false
         playerView.isHidden = false
 
@@ -234,33 +263,28 @@ final class DesktopOrbView: NSView {
     }
 
     private func settleToIdle() {
-        // Always tear down the movie and show keyed idle. Holding the last AVPlayer frame
-        // (7f1a2e7) left the greenscreen mp4 plate visible as a #00FF00 square.
+        // Hold the last AVPlayer frame (clip first≈last) so settle color-matches the
+        // eye-click end instead of snapping to keyed idle (flicker / plate mismatch).
+        // Safe with alpha rematte (.mov). #3 tore the player down to dodge greenscreen mp4;
+        // with ProRes yuva we restore last-frame settle and never composite that mp4.
         idleLayer.isHidden = false
+        playerView.isHidden = false
         player?.pause()
-        playerLayer?.removeFromSuperlayer()
-        playerLayer = nil
-        player = nil
-        playerView.isHidden = true
-        if let endObserver {
-            NotificationCenter.default.removeObserver(endObserver)
-            self.endObserver = nil
+        if let item = player?.currentItem {
+            let end = item.duration
+            if end.isNumeric, end.isValid, !end.isIndefinite, end.seconds > 0 {
+                player?.seek(to: end, toleranceBefore: .zero, toleranceAfter: .zero)
+            }
         }
+        // Keep player + layer alive paused on the end frame until the next playEyeClickOnce.
     }
 
     private static func eyeClickURL() -> URL? {
-        // Prefer rematted ProRes-4444 .mov (yuva). Legacy greenscreen .mp4 is listed
-        // only so callers can detect it and refuse to composite (see playEyeClickOnce).
-        let names = [("eye-click-2s", "mov"), ("eye-click-2s", "mp4")]
-        for (name, ext) in names {
-            if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "DesktopOrb") {
-                return url
-            }
-            if let url = Bundle.main.url(forResource: name, withExtension: ext) {
-                return url
-            }
+        // Alpha rematte only — never return the legacy greenscreen H.264 `.mp4`.
+        if let url = Bundle.main.url(forResource: "eye-click-2s", withExtension: "mov", subdirectory: "DesktopOrb") {
+            return url
         }
-        return nil
+        return Bundle.main.url(forResource: "eye-click-2s", withExtension: "mov")
     }
 
     override func layout() {
