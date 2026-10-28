@@ -33,9 +33,9 @@ curl -s http://127.0.0.1:18787/health
 
 ## 剪贴板（Grok Bot 轻量路径）
 
-App 右键「复制提示词」→ 粘贴到 Grok / 其它助手。模板见 Spec §2.8；路径随当前记录根变化。
+App 右键「复制提示词」→ 粘贴到 Grok / 其它助手。模板见 Spec §2.8；路径随当前记录根变化；并指向仓库 [`docs/agent-skills/`](./agent-skills/)（脱敏纪要 / 日摘要 / 飞书 CLI 模板）与 Agent IO `:18787`。
 
-建议对话开场：粘贴提示词后问「用 sqlite 只读列出今天 mic 轨最近 10 条 text」。
+建议对话开场：粘贴提示词后问「用 Agent IO get_recent 列出今天 mic 轨最近 10 条，再按 meeting-minutes 技能整理」。
 
 ## 安全
 
