@@ -30,6 +30,10 @@
 		0F9025C722234D91B7029921 /* AgentIOError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A01F83146AF43D99FDE1F80 /* AgentIOError.swift */; };
 		D74B7368E31D49A0B7DB6AB7 /* AgentIOService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2F913402B041D1B47B83B5 /* AgentIOService.swift */; };
 		A1921AAAD1594F519111301E /* AgentIOProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */; };
+		47E999C170C94E56A4C6A82A /* Models in Resources */ = {isa = PBXBuildFile; fileRef = 0EAE3BA3FFFA42F5942DA65E /* Models */; };
+		6162761D467545EB90D2B88F /* ModelBundlePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AC2CCE5C674606BC88E300 /* ModelBundlePaths.swift */; };
+		AB9910F7340D45258F713E25 /* PCMRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244B02B1AC0E42508BAE94D3 /* PCMRingBuffer.swift */; };
+		18C9C53E52544905A49BE465 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BF9E3C840B9D4C7A8D69ACD3 /* CoreML.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +64,10 @@
 		3A01F83146AF43D99FDE1F80 /* AgentIOError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOError.swift; sourceTree = "<group>"; };
 		2B2F913402B041D1B47B83B5 /* AgentIOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOService.swift; sourceTree = "<group>"; };
 		F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOProtocol.swift; sourceTree = "<group>"; };
+		0EAE3BA3FFFA42F5942DA65E /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Models; sourceTree = "<group>"; };
+		81AC2CCE5C674606BC88E300 /* ModelBundlePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelBundlePaths.swift; sourceTree = "<group>"; };
+		244B02B1AC0E42508BAE94D3 /* PCMRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMRingBuffer.swift; sourceTree = "<group>"; };
+		BF9E3C840B9D4C7A8D69ACD3 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +79,7 @@
 				29B7ED2FF52F4364BB76AEF4 /* AVFoundation.framework in Frameworks */,
 				CC25282C8CF84FCEB18654C2 /* AVKit.framework in Frameworks */,
 				D48BB24506014DEBB50BA355 /* libsqlite3.tbd in Frameworks */,
+				18C9C53E52544905A49BE465 /* CoreML.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,6 +120,7 @@
 		09E05BC9B76547388BD2558A /* Capture */ = {
 			isa = PBXGroup;
 			children = (
+				244B02B1AC0E42508BAE94D3 /* PCMRingBuffer.swift */,
 				7FF2CFA738984C4B80DC4517 /* CapturePipeline.swift */,
 			);
 			path = Capture;
@@ -135,6 +145,7 @@
 		43F43022C6B5438BB949FA7C /* ASR */ = {
 			isa = PBXGroup;
 			children = (
+				81AC2CCE5C674606BC88E300 /* ModelBundlePaths.swift */,
 				DA445AD953174B11BF83D233 /* SenseVoiceASR.swift */,
 			);
 			path = ASR;
@@ -185,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				494EF46EDE2F4D8A8BA4DDE5 /* DesktopOrb */,
+				0EAE3BA3FFFA42F5942DA65E /* Models */,
 				452FE66ACFF542188316C0F7 /* AppIcon */,
 				279C5789ECD642DF92FB5920 /* Assets.xcassets */,
 			);
@@ -226,6 +238,9 @@
 			dependencies = (
 			);
 			name = ContextDay;
+			packageProductDependencies = (
+				26C37B16C367402283181F4F /* onnxruntime */,
+			);
 			productName = ContextDay;
 			productReference = 02C051B0F41E4DCD89F4343B /* ContextDay.app */;
 			productType = "com.apple.product-type.application";
@@ -252,6 +267,9 @@
 			productRefGroup = E1DD3F99B6434103A6466C93 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				B8427A0AE460438DB26497D7 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
+			);
 			targets = (
 				867E1CD66BCB4F139F5EB7D6 /* ContextDay */,
 			);
@@ -265,6 +283,7 @@
 			files = (
 				8FC168026F2D4132B46E8699 /* Assets.xcassets in Resources */,
 				82B6367E91EE48D0B92DE21F /* DesktopOrb in Resources */,
+				47E999C170C94E56A4C6A82A /* Models in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,6 +294,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB9910F7340D45258F713E25 /* PCMRingBuffer.swift in Sources */,
+				6162761D467545EB90D2B88F /* ModelBundlePaths.swift in Sources */,
 				4A8B8A9121A347CCBA82D239 /* AgentSegmentDTO.swift in Sources */,
 				0F9025C722234D91B7029921 /* AgentIOError.swift in Sources */,
 				D74B7368E31D49A0B7DB6AB7 /* AgentIOService.swift in Sources */,
@@ -409,6 +430,26 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B8427A0AE460438DB26497D7 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/microsoft/onnxruntime-swift-package-manager";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.20.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		26C37B16C367402283181F4F /* onnxruntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B8427A0AE460438DB26497D7 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */;
+			productName = onnxruntime;
+		};
+/* End XCSwiftPackageProductDependency section */
+
 	};
 	rootObject = A4FA85B45AC347E7AC68AA0D /* Project object */;
 }

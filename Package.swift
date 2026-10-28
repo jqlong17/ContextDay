@@ -1,7 +1,6 @@
 // swift-tools-version: 5.9
 // Companion SwiftPM manifest. On Mac, prefer opening `ContextDay.xcodeproj`
-// (Bundle ID `app.contextday`, AppIcon, entitlements). This package is for
-// source browsing / future CLI tests — it is not a full .app substitute.
+// (Bundle ID `app.contextday`, AppIcon, entitlements). This package mirrors deps.
 import PackageDescription
 
 let package = Package(
@@ -12,12 +11,22 @@ let package = Package(
     products: [
         .executable(name: "ContextDay", targets: ["ContextDay"]),
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/microsoft/onnxruntime-swift-package-manager",
+            from: "1.20.0"
+        ),
+    ],
     targets: [
         .executableTarget(
             name: "ContextDay",
+            dependencies: [
+                .product(name: "onnxruntime", package: "onnxruntime-swift-package-manager"),
+            ],
             path: ".",
             exclude: [
                 "docs",
+                "Scripts",
                 "scripts",
                 "ContextDay.xcodeproj",
                 "README.md",
@@ -32,12 +41,14 @@ let package = Package(
             ],
             resources: [
                 .copy("Resources/DesktopOrb"),
+                .copy("Resources/Models"),
                 .process("Resources/Assets.xcassets"),
             ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("AVKit"),
+                .linkedFramework("CoreML"),
                 .linkedLibrary("sqlite3"),
             ]
         ),

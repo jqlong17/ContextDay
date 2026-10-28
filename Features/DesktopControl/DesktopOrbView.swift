@@ -208,8 +208,9 @@ final class DesktopOrbView: NSView {
         layer.frame = playerView.bounds
         playerView.layer?.sublayers?.forEach { $0.removeFromSuperlayer() }
         playerView.layer?.addSublayer(layer)
+        // Keep idleLayer visible underneath so end-of-clip teardown cannot blink/vanish the orb.
+        idleLayer.isHidden = false
         playerView.isHidden = false
-        idleLayer.isHidden = true
 
         player = avPlayer
         playerLayer = layer
@@ -227,19 +228,27 @@ final class DesktopOrbView: NSView {
     }
 
     private func settleToIdle() {
+        // Unhide idle first (already visible underneath), then tear down the movie layer.
+        idleLayer.isHidden = false
+        playerView.isHidden = true
         player?.pause()
-        player = nil
         playerLayer?.removeFromSuperlayer()
         playerLayer = nil
-        playerView.isHidden = true
-        idleLayer.isHidden = false
+        player = nil
     }
 
     private static func eyeClickURL() -> URL? {
-        if let url = Bundle.main.url(forResource: "eye-click-2s", withExtension: "mp4", subdirectory: "DesktopOrb") {
-            return url
+        // Prefer rematted .mov when present; fall back to greenscreen .mp4.
+        let names = [("eye-click-2s", "mov"), ("eye-click-2s", "mp4")]
+        for (name, ext) in names {
+            if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "DesktopOrb") {
+                return url
+            }
+            if let url = Bundle.main.url(forResource: name, withExtension: ext) {
+                return url
+            }
         }
-        return Bundle.main.url(forResource: "eye-click-2s", withExtension: "mp4")
+        return nil
     }
 
     override func layout() {

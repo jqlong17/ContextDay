@@ -50,6 +50,62 @@ final class SegmentStore: @unchecked Sendable {
         openDatabasePath = nil
     }
 
+    // MARK: - Writes
+
+    func insertSegment(_ segment: Segment) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let db else { throw StoreError.notOpen }
+
+        let sql = """
+        INSERT INTO segment (
+            id, track, t0_ms, t1_ms, tz_at_capture, text, gate_label, audio_path,
+            source_segment_ids, created_at_ms, merged_at_ms, merge_gap_ms,
+            asr_model_id, asr_model_version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(statement) }
+
+        let sourceJSON: String
+        if let data = try? JSONEncoder().encode(segment.sourceSegmentIds.map { $0.uuidString.lowercased() }),
+           let s = String(data: data, encoding: .utf8) {
+            sourceJSON = s
+        } else {
+            sourceJSON = "[]"
+        }
+
+        func bindText(_ idx: Int32, _ value: String?) {
+            if let value {
+                sqlite3_bind_text(statement, idx, value, -1, Self.sqliteTransient)
+            } else {
+                sqlite3_bind_null(statement, idx)
+            }
+        }
+
+        sqlite3_bind_text(statement, 1, segment.id.uuidString.lowercased(), -1, Self.sqliteTransient)
+        sqlite3_bind_text(statement, 2, segment.track.rawValue, -1, Self.sqliteTransient)
+        sqlite3_bind_int64(statement, 3, segment.t0Ms)
+        sqlite3_bind_int64(statement, 4, segment.t1Ms)
+        bindText(5, segment.tzAtCapture)
+        bindText(6, segment.text)
+        bindText(7, segment.gateLabel?.rawValue)
+        bindText(8, segment.audioPath)
+        sqlite3_bind_text(statement, 9, sourceJSON, -1, Self.sqliteTransient)
+        sqlite3_bind_int64(statement, 10, segment.createdAtMs)
+        if let v = segment.mergedAtMs { sqlite3_bind_int64(statement, 11, v) } else { sqlite3_bind_null(statement, 11) }
+        if let v = segment.mergeGapMs { sqlite3_bind_int64(statement, 12, Int64(v)) } else { sqlite3_bind_null(statement, 12) }
+        bindText(13, segment.asrModelId)
+        bindText(14, segment.asrModelVersion)
+
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
     // MARK: - Read queries (Agent IO §2.9; empty DB → [])
 
     /// Overlap with `[t0Ms, t1Ms]` when provided; optional track / LIKE query; newest-first.

@@ -8,3 +8,11 @@ xcuserdata/
 *.xcodeproj/xcuserdata/
 .env
 .venv/
+
+# Large runtime models (keep README + directory placeholders)
+Resources/Models/SenseVoiceSmall_int8/**
+Resources/Models/YAMNet/**
+!Resources/Models/SenseVoiceSmall_int8/.gitkeep
+!Resources/Models/YAMNet/.gitkeep
+*.mlmodelc/
+*.onnx
