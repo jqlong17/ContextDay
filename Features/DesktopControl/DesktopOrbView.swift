@@ -126,5 +126,5 @@ final class DesktopOrbView: NSView {
         onSecondaryClick?(point)
     }
 
-    override var acceptsFirstMouse: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
