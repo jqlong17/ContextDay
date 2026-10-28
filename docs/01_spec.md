@@ -608,7 +608,7 @@ flowchart TB
 - 与既有 YamnetGate / AsrCompare 实验代码可参考，但 ContextDay 工程独立，避免绑听写 ONNX 生命周期。
 - 中文连续数字 Core ML 仍可能弱于 ONNX；生活日志可接受，需在已知问题中披露。
 - **已知限制**：Music>Speech 偏置可能导致「有 BGM 的说话」被标成 music 而不送 ASR；须在产品已知问题 / 设置说明中披露，不可静默。
-- Agent IO：MVP 用 §2.8 剪贴板；完整 MCP 可晚于商店版本。Schema 自 v0.2.0 定稿；v0.3.0 / v0.3.1 **未改** Segment 字段列表；实现期避免无说明的破坏性改字段。
+- Agent IO：§2.8 剪贴板 + HTTP `:8787` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
