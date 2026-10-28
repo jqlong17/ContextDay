@@ -103,26 +103,13 @@ final class YamNetGate {
             elementType: .float,
             shape: inputShape
         )
-        // Some exports name the input `waveform`; fall back to first input name if needed.
-        let outputs: [String: ORTValue]
-        do {
-            outputs = try session.run(
-                withInputs: ["waveform": input],
-                outputNames: Set(["scores"]),
-                runOptions: nil
-            )
-        } catch {
-            // Retry with common alternate names.
-            let names = try session.inputNames()
-            guard let first = names.first else { throw error }
-            outputs = try session.run(
-                withInputs: [first: input],
-                outputNames: try Set(session.outputNames().prefix(1)),
-                runOptions: nil
-            )
-        }
-        guard let scoresValue = outputs.values.first else {
-            throw GateError.inferenceFailed("missing scores output")
+        let outputs = try session.run(
+            withInputs: ["waveform": input],
+            outputNames: Set(["scores"]),
+            runOptions: nil
+        )
+        guard let scoresValue = outputs["scores"] else {
+            throw GateError.inferenceFailed("missing 'scores' output — check yamnet.onnx export I/O names")
         }
         let scoresData = try scoresValue.tensorData() as Data
         let count = scoresData.count / MemoryLayout<Float>.size
