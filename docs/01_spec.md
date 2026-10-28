@@ -5,9 +5,9 @@
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
 | Spec 版本 | **v0.3.2** |
-| 状态 | Phase 0–4 MVP 路径落地：DesktopControl + 双轨 + ASR/Gate + HTTP/MCP stdio + 磁盘/睡眠/隐私文案 + XCTest |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（父机 mac-verify 确认）；正式公证/上架 **待人提交** |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 01:25 Asia/Shanghai |
+| 最后更新 | 2026-10-29 01:40 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -624,7 +624,18 @@ flowchart TB
 | v0.3.1 | 2026-10-29 00:07 | 产品图标改为双眼 3D 拟物球：`Resources/DesktopOrb/idle.png` + `eye-click-2s.mp4`；App Icon 源=`Resources/AppIcon/icon-1024.png`（同 idle）；废弃 `DesktopButton/` raised/pressed；左键播眼神微动；MVP 录制态可与 idle 同视觉（二期可加录制线索）；窗口层级 / 右键 / SQLite / 剪贴板提示词 / Segment schema **不变** |
 | v0.3.2 | 2026-10-29 00:45 | 定稿 Agent IO 语义工具首波（§2.9）：`search_segments` / `get_recent` / `get_window` / `list_activity`；`summarize_window` / `export_audio` 标为非首波 unavailable；源码树增加 `Features/AgentIO`；右键菜单补 **开始录音 / 暂停录音**（与左键同一激活路径）及 **修改保存文件夹…**；**Segment schema 不变** |
 
-变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
+变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。**实现落地不等于升版**：§5 Phase 0–4 工程清单在 v0.3.2 下全部 `[x]`，未改需求/schema，故不升 v0.3.3。
+
+### §5 清单对齐快照（相对 v0.3.2，无升版）
+
+| 范围 | 状态 |
+|------|------|
+| Phase 0 骨架 / 资源 / DesktopButton 清理 | `[x]` |
+| Phase 1 双轨 + 门控 + DesktopControl | `[x]` |
+| Phase 2 ASR + 合并 + 时间线/配置 | `[x]` |
+| Phase 3 睡眠说明 / 磁盘守卫 / 隐私文案 / 审核说明**草稿** | `[x]` |
+| Phase 4 HTTP+MCP + 查询 + XCTest + Grok 样例 | `[x]`（父机确认 `:18787` `/health` + 真 segments） |
+| 正式 Notarize / App Store **提交** | **待人提交**（非 §5 工程勾选项；草稿见 `docs/store-review-notes.md`） |
 
 ---
 
@@ -633,26 +644,19 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0 | 已完成 | 初稿 |
-| Spec v0.2.0 | 已完成 | 数据目录 + Segment schema；留音默认关 / Opus 12·24·64 |
-| Spec v0.3.0 | 已完成 | 桌面壳 + 剪贴板提示词 + 无 txt + 合并/保留/日界定稿建议入 Spec |
-| Spec v0.3.1 | **已完成** | 双眼 3D 球资源路径写入 Spec；废弃 DesktopButton；交互改为眼神微动 |
-| Spec v0.3.2 | **已完成** | §2.9 Agent IO 语义工具首波定稿；schema 未改 |
-| DesktopOrb / App Icon 资源入库 | **已完成** | idle.png + eye-click + `AppIcon.appiconset`；运行时 chroma-key idle |
-| 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；Bundle ID `app.contextday` |
-| DesktopControl 实现 | **已完成（MVP）** | `.normal` / orb / 末帧 settle / 菜单 / 64pt 默认 / 调整大小 |
-| 采集 / 门控 | **已完成（MVP）** | 双轨 + VAD + YAMNet Music>Speech；模型需 fetch |
-| Core ML ASR | **已完成（MVP）** | SenseVoice int8 only；缺模型明确失败 |
-| 时间线 / 配置 UI | **已完成（轻量）** | 右键「设置…」「时间线…」 |
-| 落库合并 / keep-audio | **已完成（MVP）** | gap≤2s 合并；keep-audio 写 CAF 树（Opus 编码器待替） |
-| Agent IO（剪贴板 MVP） | **已完成** | §2.8 模板 |
-| Agent IO（§2.9 语义工具） | **已完成** | 四工具真查 SQLite + HTTP `:18787`（空闲回退 18787–18797） |
-| Agent IO（MCP 传输） | **已完成（stdio）** | `AgentIOMCPStdio` + `--mcp`；无第三方 SDK；见 `docs/agent-io-mcp.md` |
-| 睡眠 / 磁盘 / 隐私 | **已完成（MVP）** | sleep 停采；retention + DiskSpaceGuard；关于与隐私窗 |
-| XCTest | **已完成** | `ContextDayTests`；SenseVoice/YAMNet 模型缺失时 XCTSkip |
-| Mac App Store / 公证 | 说明草稿已就绪 | `docs/store-review-notes.md`；正式公证待提交 |
+| Spec v0.1.0–v0.3.2 | **已完成** | 需求定稿；schema 自 v0.2.0 未破改 |
+| §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
+| DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
+| 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
+| DesktopControl | **已完成（MVP）** | `.normal` / 末帧 settle / 64pt / 菜单 |
+| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
+| 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
+| 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
+| Agent IO | **已完成** | 剪贴板 + HTTP `18787–18797` + MCP `--mcp` |
+| XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip |
+| Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：Phase 0–4 MVP 工程路径已勾选落地；正式公证/上架流程仍待提交窗口；父机 `Scripts/mac-verify.sh` + speak-smoke 验收**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；正式公证/上架留待人工提交。**
 
 ---
 
