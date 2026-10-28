@@ -7,8 +7,9 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private var orbView: DesktopOrbView?
     private var configWindow: ConfigWindowController?
     private var timelineWindow: TimelineWindowController?
+    private var aboutWindow: AboutPrivacyWindowController?
 
-    /// Phase 0 placeholder for activate ↔ stop capture. Wired to left-click / 右键录音项.
+    /// Wired to left-click / 右键录音项 / 睡眠暂停.
     private(set) var isRecording = false
     private let capture = CapturePipeline()
 
@@ -99,6 +100,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
 
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: "")
         menu.addItem(withTitle: "时间线…", action: #selector(openTimeline), keyEquivalent: "")
+        menu.addItem(withTitle: "关于与隐私…", action: #selector(openAboutPrivacy), keyEquivalent: "")
 
         for item in menu.items {
             item.target = self
@@ -164,6 +166,21 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         timelineWindow?.showWindow(nil)
         timelineWindow?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func openAboutPrivacy() {
+        if aboutWindow == nil {
+            aboutWindow = AboutPrivacyWindowController()
+        }
+        aboutWindow?.showWindow(nil)
+        aboutWindow?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Called on system sleep / terminate — stop capture; do not auto-resume on wake.
+    func handleSystemSleep() {
+        guard isRecording else { return }
+        setRecording(false, playEyeClick: false)
     }
 
     @objc private func openRecordsFolder() {

@@ -209,10 +209,15 @@ final class CapturePipeline {
             let id = UUID()
             var audioPath: String?
             if cfg.keepAudio {
-                // speech_only already filtered by gate when enabled
-                audioPath = KeepAudioWriter.writeIfEnabled(
-                    pcm16kMono: slice, segmentId: id, track: track, t0Ms: utt.t0Ms, config: cfg
-                )
+                let disk = DiskSpaceGuard.status()
+                if disk.blockKeepAudio {
+                    onStatus?(disk.warning ?? "Low disk — keep-audio blocked")
+                } else {
+                    // speech_only already filtered by gate when enabled
+                    audioPath = KeepAudioWriter.writeIfEnabled(
+                        pcm16kMono: slice, segmentId: id, track: track, t0Ms: utt.t0Ms, config: cfg
+                    )
+                }
             }
             let segment = Segment(
                 id: id,

@@ -198,6 +198,62 @@ final class SegmentStore: @unchecked Sendable {
         sqlite3_bind_text(statement, 12, segment.id.uuidString.lowercased(), -1, sqliteTransient)
     }
 
+    // MARK: - Retention / clear (Spec §3.4.4)
+
+    /// Deletes rows whose `t1_ms` is strictly before `cutoffMs`. Returns deleted count.
+    @discardableResult
+    func deleteSegments(t1BeforeMs cutoffMs: Int64) throws -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let db else { throw StoreError.notOpen }
+
+        // Collect audio paths first for best-effort file cleanup.
+        let selectSQL = "SELECT audio_path FROM segment WHERE t1_ms < ? AND audio_path IS NOT NULL;"
+        var paths: [String] = []
+        var sel: OpaquePointer?
+        if sqlite3_prepare_v2(db, selectSQL, -1, &sel, nil) == SQLITE_OK, let sel {
+            defer { sqlite3_finalize(sel) }
+            sqlite3_bind_int64(sel, 1, cutoffMs)
+            while sqlite3_step(sel) == SQLITE_ROW {
+                if let c = sqlite3_column_text(sel, 0) {
+                    paths.append(String(cString: c))
+                }
+            }
+        }
+
+        let sql = "DELETE FROM segment WHERE t1_ms < ?;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int64(statement, 1, cutoffMs)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw StoreError.schemaFailed(String(cString: sqlite3_errmsg(db)))
+        }
+        let removed = Int(sqlite3_changes(db))
+        for rel in paths {
+            Self.scheduleDeleteAudio(relativePath: rel)
+        }
+        return removed
+    }
+
+    /// Drops all segments (does not delete the sqlite file). Returns deleted count.
+    @discardableResult
+    func deleteAllSegments() throws -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let db else { throw StoreError.notOpen }
+        var errorMessage: UnsafeMutablePointer<CChar>?
+        let result = sqlite3_exec(db, "DELETE FROM segment;", nil, nil, &errorMessage)
+        if result != SQLITE_OK {
+            let message = errorMessage.map { String(cString: $0) } ?? "unknown"
+            sqlite3_free(errorMessage)
+            throw StoreError.schemaFailed(message)
+        }
+        return Int(sqlite3_changes(db))
+    }
+
     // MARK: - Read queries (Agent IO §2.9; empty DB → [])
 
     /// Overlap with `[t0Ms, t1Ms]` when provided; optional track / LIKE query; newest-first.

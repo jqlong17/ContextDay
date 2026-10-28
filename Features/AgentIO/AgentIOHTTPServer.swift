@@ -15,11 +15,18 @@ final class AgentIOHTTPServer {
         self.port = port
         do {
             let params = NWParameters.tcp
-            listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
-            listener?.newConnectionHandler = { [weak self] conn in
+            // Localhost only — privacy: do not advertise Agent IO on LAN interfaces.
+            let localPort = NWEndpoint.Port(rawValue: port)!
+            params.requiredLocalEndpoint = NWEndpoint.hostPort(
+                host: NWEndpoint.Host("127.0.0.1"),
+                port: localPort
+            )
+            let nw = try NWListener(using: params)
+            nw.newConnectionHandler = { [weak self] conn in
                 self?.handle(connection: conn)
             }
-            listener?.start(queue: .global(qos: .utility))
+            nw.start(queue: .global(qos: .utility))
+            listener = nw
             NSLog("ContextDay AgentIO HTTP listening on 127.0.0.1:\(port)")
         } catch {
             NSLog("ContextDay AgentIO HTTP failed to start: \(error.localizedDescription)")

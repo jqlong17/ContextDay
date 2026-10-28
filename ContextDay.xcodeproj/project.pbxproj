@@ -47,6 +47,12 @@
 		2A8A060D619643AD9C805B3B /* YamNetGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C6DE8860F0849AA89553C41 /* YamNetGateTests.swift */; };
 		E695101F724B4A5CA70B0251 /* SenseVoiceASRTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947DAE30A9634F3A9A18ACE5 /* SenseVoiceASRTests.swift */; };
 		30B326F52476423B9D6D5FD1 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80EBDFD028F344B6A36DB397 /* XCTest.framework */; };
+
+		B11D15C60000000000000001 /* DiskSpaceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11D15C60000000000000001 /* DiskSpaceGuard.swift */; };
+		B11FE7F00000000000000002 /* RetentionPurger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11FE7F00000000000000002 /* RetentionPurger.swift */; };
+		B11C95D10000000000000003 /* AgentIOMCPStdio.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11C95D10000000000000003 /* AgentIOMCPStdio.swift */; };
+		B11AB0070000000000000004 /* AboutPrivacyWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */; };
+		B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11FE57E0000000000000005 /* RetentionDiskTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +111,12 @@
 		C7B0B3925B294E78962D8559 /* AgentIOServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOServiceTests.swift; sourceTree = "<group>"; };
 		1C6DE8860F0849AA89553C41 /* YamNetGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YamNetGateTests.swift; sourceTree = "<group>"; };
 		947DAE30A9634F3A9A18ACE5 /* SenseVoiceASRTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenseVoiceASRTests.swift; sourceTree = "<group>"; };
+
+		A11D15C60000000000000001 /* DiskSpaceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskSpaceGuard.swift; sourceTree = "<group>"; };
+		A11FE7F00000000000000002 /* RetentionPurger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionPurger.swift; sourceTree = "<group>"; };
+		A11C95D10000000000000003 /* AgentIOMCPStdio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOMCPStdio.swift; sourceTree = "<group>"; };
+		A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutPrivacyWindowController.swift; sourceTree = "<group>"; };
+		A11FE57E0000000000000005 /* RetentionDiskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionDiskTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -141,6 +153,7 @@
 				2B2F913402B041D1B47B83B5 /* AgentIOService.swift */,
 				F4793DF46E564D688A98E0FF /* AgentIOProtocol.swift */,
 				8D7B7D29CAA64B74B54389A6 /* AgentIOHTTPServer.swift */,
+				A11C95D10000000000000003 /* AgentIOMCPStdio.swift */,
 			);
 			path = AgentIO;
 			sourceTree = "<group>";
@@ -207,6 +220,8 @@
 				91E0113A27EA4874A93ECEA7 /* SegmentStore.swift */,
 				238AEAE5BC824E5695FDBA53 /* SegmentMerger.swift */,
 				950877B7B46B465E95561AC2 /* KeepAudioWriter.swift */,
+				A11D15C60000000000000001 /* DiskSpaceGuard.swift */,
+				A11FE7F00000000000000002 /* RetentionPurger.swift */,
 			);
 			path = Store;
 			sourceTree = "<group>";
@@ -217,6 +232,7 @@
 				E4753C59064F4531AE5B2F3D /* AppConfig.swift */,
 				BC459B47DBFB421EAF092B78 /* ConfigWindowController.swift */,
 				891B91507C974F0C945BC397 /* TimelineWindowController.swift */,
+				A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -262,6 +278,7 @@
 				C7B0B3925B294E78962D8559 /* AgentIOServiceTests.swift */,
 				1C6DE8860F0849AA89553C41 /* YamNetGateTests.swift */,
 				947DAE30A9634F3A9A18ACE5 /* SenseVoiceASRTests.swift */,
+				A11FE57E0000000000000005 /* RetentionDiskTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -412,6 +429,10 @@
 				697F39E864C74526A38100C6 /* AppConfig.swift in Sources */,
 				9678C0877EBB4B49972FD186 /* ConfigWindowController.swift in Sources */,
 				FE15AC7FA37F4740B1D1ED25 /* TimelineWindowController.swift in Sources */,
+				B11AB0070000000000000004 /* AboutPrivacyWindowController.swift in Sources */,
+				B11D15C60000000000000001 /* DiskSpaceGuard.swift in Sources */,
+				B11FE7F00000000000000002 /* RetentionPurger.swift in Sources */,
+				B11C95D10000000000000003 /* AgentIOMCPStdio.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,6 +444,7 @@
 				F430FBC1210D4E36B1EBEFB8 /* AgentIOServiceTests.swift in Sources */,
 				2A8A060D619643AD9C805B3B /* YamNetGateTests.swift in Sources */,
 				E695101F724B4A5CA70B0251 /* SenseVoiceASRTests.swift in Sources */,
+				B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

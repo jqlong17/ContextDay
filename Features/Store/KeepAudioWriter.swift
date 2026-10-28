@@ -13,6 +13,11 @@ enum KeepAudioWriter {
         config: AppConfig
     ) -> String? {
         guard config.keepAudio else { return nil }
+        let disk = DiskSpaceGuard.status()
+        if disk.blockKeepAudio {
+            NSLog("ContextDay KeepAudio: blocked — \(disk.warning ?? "low disk")")
+            return nil
+        }
         if config.audioScope == .speechOnly && config.gateEnabled {
             // Caller should only invoke for speech when scope is speech_only.
         }

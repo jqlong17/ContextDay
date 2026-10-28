@@ -110,15 +110,17 @@ enum AgentIOProtocol {
 }
 
 /*
- Phase 4 MCP 挂载示意（勿在本 PR 引入 SDK）：
+ Phase 4 传输层（无第三方 MCP SDK）：
 
-   stdio / HTTP JSON-RPC
-        │
-        ▼
-   AgentIOProtocol.dispatch(tool:arguments:)
-        │
-        ▼
-   AgentIOService  →  SegmentStore (SQLite 只读查询)
+   HTTP :8787  (AgentIOHTTPServer)     MCP stdio (--mcp → AgentIOMCPStdio)
+        │                                         │
+        └────────────┬────────────────────────────┘
+                     ▼
+           AgentIOProtocol.dispatch(tool:arguments:)
+                     │
+                     ▼
+           AgentIOService  →  SegmentStore (SQLite 只读查询)
 
  工具名与 §2.9 保持一致；传输层可替换，服务层不变。
+ 见 docs/agent-io-mcp.md。
 */

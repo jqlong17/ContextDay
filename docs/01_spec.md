@@ -5,9 +5,9 @@
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
 | Spec 版本 | **v0.3.2** |
-| 状态 | Phase 0–2 / Phase 4 轻量路径落地中：DesktopControl + 双轨采集 + SenseVoice/YAMNet + Agent IO HTTP + XCTest |
+| 状态 | Phase 0–4 MVP 路径落地：DesktopControl + 双轨 + ASR/Gate + HTTP/MCP stdio + 磁盘/睡眠/隐私文案 + XCTest |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 01:10 Asia/Shanghai |
+| 最后更新 | 2026-10-29 01:25 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -119,7 +119,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 - **默认本地-only**：不上云；路径与删除方式在关于页 / 设置中可发现（具体布局见 §3.4）。
 - 滚动保留与「删除今日 / 清空全部」均操作 Application Support 下 DB 与 `audio/`（见 §3.4 可删路径）。
 - 权限：麦克风；系统声需 ScreenCaptureKit 等授权。
-- 锁屏 / 睡眠下采集能力边界需在验收中写明「支持到哪一档」。
+- 锁屏 / 睡眠边界（定稿）：**睡眠时停止采集，唤醒不自动续录**（须用户再次开始录音）。锁屏下麦轨在已授权且进程仍运行时可能继续；系统声依赖 ScreenCaptureKit，锁屏后可能中断。正式 24h 目标需保持 Mac 唤醒 / 接电源策略。详见 App「关于与隐私…」与 `docs/store-review-notes.md`。
 
 ### 2.7 桌面控制（双眼 3D 拟物球）
 
@@ -163,8 +163,9 @@ MVP 视觉约定：
 | **复制提示词** | 将 §2.8 定稿模板（运行时填入**当前记录根**绝对路径）写入系统剪贴板（general pasteboard） |
 | **修改保存文件夹…** | `NSOpenPanel` 选择目录，写入 UserDefaults `recordsRootPath`；Store 按新根重开 DB |
 | **调整大小** | 子菜单：48 / 64 / 80 / 96 / 128 pt；默认 **64**；持久化 UserDefaults `orbSizePt` |
-| **设置…** | 打开配置窗：门控、留音/Opus、保留天数、系统声 |
+| **设置…** | 打开配置窗：门控、留音/Opus、仅人声约束、保留天数、系统声 |
 | **时间线…** | 打开只读时间线（读自 SQLite） |
+| **关于与隐私…** | 本地路径、删除/保留策略、锁屏/睡眠边界、Agent IO 说明 |
 
 ### 2.8 剪贴板提示词（Agent IO 轻量路径）
 
@@ -279,14 +280,19 @@ ContextDay/
       idle.png                 # 透明 1024；产品 + 桌面
       eye-click-2s.mp4         # ~2s 眼神微动；首帧=尾帧
     AppIcon/
-      icon-1024.png            # 与 idle 同款 → AppIcon.appiconset
-    DesktopButton/             # DEPRECATED；raised/pressed 可 Phase 0 删除
+      icon-1024.png            # 与 idle 同款 → Assets.xcassets/AppIcon.appiconset
   docs/
     01_spec.md
-  design/                      # 参考备份；icon-orb-* / ref-icon-billiard；旧 btn-b-* 可留档
+    agent-io-mcp.md            # HTTP / MCP / Grok 样例
+    store-review-notes.md      # 商店审核说明草稿
+  Tests/                       # ContextDayTests (XCTest)
+  Scripts/
+    fetch-models.sh
+    mac-verify.sh
+    contextday-cli.sh
 ```
 
-**资源引用**：优先 Asset Catalog（`DesktopOrbIdle`）+ Bundle 内 `eye-click-2s.mp4`，或 `NSImage(named:)` / `AVPlayer`；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。
+**资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `eye-click-2s.mp4`/`.mov`；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。`DesktopButton/` 已删除，勿再引用。
 
 ### 3.2 运行时原则
 
@@ -518,14 +524,14 @@ flowchart TB
 - [x] App Icon：`AppIcon.appiconset` 自 `icon-1024.png` 导出各尺寸（炭灰不透明底）
 - [x] Xcode / SPM 工程骨架、bundle id `app.contextday`、权限 plist / entitlements
 - [x] Spec v0.3.2 §2.9 Agent IO 语义工具首波定稿
-- [ ] 可选：清理废弃 `DesktopButton/` 目录残留（若仍存在）
+- [x] 废弃 `DesktopButton/`：仓库中已无该目录；源码树说明保留「勿再引用」
 
 ### Phase 1 — 采集 + 门控 + 桌面壳 MVP
 
 - [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
 - [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
 - [x] DesktopControl：`.normal` 窗口、orb idle + 左键播 eye-click（末帧 settle）、激活/停止、麦权限引导
-- [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小；设置/时间线
+- [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小；设置/时间线/关于与隐私
 - [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
 
 ### Phase 2 — ASR + 时间线
@@ -537,18 +543,18 @@ flowchart TB
 
 ### Phase 3 — 稳固与商店向
 
-- [ ] 锁屏/睡眠行为说明与测试
-- [ ] 磁盘滚动与爆盘保护
-- [ ] 隐私文案、本地路径、删除策略
-- [ ] Notarize / App Store 素材与审核说明（持续录音敏感）
+- [x] 锁屏/睡眠行为说明：睡眠停采且唤醒不自动续录；关于页 + §2.6 定稿；`willSleep` 观察者
+- [x] 磁盘滚动（`RetentionPurger` + `retention_days`）与爆盘保护（`DiskSpaceGuard` 停留音）
+- [x] 隐私文案、本地路径、删除策略（「关于与隐私…」+ Info.plist usage）
+- [x] App Store / 公证审核说明草稿（`docs/store-review-notes.md`）；**正式公证仍待提交时执行**
 
 ### Phase 4 — Agent 供数（完整接口）
 
-- [x] 本地 HTTP JSON（`:8787`）挂 §2.9 四工具；剪贴板 MVP 仍可用
-- [ ] 正式 MCP SDK / CLI 包装（传输层；服务层已是 `AgentIOProtocol.dispatch`）
+- [x] 本地 HTTP JSON（`127.0.0.1:8787`）挂 §2.9 四工具；剪贴板 MVP 仍可用
+- [x] MCP stdio 传输（`ContextDay --mcp`，无第三方 SDK）+ `Scripts/contextday-cli.sh`
 - [x] 查询：按时间范围 / 关键词 / 轨（`search_segments` / `get_window` / `get_recent` / `list_activity`）
-- [x] XCTest：`ContextDayTests`（merge / Agent IO / YamNet bias / SenseVoice load-skip）
-- [ ] 与 Grok Bot 类产品对接样例（可衔接 §2.8 提示词路径）
+- [x] XCTest：`ContextDayTests`（merge / Agent IO / YamNet bias / SenseVoice load-skip / retention）
+- [x] 与 Grok Bot 类产品对接样例（`docs/agent-io-mcp.md` + §2.8 提示词）
 
 ---
 
@@ -641,11 +647,12 @@ flowchart TB
 | 落库合并 / keep-audio | **已完成（MVP）** | gap≤2s 合并；keep-audio 写 CAF 树（Opus 编码器待替） |
 | Agent IO（剪贴板 MVP） | **已完成** | §2.8 模板 |
 | Agent IO（§2.9 语义工具） | **已完成** | 四工具真查 SQLite + HTTP `:8787` |
-| Agent IO（MCP 传输） | 未开始 | Phase 4 挂同一工具名；只读同 §3.3 |
+| Agent IO（MCP 传输） | **已完成（stdio）** | `AgentIOMCPStdio` + `--mcp`；无第三方 SDK；见 `docs/agent-io-mcp.md` |
+| 睡眠 / 磁盘 / 隐私 | **已完成（MVP）** | sleep 停采；retention + DiskSpaceGuard；关于与隐私窗 |
 | XCTest | **已完成** | `ContextDayTests`；SenseVoice/YAMNet 模型缺失时 XCTSkip |
-| Mac App Store | 未开始 | |
+| Mac App Store / 公证 | 说明草稿已就绪 | `docs/store-review-notes.md`；正式公证待提交 |
 
-**当前总状态：Phase 0–2 MVP + Phase 4 HTTP 轻量路径已落地；正式 MCP / Phase 3 商店向仍待；Mac 上 `Scripts/mac-verify.sh` + speak-smoke 验收**
+**当前总状态：Phase 0–4 MVP 工程路径已勾选落地；正式公证/上架流程仍待提交窗口；父机 `Scripts/mac-verify.sh` + speak-smoke 验收**
 
 ---
 
