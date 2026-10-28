@@ -134,7 +134,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | Idle（产品 + 桌面） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；双眼球默认态 |
 | 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4`；可拷入 Bundle 或 Asset | 约 **2s**；首帧=尾帧；仅眼神微动，球身几乎不动 |
 | App Icon 源图 | `Resources/AppIcon/icon-1024.png` → `AppIcon.appiconset` | **与 idle 同款艺术图**；导出各尺寸 |
-| 废弃（可删） | `Resources/DesktopButton/raised.png`、`pressed.png` | 旧 Bauhaus 双态；**已被 DesktopOrb 取代**；Phase 0 清理时可删除整个 `DesktopButton/` |
+| 废弃（已删） | `Resources/DesktopButton/` | 旧 Bauhaus 双态；已被 DesktopOrb 取代；仓库中已移除 |
 
 MVP 视觉约定：
 
@@ -258,8 +258,8 @@ asr_model_id?, asr_model_version?
 | `Features/ASR` | SenseVoice Core ML int8（主力）；失败时明确降级策略（不默认偷开 ONNX） |
 | `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt |
 | `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI（偏好见 §3.4） |
-| `Features/AgentIO` | §2.9 只读语义工具（`search_segments` 等）；JSON DTO；可选本机 MCP skeleton；MVP 另见 §2.8 剪贴板 |
-| `Resources` | `DesktopOrb/`、`AppIcon/` 等打包资源；`DesktopButton/` 已废弃可删 |
+| `Features/AgentIO` | §2.9 只读语义工具；HTTP + MCP stdio 传输；MVP 另见 §2.8 剪贴板 |
+| `Resources` | `DesktopOrb/`、`AppIcon/`（`AppIcon.appiconset`）等打包资源 |
 
 源码树草图（实现期可微调文件名，**模块边界与资源路径保持一致**）：
 
@@ -609,7 +609,7 @@ flowchart TB
 - 中文连续数字 Core ML 仍可能弱于 ONNX；生活日志可接受，需在已知问题中披露。
 - **已知限制**：Music>Speech 偏置可能导致「有 BGM 的说话」被标成 music 而不送 ASR；须在产品已知问题 / 设置说明中披露，不可静默。
 - Agent IO：MVP 用 §2.8 剪贴板；完整 MCP 可晚于商店版本。Schema 自 v0.2.0 定稿；v0.3.0 / v0.3.1 **未改** Segment 字段列表；实现期避免无说明的破坏性改字段。
-- 产品图标：v0.3.1 起以双眼 3D 球为准；`Resources/DesktopButton/` 仅历史残留，勿再引用。
+- 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
 ---
