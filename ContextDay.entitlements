@@ -7,8 +7,10 @@
 	<true/>
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
-	<!-- System audio via ScreenCaptureKit may require additional TCC / temporary exception review. -->
-	<key>com.apple.security.files.user-selected.read-only</key>
+	<!-- Default records root is ~/Downloads/ContextDay; panel can pick another folder. -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
 </dict>
 </plist>
