@@ -2,7 +2,7 @@ import XCTest
 @testable import ContextDay
 
 /// Meeting-minutes style fixture: insert speech segments (as if ASR’d from sample audio)
-/// → round-trip search_segments / get_recent / get_window / list_activity with stable JSON keys.
+/// → round-trip search / recent / window / activity / speech_blocks with stable JSON keys.
 /// Full dual-rail capture cannot run headless on Linux CI; this is the offline stand-in.
 final class AgentIOMeetingFixtureTests: XCTestCase {
     private var tempDir: URL!
@@ -77,7 +77,8 @@ final class AgentIOMeetingFixtureTests: XCTestCase {
         XCTAssertEqual(rows[0].gateLabel, "speech")
         XCTAssertTrue(rows[0].text?.contains("决议") == true)
         XCTAssertEqual(rows[0].tzAtCapture, "Asia/Shanghai")
-        assertSnakeCaseKeys(data, required: ["segment_id", "t0_ms", "t1_ms", "track", "text"])
+        XCTAssertTrue(rows[0].t0Iso.contains("+08:00"))
+        assertSnakeCaseKeys(data, required: ["segment_id", "t0_ms", "t1_ms", "t0_iso", "t1_iso", "track", "text"])
     }
 
     func testGetWindowIncludesOverlappingSpeechAndMusic() throws {
@@ -114,9 +115,59 @@ final class AgentIOMeetingFixtureTests: XCTestCase {
         )
         let buckets = try JSONDecoder().decode([AgentActivityBucketDTO].self, from: activityData)
         XCTAssertFalse(buckets.isEmpty)
-        let total = buckets.reduce(0) { $0 + $1.segmentCount }
-        XCTAssertEqual(total, 6)
-        assertSnakeCaseKeys(activityData, required: ["bucket_start_ms", "bucket_end_ms", "segment_count"])
+        let mic = buckets.filter { $0.track == "mic" }
+        let system = buckets.filter { $0.track == "system" }
+        let totals = buckets.filter { $0.track == nil }
+        XCTAssertEqual(mic.reduce(0) { $0 + $1.segmentCount }, 5)
+        XCTAssertEqual(system.reduce(0) { $0 + $1.segmentCount }, 1)
+        XCTAssertEqual(totals.reduce(0) { $0 + $1.segmentCount }, 6)
+        assertSnakeCaseKeys(
+            activityData,
+            required: [
+                "bucket_start_ms", "bucket_end_ms", "bucket_start_iso", "bucket_end_iso",
+                "segment_count", "speech_count", "music_count", "other_count",
+            ]
+        )
+    }
+
+    func testListSpeechBlocksForLongMeetingPattern() throws {
+        let data = try AgentIOProtocol.dispatch(
+            tool: "list_speech_blocks",
+            arguments: [
+                "t0_ms": meetingT0,
+                "t1_ms": meetingT1,
+                "track": "mic",
+                "gap_ms": 120_000,
+            ],
+            service: service
+        )
+        let blocks = try JSONDecoder().decode([AgentSpeechBlockDTO].self, from: data)
+        XCTAssertEqual(blocks.count, 1)
+        XCTAssertEqual(blocks[0].segmentCount, 5)
+        XCTAssertEqual(blocks[0].gapMsUsed, 120_000)
+        XCTAssertEqual(blocks[0].segmentIds.count, 5)
+        XCTAssertTrue(blocks[0].speechChars > 0)
+        assertSnakeCaseKeys(
+            data,
+            required: [
+                "track", "t0_ms", "t1_ms", "t0_iso", "t1_iso",
+                "segment_count", "speech_chars", "segment_ids", "gap_ms_used",
+            ]
+        )
+
+        // Split with tiny gap → multiple blocks
+        let splitData = try AgentIOProtocol.dispatch(
+            tool: "list_speech_blocks",
+            arguments: [
+                "t0_ms": meetingT0,
+                "t1_ms": meetingT1,
+                "track": "mic",
+                "gap_ms": 10_000,
+            ],
+            service: service
+        )
+        let split = try JSONDecoder().decode([AgentSpeechBlockDTO].self, from: splitData)
+        XCTAssertGreaterThan(split.count, 1)
     }
 
     func testMaxCharsTruncationStable() throws {
@@ -160,6 +211,7 @@ final class AgentIOMeetingFixtureTests: XCTestCase {
         XCTAssertTrue(text.contains("\"audio_path\""))
         XCTAssertTrue(text.contains("\"segment_id\""))
         XCTAssertTrue(text.contains("\"tz_at_capture\""))
+        XCTAssertTrue(text.contains("\"t0_iso\""))
         XCTAssertFalse(text.contains("segmentId")) // no camelCase leak
     }
 

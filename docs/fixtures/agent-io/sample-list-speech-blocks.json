@@ -1,0 +1,20 @@
+[
+  {
+    "gap_ms_used": 120000,
+    "segment_count": 5,
+    "segment_ids": [
+      "aaaaaaaa-bbbb-cccc-dddd-000000000001",
+      "aaaaaaaa-bbbb-cccc-dddd-000000000002",
+      "aaaaaaaa-bbbb-cccc-dddd-000000000003",
+      "aaaaaaaa-bbbb-cccc-dddd-000000000004",
+      "aaaaaaaa-bbbb-cccc-dddd-000000000005"
+    ],
+    "speech_chars": 86,
+    "t0_iso": "2024-10-29T08:00:00.000+08:00",
+    "t0_ms": 1730160000000,
+    "t1_iso": "2024-10-29T08:04:08.000+08:00",
+    "t1_ms": 1730160248000,
+    "track": "mic",
+    "tz_at_capture": "Asia/Shanghai"
+  }
+]

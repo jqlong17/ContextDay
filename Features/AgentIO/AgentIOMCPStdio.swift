@@ -154,12 +154,26 @@ enum AgentIOMCPStdio {
             ],
             [
                 "name": "list_activity",
-                "description": "Hourly activity buckets (read-only).",
+                "description": "Hourly per-track activity density (mic/system + optional total). Read-only.",
                 "inputSchema": [
                     "type": "object",
                     "properties": [
                         "t0_ms": ["type": "integer"],
                         "t1_ms": ["type": "integer"],
+                        "include_total": ["type": "boolean"],
+                    ],
+                ],
+            ],
+            [
+                "name": "list_speech_blocks",
+                "description": "Gap-merged contiguous speech block metadata (not a summary). Use then get_window per block.",
+                "inputSchema": [
+                    "type": "object",
+                    "properties": [
+                        "t0_ms": ["type": "integer"],
+                        "t1_ms": ["type": "integer"],
+                        "track": ["type": "string", "enum": ["mic", "system"]],
+                        "gap_ms": ["type": "integer"],
                     ],
                 ],
             ],

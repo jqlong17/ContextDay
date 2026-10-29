@@ -225,7 +225,7 @@ final class AgentIOHTTPServer {
             return dispatchTool(tool, args: args)
         }
 
-        return httpJSON(404, ["error": "not_found", "app": "ContextDay"])
+        return httpJSON(404, AgentIOError.notFound("no such route").payload as [String: Any])
     }
 
     private func dispatchTool(_ tool: String, args: [String: Any]) -> Data {
@@ -234,9 +234,11 @@ final class AgentIOHTTPServer {
             return httpRaw(200, contentType: "application/json", body: data)
         } catch let err as AgentIOError {
             let payload = try? JSONSerialization.data(withJSONObject: err.payload)
-            return httpRaw(err.isUnavailable ? 501 : 400, contentType: "application/json", body: payload ?? Data("{}".utf8))
+            return httpRaw(err.httpStatus, contentType: "application/json", body: payload ?? Data("{}".utf8))
         } catch {
-            return httpJSON(500, ["error": error.localizedDescription])
+            let wrapped = AgentIOError.internalError(error.localizedDescription)
+            let payload = try? JSONSerialization.data(withJSONObject: wrapped.payload)
+            return httpRaw(wrapped.httpStatus, contentType: "application/json", body: payload ?? Data("{}".utf8))
         }
     }
 
@@ -257,9 +259,3 @@ final class AgentIOHTTPServer {
     }
 }
 
-private extension AgentIOError {
-    var isUnavailable: Bool {
-        if case .unavailable = self { return true }
-        return false
-    }
-}

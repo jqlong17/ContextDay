@@ -47,9 +47,10 @@ enum AgentPromptTemplate {
         本机 Agent IO（只读转写 + 可读写助手技能模版；仅 127.0.0.1）：
         http://127.0.0.1:\(healthPort)/health
         期望 JSON 含 "service":"ContextDay"。
-        转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|self_check}
+        转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
         技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
         说明：get_clipboard_prompt 仅返回短「助手索引」（与右键「复制提示词」相同），不是下方全文。
+        长会议：list_activity（分轨）→ list_speech_blocks → 每块 get_window；勿调用 summarize_window。段 DTO 含派生 t0_iso/t1_iso（权威仍为 t0_ms/t1_ms）。
 
         助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
         \(skills)/README.md
