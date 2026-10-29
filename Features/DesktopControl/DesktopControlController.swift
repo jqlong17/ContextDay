@@ -61,12 +61,13 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private func setRecording(_ recording: Bool, playEyeClick: Bool) {
         guard recording != isRecording else { return }
         isRecording = recording
+        RuntimeHealth.shared.setUIWantsRecording(isRecording)
         if isRecording {
             capture.start()
         } else {
             capture.stop()
         }
-        NSLog("ContextDay: isRecording → \(isRecording)")
+        AppLog.info(.app, "ui recording → \(isRecording) pipeline=\(capture.isRunning)")
         if playEyeClick {
             orbView?.playEyeClickOnce()
         }
@@ -74,10 +75,10 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
 
     /// Debug/smoke: --smoke-record-seconds=N
     func smokeRecord(forSeconds seconds: TimeInterval) {
-        NSLog("ContextDay: smokeRecord begin \(seconds)s")
+        AppLog.info(.app, "smokeRecord begin \(seconds)s")
         setRecording(true, playEyeClick: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + max(1.0, seconds)) { [weak self] in
-            NSLog("ContextDay: smokeRecord end")
+            AppLog.info(.app, "smokeRecord end")
             self?.setRecording(false, playEyeClick: true)
         }
     }
@@ -85,14 +86,20 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private func showContextMenu(at point: NSPoint) {
         guard let orbView else { return }
 
+        // Top-level: Recording | Folder + prompt index | Settings submenu | Quit
         let menu = NSMenu()
         menu.addItem(withTitle: "开始录音", action: #selector(startRecordingFromMenu), keyEquivalent: "")
         menu.addItem(withTitle: "暂停录音", action: #selector(pauseRecordingFromMenu), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "打开记录文件夹", action: #selector(openRecordsFolder), keyEquivalent: "")
         menu.addItem(withTitle: "复制提示词", action: #selector(copyAgentPrompt), keyEquivalent: "")
-        menu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
         menu.addItem(.separator())
+
+        let settingsMenu = NSMenu(title: "设置")
+        settingsMenu.addItem(withTitle: "偏好设置…", action: #selector(openSettings), keyEquivalent: "")
+        settingsMenu.addItem(withTitle: "时间线…", action: #selector(openTimeline), keyEquivalent: "")
+        settingsMenu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
+        settingsMenu.addItem(.separator())
 
         let sizeMenu = NSMenu(title: "调整大小")
         for pt in OrbSizeStore.allowed {
@@ -104,16 +111,26 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         }
         let sizeRoot = NSMenuItem(title: "调整大小", action: nil, keyEquivalent: "")
         sizeRoot.submenu = sizeMenu
-        menu.addItem(sizeRoot)
+        settingsMenu.addItem(sizeRoot)
 
-        menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: "")
-        menu.addItem(withTitle: "时间线…", action: #selector(openTimeline), keyEquivalent: "")
-        menu.addItem(withTitle: "关于与隐私…", action: #selector(openAboutPrivacy), keyEquivalent: "")
+        settingsMenu.addItem(withTitle: "关于与隐私…", action: #selector(openAboutPrivacy), keyEquivalent: "")
+
+        let settingsRoot = NSMenuItem(title: "设置", action: nil, keyEquivalent: "")
+        settingsRoot.submenu = settingsMenu
+        menu.addItem(settingsRoot)
+
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "退出 ContextDay", action: #selector(quitApp), keyEquivalent: "q")
 
         for item in menu.items {
             item.target = self
             if let sub = item.submenu {
-                for child in sub.items { child.target = self }
+                for child in sub.items {
+                    child.target = self
+                    if let nested = child.submenu {
+                        for nestedChild in nested.items { nestedChild.target = self }
+                    }
+                }
             }
         }
 
@@ -174,6 +191,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     }
 
     @objc private func openSettings() {
+        PermissionStatus.logSnapshot(reason: "settings")
         if configWindow == nil {
             configWindow = ConfigWindowController()
         }
@@ -212,7 +230,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
             let root = try AppPaths.ensureDirectoryTree()
             NSWorkspace.shared.open(root)
         } catch {
-            NSLog("ContextDay: open records folder failed: \(error)")
+            AppLog.error(.app, "open records folder failed: \(error.localizedDescription)")
         }
     }
 
@@ -220,12 +238,18 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         do {
             try AppPaths.ensureDirectoryTree()
         } catch {
-            NSLog("ContextDay: ensure dirs before copy prompt failed: \(error)")
+            AppLog.error(.app, "ensure dirs before copy prompt failed: \(error.localizedDescription)")
         }
         _ = AgentSkillsStore.ensureSeededFromBundle()
-        let prompt = AgentPromptTemplate.makePrompt(recordsRoot: AppPaths.recordsRoot)
+        // Spec §2.8: pasteboard gets a short index only — never the full proprietary brief.
+        let index = AgentPromptTemplate.makeClipboardIndex(recordsRoot: AppPaths.recordsRoot)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(prompt, forType: .string)
+        NSPasteboard.general.setString(index, forType: .string)
+        AppLog.info(.app, "clipboard index copied chars=\(index.count)")
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
     }
 
     @objc private func changeRecordsFolder() {
@@ -242,9 +266,9 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
             AppPaths.setRecordsRoot(url)
             do {
                 try SegmentStore.shared.prepareApplicationSupport()
-                NSLog("ContextDay: records root → \(AppPaths.recordsRoot.path)")
+                AppLog.info(.store, "records root → \(AppPaths.recordsRoot.path)")
             } catch {
-                NSLog("ContextDay: prepare store after folder change failed: \(error)")
+                AppLog.error(.store, "prepare store after folder change failed: \(error.localizedDescription)")
             }
         }
 

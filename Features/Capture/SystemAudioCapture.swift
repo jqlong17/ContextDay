@@ -34,10 +34,11 @@ final class SystemAudioCapture: NSObject, SCStreamDelegate, SCStreamOutput {
             try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global(qos: .userInitiated))
             try await stream.startCapture()
             self.stream = stream
-            NSLog("ContextDay SystemAudio: started")
+            AppLog.info(.capture, "system audio started")
         } catch {
-            onError?("System audio start failed: \(error.localizedDescription)")
-            NSLog("ContextDay SystemAudio: \(error.localizedDescription)")
+            let msg = "System audio start failed: \(error.localizedDescription)"
+            onError?(msg)
+            AppLog.error(.capture, msg)
         }
     }
 

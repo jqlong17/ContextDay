@@ -11,13 +11,18 @@ enum AgentIOProtocol {
         "list_activity",
     ]
 
-    /// 助手技能 / 剪贴板模版（App Support；可更新）。
+    /// 助手技能 / 剪贴板索引（App Support；可更新）。
     static let skillsTools: [String] = [
         "list_agent_skills",
         "get_agent_skill",
         "update_agent_skill",
         "reset_agent_skill",
         "get_clipboard_prompt",
+    ]
+
+    /// 诊断（只读；可无 UI 调用）。
+    static let diagnosticsTools: [String] = [
+        "self_check",
     ]
 
     /// 非首波：必须返回 unavailable，禁止静默空成功。
@@ -95,6 +100,9 @@ enum AgentIOProtocol {
 
         case "get_clipboard_prompt":
             return try encodeJSON(service.getClipboardPrompt())
+
+        case "self_check":
+            return try encodeJSON(service.selfCheck())
 
         case "summarize_window":
             throw AgentIOError.unavailable(

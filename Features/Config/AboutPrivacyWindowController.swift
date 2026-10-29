@@ -47,7 +47,7 @@ final class AboutPrivacyWindowController: NSWindowController {
             let root = try AppPaths.ensureDirectoryTree()
             NSWorkspace.shared.open(root)
         } catch {
-            NSLog("ContextDay: open records folder failed: \(error)")
+            AppLog.error(.app, "open records folder failed: \(error.localizedDescription)")
         }
     }
 
@@ -88,7 +88,7 @@ final class AboutPrivacyWindowController: NSWindowController {
         • 剪贴板提示词（右键）与本机 HTTP 127.0.0.1:18787（空闲回退 18787–18797） / MCP stdio（--mcp）只读暴露同一 SQLite。
         • 详见 docs/agent-io-mcp.md。
 
-        ASR：SenseVoice Core ML int8（本机）。门控：YAMNet；Music 与 Speech 同高时 Music 优先（有 BGM 的说话可能被标成 music）。
+        ASR：SenseVoice Core ML int8（本机）。门控：YAMNet；麦/系统双轨独立打标与送识；同轨 Music 与 Speech 同高时 Music 优先（有 BGM 的说话可能被标成 music）。系统轨 Music 不会关闭麦轨。
         """
     }
 }

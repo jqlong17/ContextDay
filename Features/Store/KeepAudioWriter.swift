@@ -15,7 +15,7 @@ enum KeepAudioWriter {
         guard config.keepAudio else { return nil }
         let disk = DiskSpaceGuard.status()
         if disk.blockKeepAudio {
-            NSLog("ContextDay KeepAudio: blocked — \(disk.warning ?? "low disk")")
+            AppLog.info(.keepAudio, "soft-fail open blocked reason=\(disk.warning ?? "low disk")")
             return nil
         }
         if config.audioScope == .speechOnly && config.gateEnabled {
@@ -28,7 +28,7 @@ enum KeepAudioWriter {
         do {
             try FileManager.default.createDirectory(at: absDir, withIntermediateDirectories: true)
         } catch {
-            NSLog("ContextDay KeepAudio: mkdir failed \(error.localizedDescription)")
+            AppLog.info(.keepAudio, "soft-fail mkdir id=\(segmentId.uuidString.lowercased()) err=\(error.localizedDescription)")
             return nil
         }
 
@@ -36,9 +36,14 @@ enum KeepAudioWriter {
         let absURL = absDir.appendingPathComponent(fileName)
         do {
             try writeCAF(pcm16kMono: pcm16kMono, to: absURL, bitrate: config.audioQuality.bitrate)
+            AppLog.info(
+                .keepAudio,
+                "wrote track=\(track.rawValue) id=\(segmentId.uuidString.lowercased()) bytes=\(pcm16kMono.count) path=\(relDir)/\(fileName)"
+            )
             return "\(relDir)/\(fileName)"
         } catch {
-            NSLog("ContextDay KeepAudio: write failed \(error.localizedDescription)")
+            // Soft-fail: keep capture session alive; only skip this clip.
+            AppLog.info(.keepAudio, "soft-fail write id=\(segmentId.uuidString.lowercased()) err=\(error.localizedDescription)")
             return nil
         }
     }

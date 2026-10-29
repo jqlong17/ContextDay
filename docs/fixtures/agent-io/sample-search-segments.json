@@ -1,0 +1,12 @@
+[
+  {
+    "audio_path": null,
+    "gate_label": "speech",
+    "segment_id": "11111111-2222-3333-4444-555555555555",
+    "t0_ms": 1730160120000,
+    "t1_ms": 1730160128000,
+    "text": "决议：周五前完成上线检查清单。",
+    "track": "mic",
+    "tz_at_capture": "Asia/Shanghai"
+  }
+]

@@ -9,10 +9,11 @@ final class ConfigWindowController: NSWindowController {
     private var retentionField: NSTextField!
     private var systemAudioButton: NSButton!
     private var estimateLabel: NSTextField!
+    private var promptViewer: PromptViewerSheetController?
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 360),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -26,7 +27,7 @@ final class ConfigWindowController: NSWindowController {
 
     private func buildUI() {
         guard let content = window?.contentView else { return }
-        var y = 270.0
+        var y = 310.0
 
         gateButton = NSButton(checkboxWithTitle: "分类过滤（YAMNet）", target: self, action: #selector(changed))
         gateButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
@@ -77,6 +78,14 @@ final class ConfigWindowController: NSWindowController {
         estimateLabel.frame = NSRect(x: 24, y: y, width: 370, height: 40)
         estimateLabel.maximumNumberOfLines = 2
         content.addSubview(estimateLabel)
+
+        let viewPrompt = NSButton(
+            title: "查看完整提示词…",
+            target: self,
+            action: #selector(showFullPrompt)
+        )
+        viewPrompt.frame = NSRect(x: 24, y: 16, width: 160, height: 28)
+        content.addSubview(viewPrompt)
 
         let save = NSButton(title: "保存", target: self, action: #selector(save))
         save.frame = NSRect(x: 300, y: 16, width: 90, height: 28)
@@ -139,6 +148,18 @@ final class ConfigWindowController: NSWindowController {
         cfg.captureSystemAudio = systemAudioButton.state == .on
         cfg.normalize()
         return cfg
+    }
+
+    @objc private func showFullPrompt() {
+        _ = AgentSkillsStore.ensureSeededFromBundle()
+        let text = AgentPromptTemplate.makeFullPrompt(recordsRoot: AppPaths.recordsRoot)
+        let viewer = PromptViewerSheetController(text: text)
+        promptViewer = viewer
+        guard let sheet = viewer.window, let parent = window else { return }
+        parent.beginSheet(sheet) { [weak self] _ in
+            self?.promptViewer = nil
+        }
+        AppLog.info(.app, "full prompt viewer opened chars=\(text.count)")
     }
 
     @objc private func save() {

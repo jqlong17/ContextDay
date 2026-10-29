@@ -2,6 +2,8 @@
 
 Segment 工具只读（与 Spec §2.9 一致）。助手技能模版可经同一表面读写 **Application Support** 副本（永不改 Bundle / Segment schema）。权威转写在 SQLite；不上云。
 
+**具体请求/响应 JSON（纪要 / Q&A）**：见 [agent-io-samples.md](agent-io-samples.md)。`summarize_window` / `export_audio` 为明确 unavailable。
+
 ## HTTP（App 运行中）
 
 默认绑定 `127.0.0.1` 上首个空闲端口 `18787–18797`（隐私：不监听局域网）。
@@ -30,7 +32,8 @@ curl -s http://127.0.0.1:18787/health
 | `get_agent_skill` | `name` | 读单个文件内容 |
 | `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（永不写 Bundle） |
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged 模版；跳过 `agent-skills.local.md` |
-| `get_clipboard_prompt` | — | 当前「复制提示词」全文（含绝对技能路径） |
+| `get_clipboard_prompt` | — | 与右键「复制提示词」相同的**短索引**（`kind=index`）；不是完整提示词 |
+| `self_check` | — | 权限 / DB / 模型 / 录音 desync / 上次错误 / Agent IO 监听 |
 
 ```bash
 ./Scripts/contextday-cli.sh list_agent_skills '{}'
@@ -39,6 +42,7 @@ curl -s http://127.0.0.1:18787/health
 ./Scripts/contextday-cli.sh reset_agent_skill '{"name":"meeting-minutes.md"}'
 ./Scripts/contextday-cli.sh reset_agent_skill '{}'   # all packaged
 ./Scripts/contextday-cli.sh get_clipboard_prompt '{}'
+./Scripts/contextday-cli.sh self_check
 ```
 
 ## MCP stdio（无 GUI）
@@ -54,13 +58,13 @@ curl -s http://127.0.0.1:18787/health
 | command | `…/ContextDay.app/Contents/MacOS/ContextDay` |
 | args | `["--mcp"]` |
 
-协议：JSON-RPC 2.0 + `Content-Length` framing；`initialize` / `tools/list` / `tools/call`。工具实现仍走 `AgentIOProtocol.dispatch`（与 HTTP 同层）；`tools/list` 含 Segment 四工具 + 上表技能工具。
+协议：JSON-RPC 2.0 + `Content-Length` framing；`initialize` / `tools/list` / `tools/call`。工具实现仍走 `AgentIOProtocol.dispatch`（与 HTTP 同层）；`tools/list` 含 Segment 四工具 + 上表技能工具 + `self_check`。
 
-## 剪贴板（Grok Bot 轻量路径）
+## 剪贴板索引（Grok Bot 轻量路径）
 
-App 右键「复制提示词」→ 粘贴到 Grok / 其它助手。路径为**本机绝对路径**：记录根 + `~/Library/Application Support/ContextDay/agent-skills/*.md` + Agent IO `127.0.0.1:18787–18797`。不依赖仓库相对路径。
+App 右键「复制提示词」→ 粘贴**短助手索引**（指引读 App Support 技能 / 调 Agent IO）。**不会**把完整专有提示词写入剪贴板；全文仅在 App **设置 → 查看完整提示词…** 只读查看。
 
-建议对话开场：粘贴提示词后问「用 Agent IO `list_agent_skills` / `get_recent`，再按 meeting-minutes 技能整理」。
+建议对话开场：粘贴索引后问「用 Agent IO `list_agent_skills` / `get_recent`，再按 meeting-minutes 技能整理」。
 
 ## 安全
 

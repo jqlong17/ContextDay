@@ -131,17 +131,20 @@ final class AgentSkillsStoreTests: XCTestCase {
 
         let promptData = try AgentIOProtocol.dispatch(tool: "get_clipboard_prompt", arguments: [:], service: service)
         let prompt = try JSONDecoder().decode(AgentClipboardPromptDTO.self, from: promptData)
+        XCTAssertEqual(prompt.kind, "index")
         XCTAssertTrue(prompt.text.contains(skillsRoot.path))
+        XCTAssertLessThan(prompt.text.count, 600)
         XCTAssertFalse(prompt.text.contains("docs/agent-skills"))
         XCTAssertFalse(prompt.text.contains("Spec §"))
+        XCTAssertFalse(prompt.text.contains("Segment 字段摘要"))
     }
 
-    func testClipboardPromptUsesAbsoluteAppSupportPaths() {
-        let text = AgentPromptTemplate.makePrompt(
+    func testClipboardIndexUsesAbsoluteAppSupportPaths() {
+        let text = AgentPromptTemplate.makeClipboardIndex(
             recordsRoot: URL(fileURLWithPath: "/tmp/ContextDayRecordsTest")
         )
         XCTAssertTrue(text.contains(skillsRoot.path))
-        XCTAssertTrue(text.contains("list_agent_skills"))
+        XCTAssertTrue(text.contains("get_agent_skill") || text.contains("get_recent"))
         XCTAssertFalse(text.contains("docs/agent-skills"))
         XCTAssertFalse(text.contains("Spec §"))
     }

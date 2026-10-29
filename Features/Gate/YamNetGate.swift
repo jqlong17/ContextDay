@@ -1,7 +1,10 @@
 import Foundation
 import OnnxRuntimeBindings
 
-/// YAMNet-ONNX ~5s window gate; dual-rail labels; Music > Speech when tied (Spec §1.4 / §3.1).
+/// YAMNet-ONNX ~5s window gate (Spec §1.4 / §3.1).
+/// Dual-rail: each `classify(track:pcmWindow:…)` decision applies **only** to that track's
+/// PCM. Music>Speech tie-break is within-window / within-track — system Music never
+/// suppresses mic capture or ASR.
 final class YamNetGate {
     struct LabelResult {
         var track: SegmentTrack
@@ -44,7 +47,7 @@ final class YamNetGate {
             try opts.setIntraOpNumThreads(2)
             session = try ORTSession(env: env, modelPath: modelURL.path, sessionOptions: opts)
             isModelLoaded = true
-            NSLog("ContextDay Gate: loaded YAMNet ONNX (\(classNames.count) classes)")
+            AppLog.info(.gate, "loaded YAMNet ONNX classes=\(classNames.count)")
         } catch let error as GateError {
             throw error
         } catch {
@@ -52,12 +55,13 @@ final class YamNetGate {
         }
     }
 
-    /// Classify a 16 kHz mono PCM window (Int16 LE). Spec ~5s windows.
+    /// Classify one track's 16 kHz mono PCM window (Int16 LE). Spec ~5s windows.
+    /// No cross-track latch: callers must pass that track's own buffer only.
     func classify(track: SegmentTrack, pcmWindow: Data, windowStartMs: Int64, windowEndMs: Int64) -> LabelResult {
         do {
             try loadModelIfNeeded()
         } catch {
-            NSLog("ContextDay Gate: load failed — \(error.localizedDescription); labeling .other")
+            AppLog.error(.gate, "load failed — \(error.localizedDescription); labeling .other")
             return LabelResult(
                 track: track, label: .other,
                 windowStartMs: windowStartMs, windowEndMs: windowEndMs,
@@ -83,7 +87,7 @@ final class YamNetGate {
                 speechScore: speech, musicScore: music
             )
         } catch {
-            NSLog("ContextDay Gate: inference failed — \(error.localizedDescription)")
+            AppLog.error(.gate, "inference failed — \(error.localizedDescription)")
             return LabelResult(
                 track: track, label: .other,
                 windowStartMs: windowStartMs, windowEndMs: windowEndMs,

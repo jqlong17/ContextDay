@@ -57,6 +57,13 @@
 		B12SKILL0000000000000001 /* AgentSkillsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12SKILL0000000000000001 /* AgentSkillsStore.swift */; };
 		B12SKILL0000000000000002 /* AgentSkills in Resources */ = {isa = PBXBuildFile; fileRef = A12SKILL0000000000000002 /* AgentSkills */; };
 		B12SKILL0000000000000003 /* AgentSkillsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */; };
+		B13DIAG0000000000000001 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000001 /* AppLog.swift */; };
+		B13DIAG0000000000000002 /* PermissionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000002 /* PermissionStatus.swift */; };
+		B13DIAG0000000000000003 /* RuntimeHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000003 /* RuntimeHealth.swift */; };
+		B13DIAG0000000000000004 /* SelfCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000004 /* SelfCheck.swift */; };
+		B13DIAG0000000000000005 /* PromptViewerSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000005 /* PromptViewerSheetController.swift */; };
+		B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */; };
+		B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -125,6 +132,13 @@
 		A12SKILL0000000000000001 /* AgentSkillsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSkillsStore.swift; sourceTree = "<group>"; };
 		A12SKILL0000000000000002 /* AgentSkills */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AgentSkills; sourceTree = "<group>"; };
 		A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSkillsStoreTests.swift; sourceTree = "<group>"; };
+		A13DIAG0000000000000001 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
+		A13DIAG0000000000000002 /* PermissionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionStatus.swift; sourceTree = "<group>"; };
+		A13DIAG0000000000000003 /* RuntimeHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeHealth.swift; sourceTree = "<group>"; };
+		A13DIAG0000000000000004 /* SelfCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfCheck.swift; sourceTree = "<group>"; };
+		A13DIAG0000000000000005 /* PromptViewerSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptViewerSheetController.swift; sourceTree = "<group>"; };
+		A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSelfCheckTests.swift; sourceTree = "<group>"; };
+		A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOMeetingFixtureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -241,10 +255,22 @@
 			children = (
 				E4753C59064F4531AE5B2F3D /* AppConfig.swift */,
 				BC459B47DBFB421EAF092B78 /* ConfigWindowController.swift */,
+				A13DIAG0000000000000005 /* PromptViewerSheetController.swift */,
 				891B91507C974F0C945BC397 /* TimelineWindowController.swift */,
 				A11AB0070000000000000004 /* AboutPrivacyWindowController.swift */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		A13DIAGGRP00000000000001 /* Diagnostics */ = {
+			isa = PBXGroup;
+			children = (
+				A13DIAG0000000000000001 /* AppLog.swift */,
+				A13DIAG0000000000000002 /* PermissionStatus.swift */,
+				A13DIAG0000000000000003 /* RuntimeHealth.swift */,
+				A13DIAG0000000000000004 /* SelfCheck.swift */,
+			);
+			path = Diagnostics;
 			sourceTree = "<group>";
 		};
 		CF726A925FA946A59D665F5E /* Features */ = {
@@ -258,6 +284,7 @@
 				43F43022C6B5438BB949FA7C /* ASR */,
 				23A6DDF0157845C6B291024F /* Store */,
 				1BA0FC2041F74038A69134BE /* Config */,
+				A13DIAGGRP00000000000001 /* Diagnostics */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -291,6 +318,8 @@
 				947DAE30A9634F3A9A18ACE5 /* SenseVoiceASRTests.swift */,
 				A11FE57E0000000000000005 /* RetentionDiskTests.swift */,
 				A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */,
+				A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */,
+				A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -448,6 +477,11 @@
 				B11FE7F00000000000000002 /* RetentionPurger.swift in Sources */,
 				B11C95D10000000000000003 /* AgentIOMCPStdio.swift in Sources */,
 				B12SKILL0000000000000001 /* AgentSkillsStore.swift in Sources */,
+				B13DIAG0000000000000001 /* AppLog.swift in Sources */,
+				B13DIAG0000000000000002 /* PermissionStatus.swift in Sources */,
+				B13DIAG0000000000000003 /* RuntimeHealth.swift in Sources */,
+				B13DIAG0000000000000004 /* SelfCheck.swift in Sources */,
+				B13DIAG0000000000000005 /* PromptViewerSheetController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -461,6 +495,8 @@
 				E695101F724B4A5CA70B0251 /* SenseVoiceASRTests.swift in Sources */,
 				B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */,
 				B12SKILL0000000000000003 /* AgentSkillsStoreTests.swift in Sources */,
+				B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */,
+				B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

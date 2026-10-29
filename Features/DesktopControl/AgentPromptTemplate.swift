@@ -1,10 +1,23 @@
 import Foundation
 
-/// Clipboard prompt for Grok Bot–class assistants (Spec §2.8).
+/// Spec §2.8 — clipboard gets a short index; full brief is in-app viewer only.
 enum AgentPromptTemplate {
-    /// Absolute Application Support skill paths + records root + Agent IO.
-    /// Seeds App Support from Bundle when needed. No repo-relative paths; no Spec § refs.
-    static func makePrompt(recordsRoot: URL = AppPaths.recordsRoot) -> String {
+    /// Pasteboard + `get_clipboard_prompt`. Never embeds the full proprietary brief.
+    static func makeClipboardIndex(recordsRoot: URL = AppPaths.recordsRoot) -> String {
+        let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
+        let skills = skillsRoot.path
+        let root = recordsRoot.path
+        let port = AgentIOHTTPServer.shared.port
+        let healthPort = port > 0 ? port : AgentIOPort.preferred()
+
+        return """
+        ContextDay 助手索引（只读本机数据；勿删录音/数据库除非用户再次确认）：先确认 http://127.0.0.1:\(healthPort)/health 含 service=ContextDay；再经 Agent IO 调用 get_recent / get_agent_skill / self_check，或直接读取 \(skills)/（如 README.md、meeting-minutes.md）；转写权威 \(root)/db/contextday.sqlite（无每日 txt）。
+        """
+    }
+
+    /// Full operational brief for the in-app read-only viewer (Settings).
+    /// Must not be written to the system pasteboard.
+    static func makeFullPrompt(recordsRoot: URL = AppPaths.recordsRoot) -> String {
         let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
         let root = recordsRoot.path
         let skills = skillsRoot.path
@@ -34,8 +47,9 @@ enum AgentPromptTemplate {
         本机 Agent IO（只读转写 + 可读写助手技能模版；仅 127.0.0.1）：
         http://127.0.0.1:\(healthPort)/health
         期望 JSON 含 "service":"ContextDay"。
-        转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+        转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|self_check}
         技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
+        说明：get_clipboard_prompt 仅返回短「助手索引」（与右键「复制提示词」相同），不是下方全文。
 
         助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
         \(skills)/README.md

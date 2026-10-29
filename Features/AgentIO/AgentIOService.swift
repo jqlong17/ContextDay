@@ -155,14 +155,21 @@ final class AgentIOService: @unchecked Sendable {
         }
     }
 
-    /// `get_clipboard_prompt` — current §2.8 clipboard body (seeds skills if needed).
+    /// `get_clipboard_prompt` — same short index as pasteboard (Spec §2.8); never the full brief.
     func getClipboardPrompt() -> AgentClipboardPromptDTO {
-        let text = AgentPromptTemplate.makePrompt(recordsRoot: AppPaths.recordsRoot)
+        _ = AgentSkillsStore.ensureSeededFromBundle()
+        let text = AgentPromptTemplate.makeClipboardIndex(recordsRoot: AppPaths.recordsRoot)
         return AgentClipboardPromptDTO(
             text: text,
+            kind: "index",
             skillsRootPath: AgentSkillsStore.absoluteSkillsRootPath,
             recordsRootPath: AppPaths.recordsRoot.path
         )
+    }
+
+    /// `self_check` — offline-friendly triage snapshot (permissions, DB, models, desync).
+    func selfCheck() -> SelfCheck.Report {
+        SelfCheck.run()
     }
 
     private func mapSkillsError(_ err: AgentSkillsStore.AgentSkillsError) -> AgentIOError {
@@ -241,12 +248,15 @@ struct AgentSkillResetDTO: Codable, Equatable, Sendable {
 }
 
 struct AgentClipboardPromptDTO: Codable, Equatable, Sendable {
+    /// Short clipboard index (never the full proprietary brief).
     var text: String
+    /// Always `"index"` — pasteboard / tool share the same short body.
+    var kind: String
     var skillsRootPath: String
     var recordsRootPath: String
 
     enum CodingKeys: String, CodingKey {
-        case text
+        case text, kind
         case skillsRootPath = "skills_root_path"
         case recordsRootPath = "records_root_path"
     }
