@@ -2,7 +2,8 @@
 
 本机 24h 语音上下文（Mac App Store 向），供 Grok Bot 类助手使用。
 
-产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（SSOT，当前 **v0.3.7**）。
+产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（**MVP SSOT**，当前 **v0.3.8**）。  
+Agent IO post-MVP 优化（分轨 activity / ISO / speech blocks / 统一错误与分页）见 [docs/02_spec.md](docs/02_spec.md)；样例 [docs/agent-io-samples.md](docs/agent-io-samples.md)。
 
 助手技能模板（脱敏）：仓库 [docs/agent-skills/](docs/agent-skills/)（Git SSOT）；运行时播种到 `~/Library/Application Support/ContextDay/agent-skills/`，可经 Agent IO 读写（见 [docs/agent-io-mcp.md](docs/agent-io-mcp.md)）。
 

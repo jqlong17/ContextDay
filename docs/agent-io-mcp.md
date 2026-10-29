@@ -1,8 +1,8 @@
 # ContextDay Agent IO — HTTP / MCP / Grok 样例
 
-Segment 工具只读（与 Spec §2.9 一致）。助手技能模版可经同一表面读写 **Application Support** 副本（永不改 Bundle / Segment schema）。权威转写在 SQLite；不上云。
+Segment 工具只读（MVP：[01_spec.md](01_spec.md) §2.9；优化：[02_spec.md](02_spec.md)）。助手技能模版可经同一表面读写 **Application Support** 副本（永不改 Bundle / Segment schema）。权威转写在 SQLite；不上云。
 
-**具体请求/响应 JSON（纪要 / Q&A）**：见 [agent-io-samples.md](agent-io-samples.md)。`summarize_window` / `export_audio` 为明确 unavailable。
+**具体请求/响应 JSON（纪要 / Q&A）**：见 [agent-io-samples.md](agent-io-samples.md)。`summarize_window` / `export_audio` 为明确 unavailable；长会议用 `list_speech_blocks`。
 
 ## HTTP（App 运行中）
 
@@ -14,9 +14,10 @@ curl -s http://127.0.0.1:18787/health
 ./Scripts/contextday-cli.sh search_segments '{"query":"会议","track":"mic"}'
 ./Scripts/contextday-cli.sh get_window '{"t0_ms":0,"t1_ms":9999999999999}'
 ./Scripts/contextday-cli.sh list_activity '{}'
+./Scripts/contextday-cli.sh list_speech_blocks '{"track":"mic","gap_ms":120000}'
 ```
 
-`POST /v1/tools/{name}`，JSON body = 参数。非首波 Segment 工具返回 501 `unavailable`。
+`POST /v1/tools/{name}`，JSON body = 参数。非首波 Segment 工具返回 501 `unavailable`。分页/硬顶见 02 §2.9（page×50；硬顶 500）。
 
 ### 助手技能（Application Support）
 

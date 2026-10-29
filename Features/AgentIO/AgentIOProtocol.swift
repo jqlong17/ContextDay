@@ -1,14 +1,15 @@
 import Foundation
 
-/// Phase 4 本机 MCP / HTTP 协议（§2.9）。
+/// Phase 4 本机 MCP / HTTP 协议（01 §2.9 + 02 优化）。
 /// Segment 工具只读；agent-skills 工具可读写 Application Support 副本（永不改 Bundle / Segment schema）。
 enum AgentIOProtocol {
-    /// Segment 首波（只读）。
+    /// Segment 首波（只读）+ 02 speech-block helper。
     static let firstWaveTools: [String] = [
         "search_segments",
         "get_recent",
         "get_window",
         "list_activity",
+        "list_speech_blocks",
     ]
 
     /// 助手技能 / 剪贴板索引（App Support；可更新）。
@@ -72,7 +73,20 @@ enum AgentIOProtocol {
         case "list_activity":
             let dto = service.listActivity(
                 t0Ms: int64(arguments["t0_ms"]),
-                t1Ms: int64(arguments["t1_ms"])
+                t1Ms: int64(arguments["t1_ms"]),
+                includeTotal: boolArg(arguments["include_total"]) ?? true
+            )
+            return try encodeJSON(dto)
+
+        case "list_speech_blocks":
+            if let rawTrack = arguments["track"] as? String, SegmentTrack(rawValue: rawTrack) == nil {
+                throw AgentIOError.invalidArgument("track must be mic or system")
+            }
+            let dto = try service.listSpeechBlocks(
+                t0Ms: int64(arguments["t0_ms"]),
+                t1Ms: int64(arguments["t1_ms"]),
+                track: track(arguments["track"]) ?? .mic,
+                gapMs: arguments["gap_ms"] as? Int ?? intArg(arguments["gap_ms"])
             )
             return try encodeJSON(dto)
 
@@ -146,6 +160,20 @@ enum AgentIOProtocol {
         case let v as Double: return v
         case let v as Int: return Double(v)
         case let v as NSNumber: return v.doubleValue
+        default: return nil
+        }
+    }
+
+    private static func boolArg(_ value: Any?) -> Bool? {
+        switch value {
+        case let v as Bool: return v
+        case let v as NSNumber: return v.boolValue
+        case let v as String:
+            switch v.lowercased() {
+            case "true", "1", "yes": return true
+            case "false", "0", "no": return false
+            default: return nil
+            }
         default: return nil
         }
     }

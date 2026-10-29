@@ -1,0 +1,35 @@
+[
+  {
+    "bucket_end_iso": "2024-10-29T09:00:00.000+08:00",
+    "bucket_end_ms": 1730163600000,
+    "bucket_start_iso": "2024-10-29T08:00:00.000+08:00",
+    "bucket_start_ms": 1730160000000,
+    "music_count": 0,
+    "other_count": 0,
+    "segment_count": 5,
+    "speech_count": 5,
+    "track": "mic"
+  },
+  {
+    "bucket_end_iso": "2024-10-29T09:00:00.000+08:00",
+    "bucket_end_ms": 1730163600000,
+    "bucket_start_iso": "2024-10-29T08:00:00.000+08:00",
+    "bucket_start_ms": 1730160000000,
+    "music_count": 1,
+    "other_count": 0,
+    "segment_count": 1,
+    "speech_count": 0,
+    "track": "system"
+  },
+  {
+    "bucket_end_iso": "2024-10-29T09:00:00.000+08:00",
+    "bucket_end_ms": 1730163600000,
+    "bucket_start_iso": "2024-10-29T08:00:00.000+08:00",
+    "bucket_start_ms": 1730160000000,
+    "music_count": 1,
+    "other_count": 0,
+    "segment_count": 6,
+    "speech_count": 5,
+    "track": null
+  }
+]

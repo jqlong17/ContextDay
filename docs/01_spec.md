@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.7** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=短索引、全文仅设置内只读查看；诊断日志 + `self_check`；正式公证/上架 **待人提交** |
+| Spec 版本 | **v0.3.8** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=短索引；诊断 + `self_check`；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 12:45 Asia/Shanghai |
+| 最后更新 | 2026-10-29 20:50 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -213,7 +213,8 @@ asr_model_id?, asr_model_version?
 本机 Agent IO（只读转写 + 可读写助手技能模版；仅 127.0.0.1）：
 http://127.0.0.1:{AGENT_IO_PORT}/health
 期望 JSON 含 "service":"ContextDay"。
-转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|self_check}
+转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
+（`list_speech_blocks` 与分轨 activity / ISO 派生见 docs/02_spec.md）
 技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
 说明：get_clipboard_prompt 仅返回短「助手索引」，不是本全文。
 
@@ -232,7 +233,8 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 ### 2.9 Agent IO 语义工具（首波定稿）
 
 > **v0.3.2**：在 §2.8 剪贴板轻量路径之上，定稿**只读语义工具**表面，供本机 MCP / 本地服务 / 测试直接调用。字段与 §3.3 Segment 对齐；**不改 schema**。  
-> **v0.3.4**：同层增加**助手技能**工具（读写 Application Support 副本；永不改 Bundle / Segment）。
+> **v0.3.4**：同层增加**助手技能**工具（读写 Application Support 副本；永不改 Bundle / Segment）。  
+> **v0.3.8**：本 § 仍是 **MVP 航运合同**。分轨 `list_activity`、派生 ISO-8601、`list_speech_blocks`、统一错误与分页硬顶等 **post-MVP 优化**写在 [`docs/02_spec.md`](02_spec.md)；实现可随 02 合入，**不得**借机改 §3.3 Segment 表。
 
 原则：
 
@@ -342,7 +344,8 @@ ContextDay/
       icon-1024.png            # 与 idle 同款 → Assets.xcassets/AppIcon.appiconset
     AgentSkills/               # 打包技能模版 → Application Support
   docs/
-    01_spec.md
+    01_spec.md                 # MVP SSOT
+    02_spec.md                 # Agent IO post-MVP 优化轨
     agent-io-mcp.md            # HTTP / MCP / 技能工具 / Grok 样例
     store-review-notes.md      # 商店审核说明草稿
     agent-skills/              # Git SSOT 脱敏技能模板（与 Bundle 同步）
@@ -693,8 +696,9 @@ flowchart TB
 | v0.3.5 | 2026-10-29 08:13 | 浮控左键**取消**启停录音与眼神微动（仅保留拖动）；开始/暂停录音与 eye-click **仅**走右键菜单；对齐 Notta Input「主键不绑录音」；验收补 T22；**Segment schema 不变** |
 | v0.3.6 | 2026-10-29 12:30 | 离线加固：权限快照 + `AppLog`（OSLog/可选 logs 文件；info 不写转写正文）+ `self_check`；右键菜单分组精简（设置子菜单 + 退出）；§2.8 剪贴板改为短索引，完整提示词仅设置内只读 sheet；重申双轨门控独立（系统 Music 不抑制麦 ASR；`per-track gate … scope=this_track_only` 日志）；Agent IO DTO 增补 `tz_at_capture` / `audio_path`（SQLite schema 未破改）；样例见 `docs/agent-io-samples.md` |
 | v0.3.7 | 2026-10-29 12:45 | 「调整大小」定稿为绕中心 ease-in-out 平滑缩放（约 0.28s，`NSAnimationContext`）；窗口 `animationBehavior = .documentWindow` 保证 borderless 浮控可见动画；补 T23；左键无录音 / `.normal` 层级 / Segment schema **不变** |
+| v0.3.8 | 2026-10-29 20:50 | 交叉链接 [`docs/02_spec.md`](02_spec.md)（Agent IO 优化轨）；本文件仍为 MVP SSOT；§2.9 / Segment schema **合同正文不迁** |
 
-变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
+变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
 ### §5 清单对齐快照（相对 v0.3.2，无升版）
 
@@ -714,7 +718,8 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.7 | **已完成** | v0.3.7 = 调整大小平滑缩放；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.8 | **已完成** | v0.3.8 = 交叉链接 02；schema 自 v0.2.0 未破改 |
+| Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
@@ -727,7 +732,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.7 调整大小平滑缩放已定稿；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.8 交叉链接 Agent IO 优化轨 `02_spec`；正式公证/上架留待人工提交。**
 
 ---
 
