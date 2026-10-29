@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.4** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`；§2.8 剪贴板指向 Application Support `agent-skills/` 绝对路径；Agent IO 可读写技能模版；正式公证/上架 **待人提交** |
+| Spec 版本 | **v0.3.5** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`；浮控左键**不**启停录音（仅拖动）；启停走右键菜单；§2.8 剪贴板指向 Application Support `agent-skills/`；正式公证/上架 **待人提交** |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 02:20 Asia/Shanghai |
+| 最后更新 | 2026-10-29 08:13 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -59,7 +59,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 2. 默认开启**分类过滤**：约每 5s 对环缓冲已有音频打标；仅判定为 **Speech** 的片段送入 SenseVoice Core ML int8。
 3. 时间线展示：**起止时间 + 文本**；落库时对邻近碎片自动合并，避免过于零散。
 4. 配置页可关过滤、可选择是否保留音频及质量；未开过滤时**只能保留全部音频**（不可选「仅人声」）。
-5. 主交互为桌面拟物浮控（双眼 3D 球，见 §2.7）：左键切换激活/停止并播放眼神微动；右键打开记录目录或复制给 AI 的提示词。
+5. 主交互为桌面拟物浮控（双眼 3D 球，见 §2.7）：左键**不**启停采集（可拖动浮控）；右键菜单「开始录音 / 暂停录音」启停并播放眼神微动；同菜单亦可打开记录目录或复制给 AI 的提示词。
 
 ### 2.1.1 留音用途与默认策略（用户已确认）
 
@@ -139,8 +139,8 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 MVP 视觉约定：
 
 - **录制中与 idle 可用同一颗球**（同一 `idle.png`）；录制态额外视觉提示（如微光环 / 角标）= **二期可选**，不挡 MVP。
-- 左键点击时播放 `eye-click-2s.mp4`，播完后回到 idle 静帧（首尾同帧，可无缝循环或 settle）。
-- **不做**旧版「raised/pressed 双 PNG + 2px 下移」按压叙事；反馈以**眼神微动**为主。
+- 右键「开始录音 / 暂停录音」时播放 `eye-click-2s.mp4`，播完后回到 idle 静帧（首尾同帧，可无缝循环或 settle）。**左键不播放**眼神微动。
+- **不做**旧版「raised/pressed 双 PNG + 2px 下移」按压叙事；反馈以**眼神微动**为主（仅绑录音菜单路径）。
 
 #### 2.7.2 窗口层级（硬性要求）
 
@@ -150,15 +150,15 @@ MVP 视觉约定：
 
 | 操作 | 行为 |
 |------|------|
-| 左键 / 主键点击 | **切换**激活 ↔ 停止采集；同时播放 `eye-click-2s` 眼神微动，结束后 settle 到 idle 静帧。MVP：**录制中与 idle 视觉可相同**（二期再加录制态线索） |
+| 左键 / 主键点击 | **无录音副作用**：不开始、不暂停、不切换采集；不播放眼神微动。若按住拖动，可移动浮控（`isMovableByWindowBackground`）。MVP：**录制中与 idle 视觉可相同**（二期再加录制态线索） |
 | 右键 | 弹出上下文菜单（见下） |
 
 右键菜单（MVP）：
 
 | 菜单项 | 行为 |
 |--------|------|
-| **开始录音** | 与左键「激活」同一路径：开始采集；未在录制时可点；播放眼神微动 |
-| **暂停录音** | 与左键「停止」同一路径：停止采集；正在录制时可点；播放眼神微动 |
+| **开始录音** | **唯一用户启停入口之一**：开始采集；未在录制时可点；播放眼神微动 |
+| **暂停录音** | **唯一用户启停入口之一**：停止采集；正在录制时可点；播放眼神微动 |
 | **打开记录文件夹** | `NSWorkspace` 在 Finder 中打开**当前记录根**（默认 `~/Downloads/ContextDay/`，或用户「修改保存文件夹」所选；可见 `db/` 与 `audio/`；**不**打开虚构的「每日 txt 目录」） |
 | **复制提示词** | 将 §2.8 定稿模板（运行时填入**当前记录根**绝对路径）写入系统剪贴板（general pasteboard） |
 | **修改保存文件夹…** | `NSOpenPanel` 选择目录，写入 UserDefaults `recordsRootPath`；Store 按新根重开 DB |
@@ -481,7 +481,7 @@ ContextDay/
 flowchart TB
   subgraph UI["App Shell"]
     Desk[DesktopControl 双眼球浮控]
-    Activate[左键: 激活/停止 + 眼神微动]
+    Activate[右键菜单: 开始/暂停录音 + 眼神微动]
     CtxMenu[右键: 打开记录文件夹 / 复制提示词]
     Settings[配置页: 门控·留音·Opus·保留天数·预估]
     Timeline[时间线视图]
@@ -563,7 +563,7 @@ flowchart TB
 
 - [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
 - [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
-- [x] DesktopControl：`.normal` 窗口、orb idle + 左键播 eye-click（末帧 settle）、激活/停止、麦权限引导
+- [x] DesktopControl：`.normal` 窗口、orb idle；左键仅拖动（不启停录音）；右键菜单开始/暂停 + eye-click（末帧 settle）；麦权限引导
 - [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小；设置/时间线/关于与隐私
 - [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
 
@@ -595,7 +595,7 @@ flowchart TB
 
 | ID | 场景 | 步骤要点 | 期望 |
 |----|------|----------|------|
-| T01 | 激活即采 | 授权后左键浮控 | 环缓冲有 PCM；播放 eye-click 后 settle；UI 显示记录中（MVP 球可仍为 idle） |
+| T01 | 激活即采 | 授权后右键 → 开始录音 | 环缓冲有 PCM；播放 eye-click 后 settle；UI 显示记录中（MVP 球可仍为 idle） |
 | T02 | 门控开 + 说话 | 对麦说话 ≥3s | 出现 Speech 标签；SQLite 产生转写条目 |
 | T03 | 门控开 + 纯音乐（系统轨） | 本机放歌 | Music 优先；默认不送 ASR |
 | T04 | 门控关 | 关过滤后说话/放歌 | 达 VAD 的段均可送 ASR；留音不可选仅人声 |
@@ -615,7 +615,8 @@ flowchart TB
 | T18 | 复制提示词 | 右键 → 复制提示词 → 粘贴到文本编辑器 | 含产品一句话、Application Support / sqlite 绝对路径、Segment 摘要、「转写在 SQLite 非 txt」、只读勿删提示 |
 | T19 | 无 txt 落盘 | 激活并产生至少一条转写后扫盘 | Application Support 下**无**转写用途的 `.txt`；文本仅在 sqlite |
 | T20 | 合并留最早音 | keep_audio 开；两段均有 opus 且间隔 ≤gap | 合并后 `audio_path` 指向最早段文件；孤儿文件被调度删除 |
-| T21 | 眼神微动 | 左键点击浮控 | 播放约 2s eye-click；首尾同帧 settle；球身无明显缩放/位移 |
+| T21 | 眼神微动 | 右键 → 开始录音或暂停录音 | 播放约 2s eye-click；首尾同帧 settle；球身无明显缩放/位移 |
+| T22 | 左键无录音 | 左键单击浮控（不经右键菜单） | **不**开始/暂停/切换采集；**不**播放 eye-click；按住拖动仍可移动浮控 |
 
 ---
 
@@ -628,7 +629,7 @@ flowchart TB
 5. 主力 ASR 为 SenseVoice Core ML int8；文档与关于页写明本机推理。
 6. 隐私：默认不上云；Application Support 路径与删除方式可查（§3.4）。
 7. 命名与商店素材使用 ContextDay，不与输入法产品混品牌。
-8. 桌面浮控：透明 idle 双眼球 + 点击 eye-click ~2s；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
+8. 桌面浮控：透明 idle 双眼球；右键开始/暂停时 eye-click ~2s；**左键不启停录音**；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
 9. 右键「打开记录文件夹」打开 Application Support 根；「复制提示词」符合 §2.8；转写**仅**在 SQLite，无每日 txt 要求。
 
 ---
@@ -658,6 +659,7 @@ flowchart TB
 | v0.3.2 | 2026-10-29 00:45 | 定稿 Agent IO 语义工具首波（§2.9）：`search_segments` / `get_recent` / `get_window` / `list_activity`；`summarize_window` / `export_audio` 标为非首波 unavailable；源码树增加 `Features/AgentIO`；右键菜单补 **开始录音 / 暂停录音**（与左键同一激活路径）及 **修改保存文件夹…**；**Segment schema 不变** |
 | v0.3.3 | 2026-10-29 01:50 | §2.8 提示词增加仓库 `docs/agent-skills/`（脱敏技能模板）与 Agent IO 默认 `:18787`（`service=ContextDay`）；禁止入库个人 Feishu ID；**Segment schema 不变** |
 | v0.3.4 | 2026-10-29 02:20 | 技能模版随 Bundle 播种到 Application Support；§2.8 剪贴板改用绝对路径（无仓库相对路径）；Agent IO / MCP 增加 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill` / `get_clipboard_prompt`；**Segment schema 不变** |
+| v0.3.5 | 2026-10-29 08:13 | 浮控左键**取消**启停录音与眼神微动（仅保留拖动）；开始/暂停录音与 eye-click **仅**走右键菜单；对齐 Notta Input「主键不绑录音」；验收补 T22；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
 
@@ -679,11 +681,11 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.4 | **已完成** | v0.3.4 = App Support agent-skills + Agent IO 技能读写；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.5 | **已完成** | v0.3.5 = 左键无录音副作用；启停仅右键菜单；schema 自 v0.2.0 未破改 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 末帧 settle / 64pt / 菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 左键仅拖动 / 右键启停+eye-click / 64pt / 菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |

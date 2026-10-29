@@ -2,7 +2,7 @@
 
 本机 24h 语音上下文（Mac App Store 向），供 Grok Bot 类助手使用。
 
-产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（SSOT，当前 **v0.3.4**）。
+产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（SSOT，当前 **v0.3.5**）。
 
 助手技能模板（脱敏）：仓库 [docs/agent-skills/](docs/agent-skills/)（Git SSOT）；运行时播种到 `~/Library/Application Support/ContextDay/agent-skills/`，可经 Agent IO 读写（见 [docs/agent-io-mcp.md](docs/agent-io-mcp.md)）。
 
@@ -21,7 +21,7 @@
 open ContextDay.xcodeproj
 ```
 
-Signing → 选 Team → Run。浮控默认约 **64pt**（右键「调整大小」），可被其它 App 遮盖。
+Signing → 选 Team → Run。浮控默认约 **64pt**（右键「调整大小」），可被其它 App 遮盖。左键仅拖动浮控，**不**启停录音。
 
 右键：开始/暂停录音、打开记录文件夹、复制提示词、修改保存文件夹、调整大小、设置…、时间线…、关于与隐私…
 
