@@ -7,7 +7,7 @@
 | Spec 版本 | **v0.1.0** |
 | 状态 | **optimization_track** — 相对 MVP（`docs/01_spec.md` v0.3.7）的 Agent IO 表面增强；**不**替代 01 的 Phase 0–4 验收 |
 | 创建时间 | 2026-10-29 20:40 Asia/Shanghai |
-| 最后更新 | 2026-10-29 20:40 Asia/Shanghai |
+| 最后更新 | 2026-10-29 10:02 Asia/Shanghai |
 | 目标平台 | macOS（与 01 相同） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace`（经 GitHub 同步） |
@@ -539,7 +539,7 @@ flowchart LR
 - `gap_ms` 默认 2 分钟 deliberately **大于**落库 merge gap（2s）：块 ≈「话题/发言轮次」，不是 VAD 句。
 - ISO 派生失败回退不得抛到助手；ms 永远可作权威。
 - 若未来要 envelope（`{items, truncated}`），需升 02 次版本并提供兼容窗；本 v0.1.0 保持根数组。
-- 父机 squash-merge 后，视需要把 01 §10「执行状态」Agent IO 行改为「MVP + 02 优化已合入」。
+- [#9](https://github.com/jqlong17/ContextDay/pull/9) 已 squash；01 §10 Agent IO 行已标「MVP + 02 优化已合入」。
 
 ---
 
@@ -564,9 +564,9 @@ flowchart LR
 | list_speech_blocks | **已完成** | gap 元数据；非摘要 |
 | 统一错误 + 分页文档 | **已完成** | `AgentIOError` / Limits / samples |
 | samples / fixtures / tests | **已完成** | validate 脚本可 Linux 跑 |
-| PR 合入 | 待审 | 父机 squash-merge |
+| PR 合入 | **已合入** | [#9](https://github.com/jqlong17/ContextDay/pull/9) squash → `main` (`1efe74b`) |
 
-**当前总状态：02 Spec v0.1.0 + 同 PR 实现已就绪；01 保持 MVP SSOT；待 squash-merge。**
+**当前总状态：02 Spec v0.1.0 + 实现已随 [#9](https://github.com/jqlong17/ContextDay/pull/9) squash 合入 `main`；01 保持 MVP SSOT；下一项仍是本机装机冒烟与上架公证（需人工）。**
 
 ---
 
