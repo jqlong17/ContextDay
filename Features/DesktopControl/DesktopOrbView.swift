@@ -11,7 +11,6 @@ final class DesktopOrbView: NSView {
     private var playerLayer: AVPlayerLayer?
     private var endObserver: NSObjectProtocol?
 
-    var onPrimaryClick: (() -> Void)?
     var onSecondaryClick: ((NSPoint) -> Void)?
 
     /// Must be false so AppKit composites clear/orb alpha instead of an opaque plate.
@@ -297,9 +296,9 @@ final class DesktopOrbView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        if event.type == .leftMouseDown {
-            onPrimaryClick?()
-        }
+        // Left-click: window drag only (`isMovableByWindowBackground`). Do not toggle
+        // recording or play eye-click here — those stay on the right-click menu (Spec §2.7.3).
+        super.mouseDown(with: event)
     }
 
     override func rightMouseDown(with event: NSEvent) {

@@ -12,7 +12,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private var timelineWindow: TimelineWindowController?
     private var aboutWindow: AboutPrivacyWindowController?
 
-    /// Wired to left-click / 右键录音项 / 睡眠暂停.
+    /// Wired to 右键「开始录音 / 暂停录音」/ 睡眠暂停. Left-click does **not** toggle recording (Spec §2.7.3).
     private(set) var isRecording = false
     private let capture = CapturePipeline()
 
@@ -45,9 +45,8 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         win.isReleasedWhenClosed = false
 
         let orb = DesktopOrbView(frame: NSRect(origin: .zero, size: size))
-        orb.onPrimaryClick = { [weak self] in
-            self?.toggleRecording(playEyeClick: true)
-        }
+        // Left-click: drag only (via isMovableByWindowBackground). Recording / eye-click
+        // are right-menu (and smoke) paths — align with Notta Input: no record on primary click.
         orb.onSecondaryClick = { [weak self] point in
             self?.showContextMenu(at: point)
         }
@@ -58,11 +57,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         win.orderFrontRegardless()
     }
 
-    /// Same activate/stop path for left-click and 开始录音 / 暂停录音.
-    private func toggleRecording(playEyeClick: Bool) {
-        setRecording(!isRecording, playEyeClick: playEyeClick)
-    }
-
+    /// Activate/stop path for 开始录音 / 暂停录音 (and smoke). Not bound to left-click.
     private func setRecording(_ recording: Bool, playEyeClick: Bool) {
         guard recording != isRecording else { return }
         isRecording = recording
