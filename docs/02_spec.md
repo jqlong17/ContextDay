@@ -494,7 +494,7 @@ flowchart LR
 
 ### Phase E — PR
 
-- [ ] 提交分支 `cursor/agent-io-opt-spec-02-6206`；开 PR；父机 squash-merge
+- [x] 提交分支 `cursor/agent-io-opt-spec-02-6206`；开 PR [#9](https://github.com/jqlong17/ContextDay/pull/9)；父机 squash-merge
 
 ---
 
