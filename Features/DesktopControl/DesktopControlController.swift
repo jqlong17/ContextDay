@@ -41,6 +41,9 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         // `.floating` / status. Do NOT use `CGWindowLevelForKey(.desktopIconWindow)`: that
         // sits under Finder desktop icons and the orb becomes invisible in normal bring-up.
         win.level = .normal
+        // Borderless utility-ish windows can skip frame animation; document behavior keeps
+        // 「调整大小」 NSAnimationContext / animator().setFrame ease-in-out visible (Spec §2.7.3).
+        win.animationBehavior = .documentWindow
         win.title = "ContextDay"
         win.isReleasedWhenClosed = false
 
