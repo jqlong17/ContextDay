@@ -28,8 +28,9 @@ final class AgentIOHTTPServer {
         }
         port = 0
         isListening = false
-        NSLog(
-            "ContextDay AgentIO HTTP failed to bind any port in \(portRange.lowerBound)-\(portRange.upperBound); not listening"
+        AppLog.error(
+            .agentIO,
+            "failed to bind any port in \(portRange.lowerBound)-\(portRange.upperBound); not listening"
         )
     }
 
@@ -109,7 +110,7 @@ final class AgentIOHTTPServer {
 
             let waitResult = sem.wait(timeout: .now() + 0.75)
             if waitResult == .timedOut {
-                NSLog("ContextDay AgentIO HTTP bind \(candidate) timed out waiting for ready; cancelling")
+                AppLog.info(.agentIO, "bind \(candidate) timed out waiting for ready; cancelling")
                 created.cancel()
                 stateLock.lock()
                 if listener === created {
@@ -122,11 +123,11 @@ final class AgentIOHTTPServer {
             }
 
             if ready {
-                NSLog("ContextDay AgentIO HTTP listening on 127.0.0.1:\(candidate)")
+                AppLog.info(.agentIO, "listening on 127.0.0.1:\(candidate)")
                 created.stateUpdateHandler = { [weak self] state in
                     guard let self else { return }
                     if case .failed(let error) = state {
-                        NSLog("ContextDay AgentIO HTTP listener failed after ready: \(error.localizedDescription)")
+                        AppLog.error(.agentIO, "listener failed after ready: \(error.localizedDescription)")
                         self.stateLock.lock()
                         self.isListening = false
                         self.port = 0
@@ -136,9 +137,7 @@ final class AgentIOHTTPServer {
                 return true
             }
 
-            NSLog(
-                "ContextDay AgentIO HTTP bind \(candidate) failed: \(failMessage ?? "unknown"); trying next"
-            )
+            AppLog.info(.agentIO, "bind \(candidate) failed: \(failMessage ?? "unknown"); trying next")
             created.cancel()
             stateLock.lock()
             if listener === created {
@@ -149,9 +148,7 @@ final class AgentIOHTTPServer {
             stateLock.unlock()
             return false
         } catch {
-            NSLog(
-                "ContextDay AgentIO HTTP bind \(candidate) threw: \(error.localizedDescription); trying next"
-            )
+            AppLog.info(.agentIO, "bind \(candidate) threw: \(error.localizedDescription); trying next")
             return false
         }
     }
@@ -183,13 +180,19 @@ final class AgentIOHTTPServer {
             let bound = port
             let listening = isListening
             stateLock.unlock()
-            // Smoke must see service=ContextDay (not another local app on a reused port).
-            return httpJSON(200, [
+            let runtime = RuntimeHealth.shared.snapshot()
+            // Lean health: identity + recording flags. Full triage → tool `self_check`.
+            var payload: [String: Any] = [
                 "ok": listening,
                 "service": "ContextDay",
                 "port": Int(bound),
                 "listening": listening,
-            ])
+                "ui_wants_recording": runtime.uiWantsRecording,
+                "pipeline_running": runtime.pipelineRunning,
+                "recording_desync": runtime.recordingDesync,
+            ]
+            payload["last_capture_error"] = runtime.lastCaptureError ?? NSNull()
+            return httpJSON(200, payload)
         }
 
         if method == "POST", path.hasPrefix("/v1/tools/") {

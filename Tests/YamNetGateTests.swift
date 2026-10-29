@@ -35,6 +35,17 @@ final class YamNetGateTests: XCTestCase {
         )
     }
 
+    /// System Music and mic Speech are independent decisions (no shared mute latch).
+    func testPerTrackMusicDoesNotImpliedMuteMic() {
+        let systemMusic = YamNetGate.decideLabel(speechScore: 0.4, musicScore: 0.85)
+        let micSpeech = YamNetGate.decideLabel(speechScore: 0.8, musicScore: 0.05)
+        XCTAssertEqual(systemMusic, .music)
+        XCTAssertEqual(micSpeech, .speech)
+        // Consecutive within-track Music>Speech must not poison the next track's scores API.
+        let micAgain = YamNetGate.decideLabel(speechScore: 0.75, musicScore: 0.1)
+        XCTAssertEqual(micAgain, .speech)
+    }
+
     /// When Bundle Models/YAMNet is present, classify a short fixture waveform (does not assert label).
     func testClassifyFixtureWaveformIfModelPresent() throws {
         guard ModelBundlePaths.yamnetONNX.map({ FileManager.default.fileExists(atPath: $0.path) }) == true,

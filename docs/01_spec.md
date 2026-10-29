@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.5** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`；浮控左键**不**启停录音（仅拖动）；启停走右键菜单；§2.8 剪贴板指向 Application Support `agent-skills/`；正式公证/上架 **待人提交** |
+| Spec 版本 | **v0.3.6** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`；浮控左键**不**启停录音；§2.8 剪贴板=短索引、全文仅设置内只读查看；诊断日志 + `self_check`；正式公证/上架 **待人提交** |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 08:13 Asia/Shanghai |
+| 最后更新 | 2026-10-29 12:30 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -31,7 +31,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | 本机分类门控 + SenseVoice Core ML int8 转写 | 云端 ASR 主路径 |
 | 时间线日志、邻近段合并、本地查询 | 重度社交 / 习惯打卡（避免与 DayTrace 等品类混淆） |
 | 配置：门控、留音频策略与体积预估 | 与输入法壳强绑定（独立 App） |
-| 桌面拟物浮控 + 右键「打开记录文件夹 / 复制提示词」 | 另写每日转写 `.txt` 平行文件 |
+| 桌面拟物浮控 + 右键「打开记录文件夹 / 复制提示词（短索引）」 | 另写每日转写 `.txt` 平行文件 |
 | 向 Grok Bot 类产品暴露只读数据（MVP 剪贴板提示词；后续 MCP/API） | 替助手做推理与总结（可由上层做） |
 
 ### 1.3 命名与竞品注意
@@ -46,7 +46,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 - **生活日志长期后台**：SenseVoice **Core ML int8**（本进程约 20–36 MB；~11.7s 试音识别约 2.6s）。
 - **短时听写**（非本产品主路径）：SenseVoice ONNX 更快但内存高峰约 800–900+ MB。
-- **音频门控**：YAMNet-ONNX，约 5s 窗；麦 / 系统**双轨独立标签**；Music 与 Speech 同高时 **Music 优先**。
+- **音频门控**：YAMNet-ONNX，约 5s 窗；麦 / 系统**双轨独立标签与独立送识决策**；Music 与 Speech 同高时 **Music 优先**（**仅作用于该轨本窗**）。系统轨判为 Music **不得**抑制麦轨采集或 ASR。
 - **采集策略**：环缓冲连续采 PCM；分类只打标，不挡采集。PCM 仅作内存环缓冲 / 调试暂存，**不是**用户可选手动「全日留音」质量档。
 
 ---
@@ -89,8 +89,8 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 ### 2.3 分段与合并
 
-- **门控层（~5s）**：决定「是否值得送 ASR / 是否按人声策略留音频」，**不**用 5s 硬切 ASR 句。
-- **VAD 层**：决定送 ASR 的断点；最短 3s、最长 30s。
+- **门控层（~5s）**：对**每一轨各自**的环缓冲窗打标，决定「本轨是否值得送 ASR / 是否按人声策略留音频」，**不**用 5s 硬切 ASR 句；**无跨轨 mute**（系统 Music ≠ 关麦）。
+- **VAD 层**：每轨独立断句；最短 3s、最长 30s。
 - **落库合并**：同轨（mic / system）、相邻 gap ≤ **2s**（可配 1–3s）合并为一条；保留合并后起止时间与原文拼接规则（细则见 §3.3）。
 
 ### 2.4 磁盘粗算（写进配置文案）
@@ -111,7 +111,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 - 本地可查询的「今天到现在」语音时间线（权威在 SQLite，**不**另写每日转写 txt）。
 - 稳定 schema（时间、轨、文本、可选音频路径、分类标签）——与 §3.3 定稿一致；Phase 4 Agent IO 只读暴露同一模型。
-- **MVP 轻量供数**：右键「复制提示词」把背景说明 + Application Support / DB 绝对路径放进剪贴板，供 Grok 等助手只读访问（见 §2.8）。
+- **MVP 轻量供数**：右键「复制提示词」把**短助手索引**（指向 Application Support 技能绝对路径 + Agent IO）放进剪贴板；**不**把完整专有提示词正文写入剪贴板（见 §2.8）。
 - 后续：本机 MCP / HTTP / CLI，只读为主，供对话助手拉取上下文。
 
 ### 2.6 隐私与系统边界（产品文案必写）
@@ -153,26 +153,42 @@ MVP 视觉约定：
 | 左键 / 主键点击 | **无录音副作用**：不开始、不暂停、不切换采集；不播放眼神微动。若按住拖动，可移动浮控（`isMovableByWindowBackground`）。MVP：**录制中与 idle 视觉可相同**（二期再加录制态线索） |
 | 右键 | 弹出上下文菜单（见下） |
 
-右键菜单（MVP）：
+右键菜单（MVP；顶层精简，次要用「设置」子菜单收纳）：
 
-| 菜单项 | 行为 |
-|--------|------|
-| **开始录音** | **唯一用户启停入口之一**：开始采集；未在录制时可点；播放眼神微动 |
-| **暂停录音** | **唯一用户启停入口之一**：停止采集；正在录制时可点；播放眼神微动 |
-| **打开记录文件夹** | `NSWorkspace` 在 Finder 中打开**当前记录根**（默认 `~/Downloads/ContextDay/`，或用户「修改保存文件夹」所选；可见 `db/` 与 `audio/`；**不**打开虚构的「每日 txt 目录」） |
-| **复制提示词** | 将 §2.8 定稿模板（运行时填入**当前记录根**绝对路径）写入系统剪贴板（general pasteboard） |
-| **修改保存文件夹…** | `NSOpenPanel` 选择目录，写入 UserDefaults `recordsRootPath`；Store 按新根重开 DB |
-| **调整大小** | 子菜单：48 / 64 / 80 / 96 / 128 pt；默认 **64**；持久化 UserDefaults `orbSizePt` |
-| **设置…** | 打开配置窗：门控、留音/Opus、仅人声约束、保留天数、系统声 |
-| **时间线…** | 打开只读时间线（读自 SQLite） |
-| **关于与隐私…** | 本地路径、删除/保留策略、锁屏/睡眠边界、Agent IO 说明 |
+| 分组 | 菜单项 | 行为 |
+|------|--------|------|
+| 录音 | **开始录音** | 开始采集；未在录制时可点；播放眼神微动 |
+| 录音 | **暂停录音** | 停止采集；正在录制时可点；播放眼神微动 |
+| — | （分隔） | |
+| 数据 | **打开记录文件夹** | Finder 打开**当前记录根**（可见 `db/` / `audio/`；无每日 txt） |
+| 数据 | **复制提示词** | 将 §2.8 **短助手索引**写入剪贴板（**不是**全文） |
+| — | （分隔） | |
+| 设置▾ | **偏好设置…** | 配置窗：门控、留音/Opus、保留天数、系统声；含「查看完整提示词…」只读 sheet |
+| 设置▾ | **时间线…** | 只读时间线（SQLite） |
+| 设置▾ | **修改保存文件夹…** | `NSOpenPanel` → `recordsRootPath`；Store 重开 DB |
+| 设置▾ | **调整大小** | 子菜单 48 / 64 / 80 / 96 / 128 pt；默认 **64** |
+| 设置▾ | **关于与隐私…** | 路径、删除/保留、睡眠边界、Agent IO |
+| — | （分隔） | |
+| 退出 | **退出 ContextDay** | `NSApp.terminate` |
 
-### 2.8 剪贴板提示词（Agent IO 轻量路径）
+### 2.8 剪贴板索引与完整提示词（Agent IO 轻量路径）
 
-> **定稿建议已采纳进 Spec**：MVP 用「复制提示词」先于完整 MCP（Phase 4 仍计划）；避免「给 AI 用」只停留在远期接口。  
-> **v0.3.4**：提示词须指向本机 **Application Support** 下技能模版的**绝对路径**（由 Bundle `Resources/AgentSkills/` 播种到 `~/Library/Application Support/ContextDay/agent-skills/`），以及本机 Agent IO HTTP（默认 **`127.0.0.1:18787`**，忙碌回退 `18788–18797`；`/health` 含 `"service":"ContextDay"`）。剪贴板正文**不得**依赖仓库相对路径或 Spec 章节号。仓库 `docs/agent-skills/` 仍是 Git SSOT；**禁止**提交个人 Feishu/Lark chat_id / open_id。
+> **v0.3.6**：系统剪贴板**只**放短「助手索引」；完整专有提示词正文**仅**在设置「查看完整提示词…」只读 sheet 内展示，**禁止**经「复制提示词」或 `get_clipboard_prompt` 写出全文。  
+> **v0.3.4 起**：索引须指向本机 **Application Support** 技能绝对路径（Bundle `Resources/AgentSkills/` → `~/Library/Application Support/ContextDay/agent-skills/`）与 Agent IO（`127.0.0.1:18787–18797`；`/health` 含 `"service":"ContextDay"`）。剪贴板**不得**含仓库相对路径或 Spec 章节号。仓库 `docs/agent-skills/` 仍是 Git SSOT；**禁止**提交个人 Feishu/Lark chat_id / open_id。
 
-实现须把下列中文模板复制到剪贴板（花括号处由运行时替换为**本机绝对路径**；字段摘要可随 Spec 小改但不得删掉「勿删用户数据 / 转写在 SQLite / agent-skills 绝对路径 / Agent IO」要点）：
+#### 2.8.1 剪贴板短索引（右键「复制提示词」+ `get_clipboard_prompt`）
+
+运行时替换花括号为绝对路径 / 端口；保持一两行内可读：
+
+```text
+ContextDay 助手索引（只读本机数据；勿删录音/数据库除非用户再次确认）：先确认 http://127.0.0.1:{AGENT_IO_PORT}/health 含 service=ContextDay；再经 Agent IO 调用 get_recent / get_agent_skill / self_check，或直接读取 {AGENT_SKILLS_ROOT}/（如 README.md、meeting-minutes.md）；转写权威 {RECORDS_ROOT}/db/contextday.sqlite（无每日 txt）。
+```
+
+`get_clipboard_prompt` JSON：`text` = 同上短索引；`kind` = `"index"`。
+
+#### 2.8.2 完整提示词（仅设置内只读查看）
+
+设置窗提供 **「查看完整提示词…」** → modal/sheet，只读可滚动，展示下列全文（运行时填绝对路径）。**不得**提供「一键复制全文到剪贴板」按钮（用户仍可在 sheet 内手动划选复制，属 OS 文本选择；产品路径不以全文入剪贴板为目标）。
 
 ```text
 你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机转写数据，不要删除、移动或清空用户录音/数据库，除非用户在对话中明确要求并再次确认。
@@ -197,8 +213,9 @@ asr_model_id?, asr_model_version?
 本机 Agent IO（只读转写 + 可读写助手技能模版；仅 127.0.0.1）：
 http://127.0.0.1:{AGENT_IO_PORT}/health
 期望 JSON 含 "service":"ContextDay"。
-转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity}
+转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|self_check}
 技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
+说明：get_clipboard_prompt 仅返回短「助手索引」，不是本全文。
 
 助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
 {AGENT_SKILLS_ROOT}/README.md
@@ -254,7 +271,8 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `get_agent_skill` | `name` | 读单个技能文件 |
 | `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（packaged `.md` 或 `agent-skills.local.md`） |
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged；**跳过** `agent-skills.local.md` |
-| `get_clipboard_prompt` | — | 返回当前 §2.8 剪贴板全文 |
+| `get_clipboard_prompt` | — | 返回 §2.8.1 **短索引**（`kind=index`）；**不是**全文 |
+| `self_check` | — | 只读诊断：权限快照、DB、模型文件、录音 UI/管线 desync、上次采集错误、Agent IO 监听 |
 
 播种：启动时若缺文件或 Bundle `VERSION` 与 `.seeded-from-version` 不一致，从 Bundle 复制 packaged 文件；永不覆盖 `agent-skills.local.md`。
 
@@ -269,8 +287,14 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 
 #### 2.9.3 承载
 
-- 源码：`Features/AgentIO/`（服务 API + JSON DTO；HTTP + MCP stdio）；`Features/Store/AgentSkillsStore.swift`；Bundle `Resources/AgentSkills/`。
-- MVP 仍保留 §2.8 剪贴板；样例见 `docs/agent-io-mcp.md`。
+- 源码：`Features/AgentIO/`（服务 API + JSON DTO；HTTP + MCP stdio）；`Features/Diagnostics/`（`AppLog` / 权限 / `self_check`）；`Features/Store/AgentSkillsStore.swift`；Bundle `Resources/AgentSkills/`。
+- MVP 仍保留 §2.8 短索引剪贴板；全文仅设置内查看；样例见 `docs/agent-io-mcp.md`。
+
+#### 2.9.4 诊断与日志（v0.3.6）
+
+- **权限**：启动 / 打开设置 / 采集失败时记录 Microphone、Screen Recording（系统声）状态；Accessibility / Automation 若未使用则标 `not_applicable`（不伪造授权）。
+- **日志**：`AppLog` → OSLog（subsystem `app.contextday` + category）；可选滚动文件 `{recordsRoot}/logs/contextday-YYYY-MM-DD.log`。info **不**写转写正文（可用 id / 字符数）。
+- **自检**：`POST /v1/tools/self_check` 或 `./Scripts/contextday-cli.sh self_check`；`GET /health` 保持轻量（含 `recording_desync` / `last_capture_error`，完整报告走 `self_check`）。
 
 
 ---
@@ -284,12 +308,13 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `App` | `@main`、生命周期；可选 AppDelegate / 菜单栏入口 |
 | `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` idle + eye-click 播放、右键菜单、剪贴板写入 |
 | `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ 环缓冲 |
-| `Features/Gate` | YAMNet-ONNX，~5s 窗，双轨独立标签，Music>Speech 偏置 |
+| `Features/Gate` | YAMNet-ONNX，~5s 窗；双轨独立标签与送识；Music>Speech 偏置仅限本轨本窗 |
 | `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
 | `Features/ASR` | SenseVoice Core ML int8（主力）；失败时明确降级策略（不默认偷开 ONNX） |
 | `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt；`AgentSkillsStore`（Bundle→App Support） |
-| `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI（偏好见 §3.4） |
-| `Features/AgentIO` | §2.9 Segment 只读 + 技能读写工具；HTTP + MCP stdio；MVP 另见 §2.8 剪贴板 |
+| `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI；完整提示词只读 sheet（§2.8.2） |
+| `Features/Diagnostics` | `AppLog`、权限快照、`RuntimeHealth`、`SelfCheck` |
+| `Features/AgentIO` | §2.9 Segment 只读 + 技能读写 + `self_check`；HTTP + MCP stdio；§2.8 短索引 |
 | `Resources` | `DesktopOrb/`、`AppIcon/`、`AgentSkills/`（打包技能模版）等 |
 
 源码树草图（实现期可微调文件名，**模块边界与资源路径保持一致**）：
@@ -304,7 +329,8 @@ ContextDay/
     VAD/
     ASR/
     Store/                     # SQLite + AgentSkillsStore；无每日 txt writer
-    Config/
+    Config/                    # 设置 + 完整提示词只读 sheet
+    Diagnostics/               # AppLog / 权限 / self_check
     AgentIO/                   # §2.9 语义工具 + HTTP / MCP
   Resources/
     DesktopOrb/
@@ -597,7 +623,7 @@ flowchart TB
 |----|------|----------|------|
 | T01 | 激活即采 | 授权后右键 → 开始录音 | 环缓冲有 PCM；播放 eye-click 后 settle；UI 显示记录中（MVP 球可仍为 idle） |
 | T02 | 门控开 + 说话 | 对麦说话 ≥3s | 出现 Speech 标签；SQLite 产生转写条目 |
-| T03 | 门控开 + 纯音乐（系统轨） | 本机放歌 | Music 优先；默认不送 ASR |
+| T03 | 门控开 + 纯音乐（系统轨） | 本机放歌（麦安静） | **系统轨** Music 优先、默认不送 ASR；**麦轨不受影响**（无跨轨 mute） |
 | T04 | 门控关 | 关过滤后说话/放歌 | 达 VAD 的段均可送 ASR；留音不可选仅人声 |
 | T05 | VAD 最短 | 极短爆破音 | 不足 3s 不落转写 |
 | T06 | VAD 最长 | 连续说 >30s | 约 30s 切段 |
@@ -608,11 +634,13 @@ flowchart TB
 | T11 | 门控关 + 仅人声 | 试图勾选仅人声 | UI 禁用或强制「全部」 |
 | T12 | Core ML 失败 | 移走模型 | 明确错误；不静默切 ONNX |
 | T13 | 权限拒绝 | 拒麦 | 无法激活；可跳转设置 |
-| T14 | 双轨同时 | 麦说话 + 系统放歌 | 两轨标签独立；策略各自生效 |
+| T14 | 双轨同时 | 麦说话 + 系统放歌 | 两轨标签独立；系统 Music **不**跳过麦 Speech ASR；日志含 `per-track gate track=… scope=this_track_only` |
 | T15 | 内存 | 记录 1h | 本进程内存保持 Core ML 档（量级几十 MB，允许波动） |
 | T16 | 浮控层级 | 浮控（orb）可见时打开浏览器全屏/前置窗口 | 浏览器**可遮盖**浮控；非 always-on-top |
 | T17 | 打开记录文件夹 | 右键 → 打开记录文件夹 | Finder 打开 Application Support 根；可见 `db/`（及可选 `audio/`）；**无**要求存在每日 txt |
-| T18 | 复制提示词 | 右键 → 复制提示词 → 粘贴到文本编辑器 | 含产品一句话、Application Support / sqlite 绝对路径、Segment 摘要、「转写在 SQLite 非 txt」、只读勿删提示 |
+| T18 | 复制提示词（短索引） | 右键 → 复制提示词 → 粘贴 | 短「助手索引」：含 skills / sqlite 绝对路径与 Agent IO 指引；**无** Segment 字段长摘要 / 无完整专有正文 |
+| T18b | 设置内看全文 | 设置 → 查看完整提示词… | sheet 只读可滚动展示 §2.8.2 全文；不自动写入剪贴板 |
+| T18c | self_check | CLI / HTTP `self_check` | JSON 含 permissions、database、models、recording_desync；可无 UI |
 | T19 | 无 txt 落盘 | 激活并产生至少一条转写后扫盘 | Application Support 下**无**转写用途的 `.txt`；文本仅在 sqlite |
 | T20 | 合并留最早音 | keep_audio 开；两段均有 opus 且间隔 ≤gap | 合并后 `audio_path` 指向最早段文件；孤儿文件被调度删除 |
 | T21 | 眼神微动 | 右键 → 开始录音或暂停录音 | 播放约 2s eye-click；首尾同帧 settle；球身无明显缩放/位移 |
@@ -630,7 +658,7 @@ flowchart TB
 6. 隐私：默认不上云；Application Support 路径与删除方式可查（§3.4）。
 7. 命名与商店素材使用 ContextDay，不与输入法产品混品牌。
 8. 桌面浮控：透明 idle 双眼球；右键开始/暂停时 eye-click ~2s；**左键不启停录音**；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
-9. 右键「打开记录文件夹」打开 Application Support 根；「复制提示词」符合 §2.8；转写**仅**在 SQLite，无每日 txt 要求。
+9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 短索引；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
 
 ---
 
@@ -641,7 +669,7 @@ flowchart TB
 - 审核叙事：用户显式激活的本机上下文工具，服务个人助手；非隐蔽监控。
 - 与既有 YamnetGate / AsrCompare 实验代码可参考，但 ContextDay 工程独立，避免绑听写 ONNX 生命周期。
 - 中文连续数字 Core ML 仍可能弱于 ONNX；生活日志可接受，需在已知问题中披露。
-- **已知限制**：Music>Speech 偏置可能导致「有 BGM 的说话」被标成 music 而不送 ASR；须在产品已知问题 / 设置说明中披露，不可静默。
+- **已知限制**：Music>Speech 偏置可能导致**同一轨**上「有 BGM 的说话」被标成 music 而不送 ASR（例如麦拾到外放音乐+人声）；须在产品已知问题 / 设置说明中披露，不可静默。这**不是**跨轨抑制：系统轨 Music 不关麦轨。
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
@@ -660,6 +688,7 @@ flowchart TB
 | v0.3.3 | 2026-10-29 01:50 | §2.8 提示词增加仓库 `docs/agent-skills/`（脱敏技能模板）与 Agent IO 默认 `:18787`（`service=ContextDay`）；禁止入库个人 Feishu ID；**Segment schema 不变** |
 | v0.3.4 | 2026-10-29 02:20 | 技能模版随 Bundle 播种到 Application Support；§2.8 剪贴板改用绝对路径（无仓库相对路径）；Agent IO / MCP 增加 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill` / `get_clipboard_prompt`；**Segment schema 不变** |
 | v0.3.5 | 2026-10-29 08:13 | 浮控左键**取消**启停录音与眼神微动（仅保留拖动）；开始/暂停录音与 eye-click **仅**走右键菜单；对齐 Notta Input「主键不绑录音」；验收补 T22；**Segment schema 不变** |
+| v0.3.6 | 2026-10-29 12:30 | 离线加固：权限快照 + `AppLog`（OSLog/可选 logs 文件；info 不写转写正文）+ `self_check`；右键菜单分组精简（设置子菜单 + 退出）；§2.8 剪贴板改为短索引，完整提示词仅设置内只读 sheet；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
 
@@ -681,7 +710,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.5 | **已完成** | v0.3.5 = 左键无录音副作用；启停仅右键菜单；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.6 | **已完成** | v0.3.6 = 诊断/短索引剪贴板/菜单整理；schema 自 v0.2.0 未破改 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
@@ -689,11 +718,12 @@ flowchart TB
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
-| Agent IO | **已完成** | 剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 list/get/update/reset |
-| XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip |
+| Agent IO | **已完成** | 短索引剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check` |
+| 诊断 / 权限日志 | **已完成（MVP）** | `Features/Diagnostics`；采集失败 / 设置 / 启动打权限快照 |
+| XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.6 诊断与 §2.8 索引路径已落地；正式公证/上架留待人工提交。**
 
 ---
 

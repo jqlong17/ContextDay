@@ -9,16 +9,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             try SegmentStore.shared.prepareApplicationSupport()
         } catch {
-            NSLog("ContextDay: failed to prepare Application Support: \(error)")
+            AppLog.error(.store, "failed to prepare records tree: \(error.localizedDescription)")
         }
+
+        PermissionStatus.logSnapshot(reason: "launch")
 
         RetentionPurger.purgeIfNeeded()
         if let warning = DiskSpaceGuard.status().warning {
-            NSLog("ContextDay Disk: \(warning)")
+            AppLog.info(.store, "disk: \(warning)")
         }
 
         let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
-        NSLog("ContextDay AgentSkills: \(skillsRoot.path)")
+        AppLog.info(.app, "agent-skills root \(skillsRoot.path)")
 
         let preferredPort = AgentIOPort.preferred()
         DispatchQueue.global(qos: .utility).async {
@@ -26,14 +28,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AgentIOHTTPServer.shared.start(port: preferredPort)
             let bound = AgentIOHTTPServer.shared.port
             if AgentIOHTTPServer.shared.isListening {
-                NSLog(
-                    "ContextDay AgentIO HTTP READY 127.0.0.1:\(bound) service=ContextDay "
-                        + "(preferred \(preferredPort); override: --port N / defaults \(AgentIOPort.defaultsKey))"
+                AppLog.info(
+                    .agentIO,
+                    "HTTP READY 127.0.0.1:\(bound) service=ContextDay preferred=\(preferredPort)"
                 )
             } else {
-                NSLog(
-                    "ContextDay AgentIO HTTP NOT LISTENING — preferred \(preferredPort) and fallback range exhausted. "
-                        + "Try: defaults write app.contextday \(AgentIOPort.defaultsKey) <free-port>"
+                AppLog.error(
+                    .agentIO,
+                    "HTTP NOT LISTENING — preferred \(preferredPort) and fallback range exhausted"
                 )
             }
         }
@@ -82,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            NSLog("ContextDay: system will sleep — pausing capture (re-start required after wake)")
+            AppLog.info(.app, "system will sleep — pausing capture (no auto-resume)")
             self?.desktopControl?.handleSystemSleep()
         }
         let didWake = nc.addObserver(
@@ -90,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { _ in
-            NSLog("ContextDay: system woke — capture stays stopped until user starts recording again")
+            AppLog.info(.app, "system woke — capture stays stopped until user starts recording")
         }
         sleepObservers = [willSleep, didWake]
     }

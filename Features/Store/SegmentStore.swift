@@ -11,6 +11,13 @@ final class SegmentStore: @unchecked Sendable {
 
     private init() {}
 
+    /// Whether the shared / instance handle is open (self-check / diagnostics).
+    var isOpen: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return db != nil
+    }
+
     deinit {
         closeDatabaseUnlocked()
     }

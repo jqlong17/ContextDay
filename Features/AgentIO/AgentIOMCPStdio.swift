@@ -199,7 +199,12 @@ enum AgentIOMCPStdio {
             ],
             [
                 "name": "get_clipboard_prompt",
-                "description": "Return the current clipboard prompt text (absolute App Support skill paths).",
+                "description": "Return the short clipboard index (same as 复制提示词; not the full proprietary brief).",
+                "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+            ],
+            [
+                "name": "self_check",
+                "description": "Offline-friendly triage: permissions, DB, models, recording desync, last capture error.",
                 "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
             ],
         ]

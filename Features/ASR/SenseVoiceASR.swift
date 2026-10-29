@@ -61,7 +61,7 @@ final class SenseVoiceASR {
             }
             vocabulary = decoded
             isModelLoaded = true
-            NSLog("ContextDay ASR: loaded SenseVoice Core ML int8 (\(vocabulary.count) tokens)")
+            AppLog.info(.asr, "loaded SenseVoice Core ML int8 tokens=\(vocabulary.count)")
         } catch let error as ASRError {
             isModelLoaded = false
             throw error

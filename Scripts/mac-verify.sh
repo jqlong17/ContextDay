@@ -47,9 +47,13 @@ cat <<'EOF'
    Expect JSON containing: "service":"ContextDay"  (and bound "port")
    If 18787 busy, App scans 18788–18797 — check Console for READY line.
    Do NOT use :8787 (often another「生活日志」node service).
-5. curl -s -X POST http://127.0.0.1:18787/v1/tools/get_recent -H 'Content-Type: application/json' -d '{"limit":5}'
-6. Optional MCP: ~/Applications/ContextDay.app/Contents/MacOS/ContextDay --mcp
-7. 右键 → 关于与隐私… 核对路径与睡眠说明
+5. ./Scripts/contextday-cli.sh self_check
+   Expect permissions / database / models / recording_desync fields.
+6. curl -s -X POST http://127.0.0.1:18787/v1/tools/get_recent -H 'Content-Type: application/json' -d '{"limit":5}'
+7. 右键 → 复制提示词 → 粘贴：应为短「助手索引」（含 skills 绝对路径），不是长篇提示词全文。
+8. Optional MCP: ~/Applications/ContextDay.app/Contents/MacOS/ContextDay --mcp
+9. 右键 → 设置 → 关于与隐私… 核对路径与睡眠说明
+10. Console / recordsRoot/logs/contextday-YYYY-MM-DD.log：权限与采集启停可检索；无转写全文。
 
 Port override: defaults write app.contextday agentIOHTTPPort <port>
             or ContextDay --port <port>

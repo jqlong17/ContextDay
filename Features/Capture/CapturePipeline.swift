@@ -26,13 +26,16 @@ final class CapturePipeline {
 
     func start() {
         guard !isRunning else { return }
+        AppLog.info(.capture, "start requested")
         requestMicAccess { [weak self] granted in
             DispatchQueue.main.async {
                 guard let self else { return }
                 if granted {
                     self.startAfterPermission()
                 } else {
-                    NSLog("ContextDay Capture: microphone permission denied")
+                    PermissionStatus.logSnapshot(reason: "capture_fail_mic")
+                    RuntimeHealth.shared.noteCaptureError("Microphone permission denied")
+                    RuntimeHealth.shared.setPipelineRunning(false)
                     self.onStatus?("Microphone permission denied — enable in System Settings")
                 }
             }
@@ -56,15 +59,20 @@ final class CapturePipeline {
         systemBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
 
         do { try gate.loadModelIfNeeded() } catch {
+            AppLog.error(.gate, "load failed: \(error.localizedDescription)")
             onStatus?("YAMNet load failed: \(error.localizedDescription)")
         }
         do { try asr.loadModelIfNeeded() } catch {
+            AppLog.error(.asr, "load failed: \(error.localizedDescription)")
             onStatus?("SenseVoice Core ML load failed: \(error.localizedDescription)")
         }
 
         let input = engine.inputNode
         let inputFormat = input.inputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
+            PermissionStatus.logSnapshot(reason: "capture_fail_input")
+            RuntimeHealth.shared.noteCaptureError("Microphone unavailable / permission denied")
+            RuntimeHealth.shared.setPipelineRunning(false)
             onStatus?("Microphone unavailable / permission denied")
             return
         }
@@ -83,11 +91,16 @@ final class CapturePipeline {
         do {
             try engine.start()
             isRunning = true
+            RuntimeHealth.shared.setPipelineRunning(true)
+            RuntimeHealth.shared.clearCaptureError()
             startProcessingLoop()
             onStatus?("Recording (mic)")
-            NSLog("ContextDay Capture: mic started")
+            AppLog.info(.capture, "mic started sampleRate=\(Int(inputFormat.sampleRate)) ch=\(Int(inputFormat.channelCount))")
         } catch {
             input.removeTap(onBus: 0)
+            PermissionStatus.logSnapshot(reason: "capture_fail_engine")
+            RuntimeHealth.shared.noteCaptureError("Capture start failed: \(error.localizedDescription)")
+            RuntimeHealth.shared.setPipelineRunning(false)
             onStatus?("Capture start failed: \(error.localizedDescription)")
             return
         }
@@ -105,6 +118,8 @@ final class CapturePipeline {
                 self?.systemBuffer.append(int16LE: data)
             }
             capture.onError = { [weak self] msg in
+                PermissionStatus.logSnapshot(reason: "capture_fail_system")
+                RuntimeHealth.shared.noteCaptureError(msg)
                 self?.onStatus?(msg)
             }
             systemCapture = capture
@@ -117,6 +132,7 @@ final class CapturePipeline {
     func stop() {
         guard isRunning else { return }
         isRunning = false
+        RuntimeHealth.shared.setPipelineRunning(false)
         processTimer?.cancel()
         processTimer = nil
         engine.inputNode.removeTap(onBus: 0)
@@ -129,6 +145,7 @@ final class CapturePipeline {
             self?.processTrack(.mic, forceFlush: true)
             self?.processTrack(.system, forceFlush: true)
         }
+        AppLog.info(.capture, "stopped")
         onStatus?("Stopped")
     }
 
@@ -170,6 +187,10 @@ final class CapturePipeline {
         let snap = ring.snapshot()
         guard snap.data.count > 3200 else { return }
         let utterances = vad.segment(pcm: snap.data, streamStartMs: snap.streamStartMs, sampleRate: snap.sampleRate)
+        AppLog.debug(
+            .vad,
+            "track=\(track.rawValue) utterances=\(utterances.count) pcmBytes=\(snap.data.count) forceFlush=\(forceFlush)"
+        )
         for utt in utterances {
             if emitted.contains(where: { abs($0.0 - utt.startSample) < 800 && abs($0.1 - utt.endSample) < 800 }) {
                 continue
@@ -187,17 +208,26 @@ final class CapturePipeline {
         let end = min(pcm.count, utt.endSample * 2)
         guard start < end else { return }
         let slice = pcm.subdata(in: start..<end)
+        let durationMs = max(0, utt.t1Ms - utt.t0Ms)
         let cfg = AppConfigStore.load()
 
         var gateLabel: GateLabel?
         if cfg.gateEnabled {
+            // Per-track only: system Music must never mute mic ASR (Spec §1.4 dual-rail).
             let result = gate.classify(
                 track: track, pcmWindow: slice,
                 windowStartMs: utt.t0Ms, windowEndMs: utt.t1Ms
             )
             gateLabel = result.label
+            let action = result.label == .speech ? "send_asr" : "skip_asr"
+            AppLog.info(
+                .gate,
+                "per-track gate track=\(track.rawValue) label=\(result.label.rawValue) action=\(action) "
+                    + "speech=\(String(format: "%.3f", result.speechScore)) "
+                    + "music=\(String(format: "%.3f", result.musicScore)) "
+                    + "dur_ms=\(durationMs) scope=this_track_only"
+            )
             if result.label != .speech {
-                NSLog("ContextDay Capture: skip ASR (\(result.label.rawValue)) track=\(track.rawValue)")
                 return
             }
         }
@@ -205,13 +235,18 @@ final class CapturePipeline {
         do {
             let transcript = try asr.transcribe(pcm16kMono: slice)
             let text = transcript.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { return }
+            guard !text.isEmpty else {
+                AppLog.debug(.asr, "empty transcript track=\(track.rawValue) dur_ms=\(durationMs)")
+                return
+            }
             let id = UUID()
             var audioPath: String?
             if cfg.keepAudio {
                 let disk = DiskSpaceGuard.status()
                 if disk.blockKeepAudio {
-                    onStatus?(disk.warning ?? "Low disk — keep-audio blocked")
+                    let reason = disk.warning ?? "Low disk — keep-audio blocked"
+                    AppLog.info(.keepAudio, "soft-fail blocked reason=\(reason)")
+                    onStatus?(reason)
                 } else {
                     // speech_only already filtered by gate when enabled
                     audioPath = KeepAudioWriter.writeIfEnabled(
@@ -236,11 +271,16 @@ final class CapturePipeline {
                 asrModelVersion: transcript.modelVersion
             )
             _ = try store.insertSegment(segment, mergeGapMs: cfg.mergeGapMs)
+            // Privacy: UI may show a short preview; logs only get id + length.
             onStatus?("Saved[\(track.rawValue)]: \(text.prefix(32))…")
-            NSLog("ContextDay Capture: saved \(track.rawValue) «\(text.prefix(48))»")
+            AppLog.info(
+                .capture,
+                "saved track=\(track.rawValue) id=\(id.uuidString.lowercased()) chars=\(text.count) dur_ms=\(durationMs) keep_audio=\(audioPath != nil)"
+            )
         } catch {
+            RuntimeHealth.shared.noteCaptureError("ASR/store failed: \(error.localizedDescription)")
             onStatus?("ASR failed: \(error.localizedDescription)")
-            NSLog("ContextDay Capture: ASR/store failed — \(error.localizedDescription)")
+            AppLog.error(.asr, "ASR/store failed track=\(track.rawValue) dur_ms=\(durationMs) err=\(error.localizedDescription)")
         }
     }
 }
