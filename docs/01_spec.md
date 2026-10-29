@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.6** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`；浮控左键**不**启停录音；§2.8 剪贴板=短索引、全文仅设置内只读查看；诊断日志 + `self_check`；正式公证/上架 **待人提交** |
+| Spec 版本 | **v0.3.7** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=短索引、全文仅设置内只读查看；诊断日志 + `self_check`；正式公证/上架 **待人提交** |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 12:30 Asia/Shanghai |
+| 最后更新 | 2026-10-29 12:45 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -166,7 +166,7 @@ MVP 视觉约定：
 | 设置▾ | **偏好设置…** | 配置窗：门控、留音/Opus、保留天数、系统声；含「查看完整提示词…」只读 sheet |
 | 设置▾ | **时间线…** | 只读时间线（SQLite） |
 | 设置▾ | **修改保存文件夹…** | `NSOpenPanel` → `recordsRootPath`；Store 重开 DB |
-| 设置▾ | **调整大小** | 子菜单 48 / 64 / 80 / 96 / 128 pt；默认 **64** |
+| 设置▾ | **调整大小** | 子菜单 48 / 64 / 80 / 96 / 128 pt；默认 **64**；切换时窗口绕中心 **ease-in-out 平滑缩放**（约 0.28s，`NSAnimationContext` / `animator`），禁止瞬时跳变 |
 | 设置▾ | **关于与隐私…** | 路径、删除/保留、睡眠边界、Agent IO |
 | — | （分隔） | |
 | 退出 | **退出 ContextDay** | `NSApp.terminate` |
@@ -592,7 +592,7 @@ flowchart TB
 - [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
 - [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
 - [x] DesktopControl：`.normal` 窗口、orb idle；左键仅拖动（不启停录音）；右键菜单开始/暂停 + eye-click（末帧 settle）；麦权限引导
-- [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小；设置/时间线/关于与隐私
+- [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小（ease-in-out 平滑缩放）；设置/时间线/关于与隐私
 - [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
 
 ### Phase 2 — ASR + 时间线
@@ -647,6 +647,7 @@ flowchart TB
 | T20 | 合并留最早音 | keep_audio 开；两段均有 opus 且间隔 ≤gap | 合并后 `audio_path` 指向最早段文件；孤儿文件被调度删除 |
 | T21 | 眼神微动 | 右键 → 开始录音或暂停录音 | 播放约 2s eye-click；首尾同帧 settle；球身无明显缩放/位移 |
 | T22 | 左键无录音 | 左键单击浮控（不经右键菜单） | **不**开始/暂停/切换采集；**不**播放 eye-click；按住拖动仍可移动浮控 |
+| T23 | 调整大小动画 | 右键 → 设置 → 调整大小，在两档 pt 间切换 | 浮控绕中心平滑缩放（约 0.28s ease-in-out），**不**瞬时跳变；层级仍为 `.normal`；左键仍无录音副作用 |
 
 ---
 
@@ -659,7 +660,7 @@ flowchart TB
 5. 主力 ASR 为 SenseVoice Core ML int8；文档与关于页写明本机推理。
 6. 隐私：默认不上云；Application Support 路径与删除方式可查（§3.4）。
 7. 命名与商店素材使用 ContextDay，不与输入法产品混品牌。
-8. 桌面浮控：透明 idle 双眼球；右键开始/暂停时 eye-click ~2s；**左键不启停录音**；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
+8. 桌面浮控：透明 idle 双眼球；右键开始/暂停时 eye-click ~2s；**左键不启停录音**；「调整大小」平滑缩放；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
 9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 短索引；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
 
 ---
@@ -691,6 +692,7 @@ flowchart TB
 | v0.3.4 | 2026-10-29 02:20 | 技能模版随 Bundle 播种到 Application Support；§2.8 剪贴板改用绝对路径（无仓库相对路径）；Agent IO / MCP 增加 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill` / `get_clipboard_prompt`；**Segment schema 不变** |
 | v0.3.5 | 2026-10-29 08:13 | 浮控左键**取消**启停录音与眼神微动（仅保留拖动）；开始/暂停录音与 eye-click **仅**走右键菜单；对齐 Notta Input「主键不绑录音」；验收补 T22；**Segment schema 不变** |
 | v0.3.6 | 2026-10-29 12:30 | 离线加固：权限快照 + `AppLog`（OSLog/可选 logs 文件；info 不写转写正文）+ `self_check`；右键菜单分组精简（设置子菜单 + 退出）；§2.8 剪贴板改为短索引，完整提示词仅设置内只读 sheet；重申双轨门控独立（系统 Music 不抑制麦 ASR；`per-track gate … scope=this_track_only` 日志）；Agent IO DTO 增补 `tz_at_capture` / `audio_path`（SQLite schema 未破改）；样例见 `docs/agent-io-samples.md` |
+| v0.3.7 | 2026-10-29 12:45 | 「调整大小」定稿为绕中心 ease-in-out 平滑缩放（约 0.28s，`NSAnimationContext`）；窗口 `animationBehavior = .documentWindow` 保证 borderless 浮控可见动画；补 T23；左键无录音 / `.normal` 层级 / Segment schema **不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
 
@@ -712,11 +714,11 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.6 | **已完成** | v0.3.6 = 诊断/短索引剪贴板/菜单整理；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.7 | **已完成** | v0.3.7 = 调整大小平滑缩放；schema 自 v0.2.0 未破改 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 左键仅拖动 / 右键启停+eye-click / 64pt / 菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 左键仅拖动 / 右键启停+eye-click / 调整大小 ease-in-out / 64pt / 菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -725,7 +727,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.6 诊断与 §2.8 索引路径已落地；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.7 调整大小平滑缩放已定稿；正式公证/上架留待人工提交。**
 
 ---
 
