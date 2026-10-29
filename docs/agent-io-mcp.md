@@ -2,6 +2,8 @@
 
 Segment 工具只读（与 Spec §2.9 一致）。助手技能模版可经同一表面读写 **Application Support** 副本（永不改 Bundle / Segment schema）。权威转写在 SQLite；不上云。
 
+**具体请求/响应 JSON（纪要 / Q&A）**：见 [agent-io-samples.md](agent-io-samples.md)。`summarize_window` / `export_audio` 为明确 unavailable。
+
 ## HTTP（App 运行中）
 
 默认绑定 `127.0.0.1` 上首个空闲端口 `18787–18797`（隐私：不监听局域网）。
@@ -56,7 +58,7 @@ curl -s http://127.0.0.1:18787/health
 | command | `…/ContextDay.app/Contents/MacOS/ContextDay` |
 | args | `["--mcp"]` |
 
-协议：JSON-RPC 2.0 + `Content-Length` framing；`initialize` / `tools/list` / `tools/call`。工具实现仍走 `AgentIOProtocol.dispatch`（与 HTTP 同层）；`tools/list` 含 Segment 四工具 + 上表技能工具。
+协议：JSON-RPC 2.0 + `Content-Length` framing；`initialize` / `tools/list` / `tools/call`。工具实现仍走 `AgentIOProtocol.dispatch`（与 HTTP 同层）；`tools/list` 含 Segment 四工具 + 上表技能工具 + `self_check`。
 
 ## 剪贴板索引（Grok Bot 轻量路径）
 

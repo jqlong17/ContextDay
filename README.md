@@ -45,6 +45,7 @@ Speak-smoke 后：
 `self_check` 报告：权限快照、DB 可开、模型文件是否在 Bundle、录音 UI/管线 desync、上次采集错误、Agent IO 是否在听。日志：Console（subsystem `app.contextday`）与可选 `{recordsRoot}/logs/contextday-YYYY-MM-DD.log`。
 
 MCP / Grok 样例：[docs/agent-io-mcp.md](docs/agent-io-mcp.md)  
+助手 JSON 形状：[docs/agent-io-samples.md](docs/agent-io-samples.md)  
 商店审核草稿：[docs/store-review-notes.md](docs/store-review-notes.md)
 
 ### XCTest
@@ -53,6 +54,7 @@ MCP / Grok 样例：[docs/agent-io-mcp.md](docs/agent-io-mcp.md)
 |------|------|
 | `SegmentStoreMergeTests` | gap≤2s 合并、最早 `audio_path` |
 | `AgentIOServiceTests` | §2.9 四工具 + unavailable |
+| `AgentIOMeetingFixtureTests` | 会议 fixture → search/get_window/… 往返 |
 | `DiagnosticsSelfCheckTests` | 权限 / self_check / 短索引 |
 | `YamNetGateTests` | Music>Speech；有模型再跑 fixture |
 | `SenseVoiceASRTests` | load 或 XCTSkip |

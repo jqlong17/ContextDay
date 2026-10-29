@@ -63,6 +63,7 @@
 		B13DIAG0000000000000004 /* SelfCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000004 /* SelfCheck.swift */; };
 		B13DIAG0000000000000005 /* PromptViewerSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000005 /* PromptViewerSheetController.swift */; };
 		B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */; };
+		B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -137,6 +138,7 @@
 		A13DIAG0000000000000004 /* SelfCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfCheck.swift; sourceTree = "<group>"; };
 		A13DIAG0000000000000005 /* PromptViewerSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptViewerSheetController.swift; sourceTree = "<group>"; };
 		A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSelfCheckTests.swift; sourceTree = "<group>"; };
+		A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOMeetingFixtureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -317,6 +319,7 @@
 				A11FE57E0000000000000005 /* RetentionDiskTests.swift */,
 				A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */,
 				A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */,
+				A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -493,6 +496,7 @@
 				B11FE57E0000000000000005 /* RetentionDiskTests.swift in Sources */,
 				B12SKILL0000000000000003 /* AgentSkillsStoreTests.swift in Sources */,
 				B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */,
+				B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

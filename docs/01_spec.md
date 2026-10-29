@@ -251,17 +251,19 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `get_window` | `t0_ms`, `t1_ms`, `track?` | 闭开或闭闭由实现注明；返回窗内全部段（可再受内部安全上限） |
 | `list_activity` | `t0_ms?`, `t1_ms?` | 粗粒度活动摘要（按日/小时桶计数等）；无数据时返回空列表 |
 
-每段对外字段（JSON）：
+每段对外字段（JSON；**snake_case**，稳定供 LLM tool calling）：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `segment_id` | string (UUID) | 对应 Segment.`id` |
-| `t0_ms` / `t1_ms` | int64 | UTC epoch ms |
+| `segment_id` | string (UUID) | 对应 Segment.`id`（小写） |
+| `t0_ms` / `t1_ms` | int64 | UTC epoch ms；`get_window` 按与 `[t0_ms, t1_ms]` **有交集**纳入（闭区间） |
 | `track` | `"mic"` \| `"system"` | |
 | `gate_label` | `"speech"` \| `"music"` \| `"other"` \| null | 可空 |
 | `text` | string \| null | 转写；可被 `max_chars` 截断 |
+| `tz_at_capture` | string \| null | IANA 时区（纪要本地墙钟）；可空 |
+| `audio_path` | string \| null | 相对记录根；仅 keep_audio 有文件时非空 |
 
-空库 / 无命中：**返回空数组**，不得崩溃。
+空库 / 无命中：**返回空数组**，不得崩溃。样例请求/响应见 `docs/agent-io-samples.md`。
 
 #### 2.9.1b 助手技能工具（v0.3.4）
 
@@ -688,7 +690,7 @@ flowchart TB
 | v0.3.3 | 2026-10-29 01:50 | §2.8 提示词增加仓库 `docs/agent-skills/`（脱敏技能模板）与 Agent IO 默认 `:18787`（`service=ContextDay`）；禁止入库个人 Feishu ID；**Segment schema 不变** |
 | v0.3.4 | 2026-10-29 02:20 | 技能模版随 Bundle 播种到 Application Support；§2.8 剪贴板改用绝对路径（无仓库相对路径）；Agent IO / MCP 增加 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill` / `get_clipboard_prompt`；**Segment schema 不变** |
 | v0.3.5 | 2026-10-29 08:13 | 浮控左键**取消**启停录音与眼神微动（仅保留拖动）；开始/暂停录音与 eye-click **仅**走右键菜单；对齐 Notta Input「主键不绑录音」；验收补 T22；**Segment schema 不变** |
-| v0.3.6 | 2026-10-29 12:30 | 离线加固：权限快照 + `AppLog`（OSLog/可选 logs 文件；info 不写转写正文）+ `self_check`；右键菜单分组精简（设置子菜单 + 退出）；§2.8 剪贴板改为短索引，完整提示词仅设置内只读 sheet；重申双轨门控独立（系统 Music 不抑制麦 ASR；`per-track gate … scope=this_track_only` 日志）；**Segment schema 不变** |
+| v0.3.6 | 2026-10-29 12:30 | 离线加固：权限快照 + `AppLog`（OSLog/可选 logs 文件；info 不写转写正文）+ `self_check`；右键菜单分组精简（设置子菜单 + 退出）；§2.8 剪贴板改为短索引，完整提示词仅设置内只读 sheet；重申双轨门控独立（系统 Music 不抑制麦 ASR；`per-track gate … scope=this_track_only` 日志）；Agent IO DTO 增补 `tz_at_capture` / `audio_path`（SQLite schema 未破改）；样例见 `docs/agent-io-samples.md` |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。
 
