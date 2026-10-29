@@ -7,7 +7,7 @@
 | Spec 版本 | **v0.3.8** |
 | 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=短索引；诊断 + `self_check`；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 20:50 Asia/Shanghai |
+| 最后更新 | 2026-10-29 10:02 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -727,7 +727,7 @@ flowchart TB
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
-| Agent IO | **已完成** | 短索引剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check` |
+| Agent IO | **已完成（MVP + 02 优化已合入）** | 短索引剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check`；02 分轨/ISO/`list_speech_blocks`/错误分页见 [#9](https://github.com/jqlong17/ContextDay/pull/9) |
 | 诊断 / 权限日志 | **已完成（MVP）** | `Features/Diagnostics`；采集失败 / 设置 / 启动打权限快照 |
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
