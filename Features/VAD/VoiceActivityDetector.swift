@@ -54,9 +54,9 @@ final class VoiceActivityDetector {
                     lastVoiceFrame = f
                     silenceRun = 0
 
-                    // Force cut at max length.
+                    // Force cut at max length (exact frame cap → ≤ sampleRate*maxSpeechMs/1000).
                     if f - speechStartFrame + 1 >= maxSpeechFrames {
-                        let endFrame = f + 1
+                        let endFrame = speechStartFrame + maxSpeechFrames
                         if endFrame - speechStartFrame >= minSpeechFrames {
                             utterances.append(
                                 makeUtterance(
@@ -73,8 +73,13 @@ final class VoiceActivityDetector {
                     }
                 } else if inSpeech {
                     silenceRun += 1
-                    if silenceRun >= silenceFramesNeeded {
-                        let endFrame = lastVoiceFrame + 1
+                    let hitMax = f - speechStartFrame + 1 >= maxSpeechFrames
+                    // Silence-in-speech must also honor max — otherwise trailing silenceEnd
+                    // can defer the cut past preprocessor waveform limit (480_000 @16k).
+                    if silenceRun >= silenceFramesNeeded || hitMax {
+                        let endFrame = hitMax
+                            ? speechStartFrame + maxSpeechFrames
+                            : lastVoiceFrame + 1
                         if endFrame - speechStartFrame >= minSpeechFrames {
                             utterances.append(
                                 makeUtterance(

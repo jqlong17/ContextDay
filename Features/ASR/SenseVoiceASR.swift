@@ -24,6 +24,9 @@ final class SenseVoiceASR {
     private let textNorm: Int32 = 15 // woitn
     private let waveformScale: Float = 32_768
     private let modelId = "sensevoice-coreml-int8"
+    /// Core ML preprocessor allowed waveform length (samples @16 kHz).
+    static let minWaveformSamples = 3_200
+    static let maxWaveformSamples = 480_000
 
     func loadModelIfNeeded() throws {
         if isModelLoaded { return }
@@ -75,7 +78,7 @@ final class SenseVoiceASR {
     func transcribe(pcm16kMono: Data) throws -> Transcript {
         try loadModelIfNeeded()
         let samples = Self.int16LEToFloat(pcm16kMono)
-        guard samples.count >= 1600 else { // ~0.1s
+        guard samples.count >= Self.minWaveformSamples else {
             return Transcript(text: "", modelId: modelId, modelVersion: nil)
         }
         let text = try runPipeline(samples: samples)
@@ -84,7 +87,7 @@ final class SenseVoiceASR {
 
     func transcribe(samples16kMono: [Float]) throws -> Transcript {
         try loadModelIfNeeded()
-        guard samples16kMono.count >= 1600 else {
+        guard samples16kMono.count >= Self.minWaveformSamples else {
             return Transcript(text: "", modelId: modelId, modelVersion: nil)
         }
         let text = try runPipeline(samples: samples16kMono)
@@ -98,7 +101,8 @@ final class SenseVoiceASR {
             throw ASRError.modelLoadFailed("SenseVoice models not loaded")
         }
 
-        let features = try runPreprocessor(preprocessor, audio: samples)
+        let clamped = Self.clampWaveform(samples)
+        let features = try runPreprocessor(preprocessor, audio: clamped)
         let (logits, validFrames) = try runEncoder(encoder, features: features)
         return decode(logits: logits, validFrames: validFrames)
     }
@@ -205,6 +209,16 @@ final class SenseVoiceASR {
         out = out.replacingOccurrences(of: "▁", with: " ")
         out = out.replacingOccurrences(of: " ", with: " ")
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Truncate overlong waveforms to preprocessor max; under-min left to caller.
+    static func clampWaveform(_ samples: [Float]) -> [Float] {
+        let n = samples.count
+        if n > maxWaveformSamples {
+            AppLog.warn(.asr, "waveform clamped samples=\(n) → \(maxWaveformSamples)")
+            return Array(samples.prefix(maxWaveformSamples))
+        }
+        return samples
     }
 
     private static func int16LEToFloat(_ data: Data) -> [Float] {
