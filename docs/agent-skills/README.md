@@ -8,7 +8,7 @@
 | Bundle `Resources/AgentSkills/` | 随 App 打包 |
 | `~/Library/Application Support/ContextDay/agent-skills/` | 运行时**可发现 / 可经 Agent IO 更新**的副本 |
 
-产品「复制提示词」与 Agent IO 指向 **Application Support 绝对路径**（启动时按 Bundle `VERSION` 播种）。助手可用 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill`（见 `docs/agent-io-mcp.md`），**无需** git checkout。
+产品「复制提示词」只粘贴一行 `请阅读 <本目录>/README.md`（绝对路径）；详细做法见本文件与设置内「完整提示词」。Agent IO 指向 **Application Support 绝对路径**（启动时按 Bundle `VERSION` 播种）。助手可用 `list_agent_skills` / `get_agent_skill` / `update_agent_skill` / `reset_agent_skill`（见 `docs/agent-io-mcp.md`），**无需** git checkout。
 
 | 模版 | 用途 |
 |------|------|

@@ -25,7 +25,7 @@ final class AgentIOMeetingFixtureTests: XCTestCase {
         meetingT0 = 1_730_160_000_000 // fixed epoch for stable fixtures
         let lines: [(String, SegmentTrack, Int64, GateLabel, String?)] = [
             ("大家好，今天站会开始。先同步一下发布进度。", .mic, 0, .speech, nil),
-            ("我这边 API 已经合入 main，还差文档。", .mic, 45_000, .speech, "audio/2024-10-28/mic/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.caf"),
+            ("我这边 API 已经合入 main，还差文档。", .mic, 45_000, .speech, "audio/2024-10-28/mic/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.wav"),
             ("决议：周五前完成上线检查清单。", .mic, 120_000, .speech, nil),
             ("待办：小王写 QA 步骤，小李盯回归。", .mic, 180_000, .speech, nil),
             ("背景音乐继续播放", .system, 90_000, .music, nil),

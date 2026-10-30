@@ -24,7 +24,7 @@ open ContextDay.xcodeproj
 
 Signing → 选 Team → Run。浮控默认约 **64pt**（设置 → 调整大小，切换时平滑缩放），可被其它 App 遮盖。左键仅拖动浮控，**不**启停录音。
 
-右键顶层：开始/暂停录音 · 打开记录文件夹 · 复制提示词（**短索引**）· 设置▾ · 退出。完整提示词仅在 **设置 → 查看完整提示词…** 只读查看，不经剪贴板路径导出全文。
+右键顶层：开始/暂停录音 · 打开记录文件夹 · 复制提示词（**一行「请阅读 …/README.md」**）· 设置▾ · 退出。完整提示词仅在 **设置 → 查看完整提示词…** 只读查看，不经剪贴板路径导出全文。
 
 ## 父机验收
 
@@ -56,7 +56,7 @@ MCP / Grok 样例：[docs/agent-io-mcp.md](docs/agent-io-mcp.md)
 | `SegmentStoreMergeTests` | gap≤2s 合并、最早 `audio_path` |
 | `AgentIOServiceTests` | §2.9 四工具 + unavailable |
 | `AgentIOMeetingFixtureTests` | 会议 fixture → search/get_window/… 往返 |
-| `DiagnosticsSelfCheckTests` | 权限 / self_check / 短索引 |
+| `DiagnosticsSelfCheckTests` | 权限 / self_check / 剪贴板一行指针 |
 | `YamNetGateTests` | Music>Speech；有模型再跑 fixture |
 | `SenseVoiceASRTests` | load 或 XCTSkip |
 | `RetentionDiskTests` | 滚动删除 + 磁盘状态 |

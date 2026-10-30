@@ -33,7 +33,7 @@ curl -s http://127.0.0.1:18787/health
 | `get_agent_skill` | `name` | 读单个文件内容 |
 | `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（永不写 Bundle） |
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged 模版；跳过 `agent-skills.local.md` |
-| `get_clipboard_prompt` | — | 与右键「复制提示词」相同的**短索引**（`kind=index`）；不是完整提示词 |
+| `get_clipboard_prompt` | — | 与右键「复制提示词」相同的**一行指针**（`请阅读 …/README.md`，`kind=index`）；不是完整提示词 |
 | `self_check` | — | 权限 / DB / 模型 / 录音 desync / 上次错误 / Agent IO 监听 |
 
 ```bash
@@ -63,7 +63,7 @@ curl -s http://127.0.0.1:18787/health
 
 ## 剪贴板索引（Grok Bot 轻量路径）
 
-App 右键「复制提示词」→ 粘贴**短助手索引**（指引读 App Support 技能 / 调 Agent IO）。**不会**把完整专有提示词写入剪贴板；全文仅在 App **设置 → 查看完整提示词…** 只读查看。
+App 右键「复制提示词」→ 粘贴一行 `请阅读 …/agent-skills/README.md`。**不会**把完整专有提示词 / health / 工具列表写入剪贴板；全文仅在 App **设置 → 查看完整提示词…** 只读查看。
 
 建议对话开场：粘贴索引后问「用 Agent IO `list_agent_skills` / `get_recent`，再按 meeting-minutes 技能整理」。
 

@@ -319,7 +319,7 @@ final class AgentIOService: @unchecked Sendable {
         }
     }
 
-    /// `get_clipboard_prompt` — same short index as pasteboard (Spec §2.8); never the full brief.
+    /// `get_clipboard_prompt` — same one-line pointer as pasteboard (Spec §2.8); never the full brief.
     func getClipboardPrompt() -> AgentClipboardPromptDTO {
         _ = AgentSkillsStore.ensureSeededFromBundle()
         let text = AgentPromptTemplate.makeClipboardIndex(recordsRoot: AppPaths.recordsRoot)
@@ -412,7 +412,7 @@ struct AgentSkillResetDTO: Codable, Equatable, Sendable {
 }
 
 struct AgentClipboardPromptDTO: Codable, Equatable, Sendable {
-    /// Short clipboard index (never the full proprietary brief).
+    /// One-line clipboard pointer (never the full proprietary brief).
     var text: String
     /// Always `"index"` — pasteboard / tool share the same short body.
     var kind: String

@@ -59,12 +59,15 @@ final class DiagnosticsSelfCheckTests: XCTestCase {
         let text = AgentPromptTemplate.makeClipboardIndex(
             recordsRoot: URL(fileURLWithPath: "/tmp/ContextDayRecordsTest")
         )
-        XCTAssertLessThan(text.count, 600, "clipboard must stay a short index")
-        XCTAssertTrue(text.contains("助手索引"))
-        XCTAssertTrue(text.contains("get_agent_skill") || text.contains("get_recent"))
+        XCTAssertLessThan(text.count, 400, "clipboard must stay a one-liner")
+        XCTAssertTrue(text.hasPrefix("请阅读 "))
+        XCTAssertTrue(text.contains("agent-skills/README.md") || text.contains("README.md"))
         XCTAssertFalse(text.contains("Segment 字段摘要"))
         XCTAssertFalse(text.contains("docs/agent-skills"))
         XCTAssertFalse(text.contains("Spec §"))
+        XCTAssertFalse(text.contains("/health"))
+        XCTAssertFalse(text.contains("get_recent"))
+        XCTAssertFalse(text.contains("contextday.sqlite"))
     }
 
     func testFullPromptLongerThanClipboardIndex() {
@@ -73,7 +76,7 @@ final class DiagnosticsSelfCheckTests: XCTestCase {
         let full = AgentPromptTemplate.makeFullPrompt(recordsRoot: root)
         XCTAssertGreaterThan(full.count, index.count)
         XCTAssertTrue(full.contains("Segment 字段摘要"))
-        XCTAssertTrue(full.contains("get_clipboard_prompt 仅返回短"))
+        XCTAssertTrue(full.contains("请阅读") || full.contains("get_clipboard_prompt"))
     }
 
     func testSelfCheckToolDispatch() throws {
