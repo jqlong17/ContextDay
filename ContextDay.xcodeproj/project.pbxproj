@@ -69,6 +69,9 @@
 		B14READY000000000000002 /* LaunchReadyGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14READY000000000000002 /* LaunchReadyGateTests.swift */; };
 		B15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift */; };
 		B15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */; };
+		B16ONB000000000000001 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000001 /* OnboardingFlow.swift */; };
+		B16ONB000000000000002 /* OnboardingBubbleController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000002 /* OnboardingBubbleController.swift */; };
+		B16ONB000000000000003 /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000003 /* OnboardingFlowTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -149,6 +152,9 @@
 		A14READY000000000000001 /* LaunchReadyGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGate.swift; sourceTree = "<group>"; };
 		A14READY000000000000002 /* LaunchReadyGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGateTests.swift; sourceTree = "<group>"; };
 		A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbFrameLoopPlayerTests.swift; sourceTree = "<group>"; };
+		A16ONB000000000000001 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
+		A16ONB000000000000002 /* OnboardingBubbleController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingBubbleController.swift; sourceTree = "<group>"; };
+		A16ONB000000000000003 /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -206,6 +212,8 @@
 				9BE876CF1F9C4B78A7FE6984 /* DesktopControlController.swift */,
 				D36F2862DF7B46BF95124EBB /* DesktopOrbView.swift */,
 				A15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift */,
+				A16ONB000000000000001 /* OnboardingFlow.swift */,
+				A16ONB000000000000002 /* OnboardingBubbleController.swift */,
 				4E7917F4F7684C8D95136058 /* AgentPromptTemplate.swift */,
 			);
 			path = DesktopControl;
@@ -335,6 +343,7 @@
 				A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */,
 				A14READY000000000000002 /* LaunchReadyGateTests.swift */,
 				A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */,
+				A16ONB000000000000003 /* OnboardingFlowTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -474,6 +483,8 @@
 				B55CBF16D61A43CCBFC8BB85 /* DesktopControlController.swift in Sources */,
 				284A0959962841A29033E3EF /* DesktopOrbView.swift in Sources */,
 				B15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift in Sources */,
+				B16ONB000000000000001 /* OnboardingFlow.swift in Sources */,
+				B16ONB000000000000002 /* OnboardingBubbleController.swift in Sources */,
 				BE1D1B5209E04D1E8181E172 /* AgentPromptTemplate.swift in Sources */,
 				AC6186876BFA44D99FB7086B /* CapturePipeline.swift in Sources */,
 				253123C68A824FC79A909C2B /* SystemAudioCapture.swift in Sources */,
@@ -517,6 +528,7 @@
 				B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */,
 				B14READY000000000000002 /* LaunchReadyGateTests.swift in Sources */,
 				B15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift in Sources */,
+				B16ONB000000000000003 /* OnboardingFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

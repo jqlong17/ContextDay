@@ -28,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = DesktopControlController()
         controller.show()
         desktopControl = controller
+        // Spec §2.7.6: first-run bubble when permissions not ready (before / alongside Agent IO bind).
+        DispatchQueue.main.async {
+            controller.considerOnboarding()
+        }
 
         let preferredPort = AgentIOPort.preferred()
         DispatchQueue.global(qos: .utility).async { [weak self] in

@@ -11,6 +11,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private var configWindow: ConfigWindowController?
     private var timelineWindow: TimelineWindowController?
     private var aboutWindow: AboutPrivacyWindowController?
+    private var onboardingBubble: OnboardingBubbleController?
 
     /// Wired to left-click start (idle only) / 右键「开始录音 / 暂停录音」/ 睡眠暂停.
     /// Left-click never pauses — pause/stop stays on the right-click menu (Spec §2.7.3).
@@ -211,6 +212,32 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         aboutWindow?.showWindow(nil)
         aboutWindow?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Spec §2.7.6: first-run speech bubble above orb when permissions not yet ready.
+    func considerOnboarding() {
+        let gateReady = LaunchReadyGate.isReady()
+        guard OnboardingFlow.shouldPresent(
+            completed: OnboardingStore.isCompleted,
+            gateReady: gateReady
+        ) else {
+            AppLog.info(
+                .app,
+                "onboarding skipped completed=\(OnboardingStore.isCompleted) gateReady=\(gateReady)"
+            )
+            return
+        }
+        guard let window else { return }
+        if onboardingBubble == nil {
+            let bubble = OnboardingBubbleController()
+            bubble.onFinished = { [weak self] in
+                self?.onboardingBubble = nil
+                // After grants, re-check ready blink once.
+                self?.considerReadyBlink()
+            }
+            onboardingBubble = bubble
+        }
+        onboardingBubble?.present(above: window)
     }
 
     /// Spec §2.7.4: after cold start reaches ready (mic + screen + records writable), play ready clip once.
