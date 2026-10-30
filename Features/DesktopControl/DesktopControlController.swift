@@ -72,23 +72,33 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     }
 
     /// Activate/stop path for left-click start / 开始录音 / 暂停录音 (and smoke).
-    private func setRecording(_ recording: Bool, playEyeClick: Bool) {
+    /// - playClip: on start, play leave-sleep feedback (wake S1 if sleeping, else eye-click).
+    ///   On pause, unused — pause never plays eye-click (Spec v0.3.22); goes straight to sleep.
+    private func setRecording(_ recording: Bool, playClip: Bool) {
         guard recording != isRecording else { return }
+        let wasSleeping = orbView?.prefersSleepIdle == true || orbView?.isSleepLoopRunning == true
         isRecording = recording
         RuntimeHealth.shared.setUIWantsRecording(isRecording)
         if isRecording {
-            // Leave sleep → awake/recording visual (keyed idle under eye-click).
-            orbView?.stopSleepIdleLoop()
+            // Leave sleep → wake S1 (or eye-click if already awake) → idle under clip.
+            orbView?.stopSleepIdleLoop(resetUnderlayToIdle: !wasSleeping)
             capture.start()
         } else {
             capture.stop()
-            // After pause, prefer sleep again; eye-click settle will restart the loop.
+            // Pause → Concept A sleep immediately (no eye-click).
             orbView?.prefersSleepIdle = true
         }
         AppLog.info(.app, "ui recording → \(isRecording) pipeline=\(capture.isRunning)")
-        if playEyeClick {
-            orbView?.playEyeClickOnce()
-        } else if !isRecording {
+        if isRecording {
+            if playClip {
+                if wasSleeping {
+                    orbView?.playWakeOnce()
+                } else {
+                    orbView?.playEyeClickOnce()
+                }
+            }
+        } else {
+            // Always straight to sleep loop; ignore playClip on pause path.
             orbView?.startSleepIdleLoop()
         }
     }
@@ -96,10 +106,10 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     /// Debug/smoke: --smoke-record-seconds=N
     func smokeRecord(forSeconds seconds: TimeInterval) {
         AppLog.info(.app, "smokeRecord begin \(seconds)s")
-        setRecording(true, playEyeClick: true)
+        setRecording(true, playClip: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + max(1.0, seconds)) { [weak self] in
             AppLog.info(.app, "smokeRecord end")
-            self?.setRecording(false, playEyeClick: true)
+            self?.setRecording(false, playClip: false)
         }
     }
 
@@ -142,15 +152,15 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     /// Left-click shortcut: start only when not already recording (no toggle-off).
     private func startRecordingFromPrimaryClick() {
         guard !isRecording else { return }
-        setRecording(true, playEyeClick: true)
+        setRecording(true, playClip: true)
     }
 
     @objc private func startRecordingFromMenu() {
-        setRecording(true, playEyeClick: true)
+        setRecording(true, playClip: true)
     }
 
     @objc private func pauseRecordingFromMenu() {
-        setRecording(false, playEyeClick: true)
+        setRecording(false, playClip: false)
     }
 
     /// Resize orb window about its center. Persistence via `OrbSizeStore` / `orbSizePt`.
@@ -260,7 +270,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     /// Called on system sleep / terminate — stop capture; do not auto-resume on wake.
     func handleSystemSleep() {
         guard isRecording else { return }
-        setRecording(false, playEyeClick: false)
+        setRecording(false, playClip: false)
     }
 
     @objc private func openRecordsFolder() {
