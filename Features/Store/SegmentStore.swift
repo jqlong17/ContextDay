@@ -70,14 +70,16 @@ final class SegmentStore: @unchecked Sendable {
 
     // MARK: - Writes
 
-    /// Insert a segment, merging into the latest same-track row when gap ≤ `mergeGapMs` (Spec §3.3.4).
+    /// Insert a segment, merging into a same-track neighbor when overlap or gap ≤ `mergeGapMs`
+    /// (Spec §3.3.4 / v0.3.23). Looks up by time neighborhood — not only latest-by-t0 —
+    /// so late ASR re-emits of an earlier window still fold.
     @discardableResult
     func insertSegment(_ segment: Segment, mergeGapMs: Int = AppConfigStore.load().mergeGapMs) throws -> Segment {
         lock.lock()
         defer { lock.unlock() }
         guard db != nil else { throw StoreError.notOpen }
 
-        if let previous = latestSegmentUnlocked(track: segment.track),
+        if let previous = mergeCandidateUnlocked(for: segment, mergeGapMs: mergeGapMs),
            let merged = SegmentMerger.mergedIfNeeded(
             previous: previous, incoming: segment, mergeGapMs: mergeGapMs
            ) {
@@ -91,15 +93,44 @@ final class SegmentStore: @unchecked Sendable {
         return segment
     }
 
-    private func latestSegmentUnlocked(track: SegmentTrack) -> Segment? {
+    /// Same-track rows whose interval is within `mergeGapMs` of `incoming` (overlap or gap).
+    /// Prefers highest overlap (near-dup), then smallest separation.
+    private func mergeCandidateUnlocked(for incoming: Segment, mergeGapMs: Int) -> Segment? {
         guard let db else { return nil }
+        let gap = Int64(mergeGapMs)
         let sql = """
         SELECT id, track, t0_ms, t1_ms, tz_at_capture, text, gate_label,
                audio_path, source_segment_ids, created_at_ms, merged_at_ms,
                merge_gap_ms, asr_model_id, asr_model_version
-        FROM segment WHERE track = ? ORDER BY t0_ms DESC LIMIT 1;
+        FROM segment
+        WHERE track = ?
+          AND t1_ms >= ?
+          AND t0_ms <= ?
+        ORDER BY t0_ms DESC
+        LIMIT 32;
         """
-        return Self.runSelect(db: db, sql: sql, args: [.text(track.rawValue)]).first
+        let rows = Self.runSelect(
+            db: db,
+            sql: sql,
+            args: [
+                .text(incoming.track.rawValue),
+                .int64(incoming.t0Ms - gap),
+                .int64(incoming.t1Ms + gap)
+            ]
+        )
+        let eligible = rows.filter {
+            SegmentMerger.separationMs(previous: $0, incoming: incoming) <= gap
+        }
+        guard !eligible.isEmpty else { return nil }
+        return eligible.max { a, b in
+            let oa = SegmentMerger.overlapMs(a: a, b: incoming)
+            let ob = SegmentMerger.overlapMs(a: b, b: incoming)
+            if oa != ob { return oa < ob }
+            let sa = SegmentMerger.separationMs(previous: a, incoming: incoming)
+            let sb = SegmentMerger.separationMs(previous: b, incoming: incoming)
+            if sa != sb { return sa > sb }
+            return a.t0Ms < b.t0Ms
+        }
     }
 
     private func updateSegmentUnlocked(_ segment: Segment) throws {

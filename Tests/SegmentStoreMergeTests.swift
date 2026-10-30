@@ -1,7 +1,7 @@
 import XCTest
 @testable import ContextDay
 
-/// Spec T07 / T08 / T20 — merge gap ≤2s, no-merge >2s, earliest audio_path kept.
+/// Spec T07 / T08 / T20 / v0.3.23 near-dup + out-of-order overlap fold.
 final class SegmentStoreMergeTests: XCTestCase {
     private var tempDir: URL!
     private var store: SegmentStore!
@@ -72,6 +72,85 @@ final class SegmentStoreMergeTests: XCTestCase {
         XCTAssertEqual(SegmentMerger.concatenateText("你好", "世界"), "你好世界")
         XCTAssertEqual(SegmentMerger.concatenateText(nil, "只右"), "只右")
         XCTAssertNil(SegmentMerger.concatenateText("  ", nil))
+    }
+
+    /// Near-identical windows (Mac 2026-10-30 symptom): fold to one row, keep longer text, no concat.
+    func testNearDuplicateWindowFoldsWithoutConcatenatingText() throws {
+        let a = makeSegment(
+            id: UUID(), track: .mic,
+            t0: 1_000, t1: 4_690, text: "那个耳机不是然后我定了"
+        )
+        let b = makeSegment(
+            id: UUID(), track: .mic,
+            t0: 1_002, t1: 4_692, text: "那个耳机不是那是这个着急的这个不知道然后我定了"
+        )
+        let first = try store.insertSegment(a, mergeGapMs: 2_000)
+        let folded = try store.insertSegment(b, mergeGapMs: 2_000)
+
+        XCTAssertEqual(folded.id, first.id)
+        XCTAssertEqual(store.queryRecent(limit: 10, track: .mic).count, 1)
+        XCTAssertEqual(folded.text, b.text, "near-dup keeps longer ASR text")
+        XCTAssertFalse(folded.text?.contains("那个耳机不是然后我定了那个耳机") == true)
+        XCTAssertNotNil(folded.mergedAtMs)
+        XCTAssertEqual(folded.sourceSegmentIds.count, 2)
+    }
+
+    /// Late re-insert of an earlier window after a newer segment exists must still fold
+    /// (latest-by-t0 alone missed this — root cause of 3.8× inflation).
+    func testLateNearDuplicateFoldsDespiteNewerLatestRow() throws {
+        let early = makeSegment(
+            id: UUID(), track: .mic,
+            t0: 10_000, t1: 13_690, text: "早段短"
+        )
+        let later = makeSegment(
+            id: UUID(), track: .mic,
+            t0: 20_000, t1: 23_000, text: "较新一段"
+        )
+        let earlyDup = makeSegment(
+            id: UUID(), track: .mic,
+            t0: 10_005, t1: 13_695, text: "早段短但ASR稍长一点"
+        )
+        _ = try store.insertSegment(early, mergeGapMs: 2_000)
+        _ = try store.insertSegment(later, mergeGapMs: 2_000)
+        let folded = try store.insertSegment(earlyDup, mergeGapMs: 2_000)
+
+        let rows = store.queryRecent(limit: 10, track: .mic)
+        XCTAssertEqual(rows.count, 2, "early cluster folds; later stays separate")
+        XCTAssertEqual(folded.id, early.id)
+        XCTAssertEqual(folded.text, earlyDup.text)
+        let laterRow = rows.first { $0.id == later.id }
+        XCTAssertEqual(laterRow?.text, "较新一段")
+    }
+
+    func testOverlapMergesAdjacentNonDuplicateWithOrderedConcat() throws {
+        let a = makeSegment(id: UUID(), track: .mic, t0: 1_000, t1: 4_000, text: "前")
+        let b = makeSegment(id: UUID(), track: .mic, t0: 3_500, t1: 7_000, text: "后")
+        // Overlap 500ms, not near-dup (overlap/minDur = 500/3000 < 80%)
+        let merged = try store.insertSegment(a, mergeGapMs: 2_000)
+        let out = try store.insertSegment(b, mergeGapMs: 2_000)
+        XCTAssertEqual(out.id, merged.id)
+        XCTAssertEqual(out.text, "前后")
+        XCTAssertEqual(out.t0Ms, 1_000)
+        XCTAssertEqual(out.t1Ms, 7_000)
+    }
+
+    func testSeparationMsAndNearDupHelpers() {
+        let a = makeSegment(id: UUID(), track: .mic, t0: 1_000, t1: 4_000, text: "a")
+        let b = makeSegment(id: UUID(), track: .mic, t0: 5_000, t1: 8_000, text: "b")
+        let c = makeSegment(id: UUID(), track: .mic, t0: 1_050, t1: 4_050, text: "c")
+        XCTAssertEqual(SegmentMerger.separationMs(previous: a, incoming: b), 1_000)
+        XCTAssertEqual(SegmentMerger.separationMs(previous: a, incoming: c), 0)
+        XCTAssertTrue(SegmentMerger.isNearDuplicateWindow(previous: a, incoming: c))
+        XCTAssertFalse(SegmentMerger.isNearDuplicateWindow(previous: a, incoming: b))
+        XCTAssertTrue(
+            SegmentMerger.isNearDuplicateInterval(a0: 100, a1: 4000, b0: 120, b1: 4010)
+        )
+    }
+
+    func testMergedTextCapPreventsRunaway() {
+        let long = String(repeating: "字", count: SegmentMerger.maxMergedTextChars + 50)
+        let capped = SegmentMerger.cappedText(long)
+        XCTAssertEqual(capped?.count, SegmentMerger.maxMergedTextChars)
     }
 
     private func makeSegment(
