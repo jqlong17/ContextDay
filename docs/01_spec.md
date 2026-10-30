@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.25** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.25 UK meeting skill shelf（5 styles + 设置浏览/预览/复制一行指针）；v0.3.24 送识 cover-based single-flight；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.26** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.26 首启气泡拖拽 child-window 跟随 +「上一步」+ 正文无黑底；v0.3.25 UK meeting skill shelf；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 21:15 Asia/Shanghai |
+| 最后更新 | 2026-10-30 21:35 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -216,12 +216,12 @@ MVP 视觉约定：
 
 规则：
 
-1. **分段**：文案分 ≥3 段展示（职责 / 本机落盘与 Agent 可读 / 本地安全），**禁止**一次堆出全部长文。段间点「下一步」前进；打字机可偏快；点「下一步」时可跳过当前段剩余打字。
-2. **位置 / 视觉**（v0.3.20 Concept A + v0.3.21 跟随）：气泡锚定浮控窗口上方；拖拽球时气泡须**实时跟随**并保持相对位置（实现：`NSWindow` frame KVO + 展示期间短周期 reposition；不可只依赖拖拽结束后的 `didMove`）。**深色毛玻璃**（`NSVisualEffectView` `.hudWindow` + `.vibrantDark`）圆角卡片 + 朝下小尾巴；细浅描边 + 软阴影；紧凑内边距；正文奶油色；主按钮为柔和绿色胶囊「下一步」/「授予权限」。窗口层级与浮控同为 `.normal`（可被其它 App 遮盖）。禁止默认浅色 `NSPopover` / 纯白 `controlBackgroundColor` 卡片。
-3. **权限步**：介绍结束后展示约 3–4 项清单——**登录时打开**、**麦克风**、**屏幕录制（系统声）**、**记录文件夹可写**。点「授予权限」依次触发真实系统请求：`SMAppService` / `AVAudioApplication.requestRecordPermission` / `CGRequestScreenCaptureAccess` / 确保记录根可写（必要时 `NSOpenPanel`）。「稍后再说」也标记引导完成，避免每次冷启动重复刷屏；之后仍可通过设置 / 首次录音补授权。
+1. **分段**：文案分 ≥3 段展示（职责 / 本机落盘与 Agent 可读 / 本地安全），**禁止**一次堆出全部长文。段间点「下一步」前进；第 2 段起提供「上一步」回到前段（第 1 段隐藏/禁用）；打字机可偏快；点「下一步」时可跳过当前段剩余打字。权限末页仍可「上一步」回到最后一段介绍（**不**因此触发 TCC）。
+2. **位置 / 视觉**（v0.3.20 Concept A + v0.3.21 / **v0.3.26 跟随加固**）：气泡锚定浮控窗口上方；拖拽球时气泡须**实时跟随**并保持相对位置（居中、上方 `gapAboveOrb`）。**不可**只依赖拖拽结束后的 `didMove`，也**不可**在 `isMovableByWindowBackground` 拖拽中用可能滞后的 AppKit `frame` 去硬 `setFrame`（会把气泡拽回旧点）。实现：气泡作为浮控的 **`addChildWindow`**（Window Server 与球同步位移）+ 松手/布局变更时 reposition；非 child 时再以拖拽期轮询 / `CGWindowList` 实框兜底。**深色毛玻璃**（`NSVisualEffectView` `.hudWindow` + `.vibrantDark`）圆角卡片 + 朝下小尾巴；细浅描边 + 软阴影；紧凑内边距；正文奶油色**直接画在毛玻璃上**（禁止 `NSTextField` 另铺近黑实心底）；主 CTA 为柔和绿色胶囊「下一步」/「授予权限」，「上一步」/「稍后再说」为次要奶油色文字按钮。窗口层级与浮控同为 `.normal`（可被其它 App 遮盖）。禁止默认浅色 `NSPopover` / 纯白 `controlBackgroundColor` 卡片。
+3. **权限步**：介绍结束后展示约 3–4 项清单——**登录时打开**、**麦克风**、**屏幕录制（系统声）**、**记录文件夹可写**。点「授予权限」依次触发真实系统请求：`SMAppService` / `AVAudioApplication.requestRecordPermission` / `CGRequestScreenCaptureAccess` / 确保记录根可写（必要时 `NSOpenPanel`）。「稍后再说」也标记引导完成，避免每次冷启动重复刷屏；之后仍可通过设置 / 首次录音补授权。权限只在「授予权限」触发（deferred TCC）；翻页「上一步」不请求权限。
 4. **冷启动不抢戏**（v0.3.19 / **v0.3.21 收紧**）：引导**未完成**时，`applicationDidFinishLaunching` **不得**自动 `SMAppService.register` / 麦 TCC / 屏幕录制请求——**与就绪门是否已绿无关**。`mayAutoSyncSystemPreferences` 仅在 `onboarding_completed_v1` 为真时允许同步 Login Item；麦与系统声仍仅在「授予权限」或用户开始录音时请求。`PermissionStatus` 启动快照只读、不弹窗。
 5. **完成**：标记 `onboarding_completed_v1`；关闭气泡；再评一次就绪门并可播 §2.7.4 ready（若已就绪）。
-6. **实现**：`OnboardingFlow`（文案、`shouldPresent`、`mayAutoSyncSystemPreferences`）+ `OnboardingBubbleController`（`OnboardingBubbleLayout` + `BubbleChromeView` 毛玻璃 + 实时跟随）+ `SoftGreenPillButton`；由 `DesktopControlController.considerOnboarding()` 在 `show()` 后调用。
+6. **实现**：`OnboardingFlow`（文案、`shouldPresent`、`mayAutoSyncSystemPreferences`）+ `OnboardingBubbleController`（`OnboardingBubbleLayout` + `BubbleChromeView` 毛玻璃 + child-window 实时跟随 +「上一步」）+ `SoftGreenPillButton`；由 `DesktopControlController.considerOnboarding()` 在 `show()` 后调用。
 
 验收：T27。
 
@@ -693,7 +693,7 @@ flowchart TB
 
 - [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
 - [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
-- [x] DesktopControl：`.normal` 窗口、冷启动 orb idle/blink；左键未录音时开始录音（录中不关；拖动可移动）；右键菜单开始/暂停 + eye-click；首启气泡引导 + 拖拽跟随 + 麦/屏幕/登录项/文件夹权限（§2.7.6）
+- [x] DesktopControl：`.normal` 窗口、冷启动 orb idle/blink；左键未录音时开始录音（录中不关；拖动可移动）；右键菜单开始/暂停 + eye-click；首启气泡引导 + child-window 拖拽跟随 +「上一步」/「下一步」+ 麦/屏幕/登录项/文件夹权限（§2.7.6）
 - [x] 登录项 `SMAppService.mainApp` + 设置开关（默认开）；冷启动就绪 `ready-2s` 一次（§2.7.4）
 - [x] 右键扁平：打开记录根；复制 §2.8 提示词；开始/暂停录音；设置…（单面板含浮控大小）/时间线/修改保存文件夹/关于与隐私；无设置子菜单
 - [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
@@ -755,7 +755,7 @@ flowchart TB
 | T24 | 登录项开关 | 设置 → 登录时打开 开/关 → 保存；查看系统登录项 | 开：`SMAppService` enabled 或 requiresApproval；关：notRegistered；偏好与服务一致 |
 | T25 | 就绪动画 | 冷启动；mic+屏幕录制已授权且记录根可写 | Agent IO 绑定后 orb 播 **ready-2s 一次**（非录音 eye-click）；同一次进程内不再因轮询重复；就绪动画本身不启停录音；左键开录仍见 T22 |
 | T26 | 睡觉 / 起床 | **冷启动**醒来 idle（可 ready 眨眼），**不**自动睡觉；**暂停**直进 Concept A（闭眼+奶油 Zzz）；再开录播 S1 起床后 settle idle | 冷启动互动 idle/blink；暂停无 eye-click；可见 Zzz 循环；起床见害羞腮红、无星星；缺帧时静帧 idle + README |
-| T27 | 首启引导气泡 | 清除 `onboarding_completed_v1`；冷启动 | 冷启动**不**先弹 Login Item / 麦 / 屏幕（门已绿也不弹）；球上方气泡分段打字 +「下一步」；拖拽球时气泡实时跟随；末段后权限清单；「授予权限」才触发真实 TCC / Login Item / 可写目录；完成后标记完成且不再每冷启动重复；可随后 ready（T25） |
+| T27 | 首启引导气泡 | 清除 `onboarding_completed_v1`；冷启动 | 冷启动**不**先弹 Login Item / 麦 / 屏幕（门已绿也不弹）；球上方气泡分段打字 +「下一步」/「上一步」（首页无上一步；权限页可回介绍）；拖拽球时气泡实时跟随（child-window）；正文无近黑实心底；末段后权限清单；「授予权限」才触发真实 TCC / Login Item / 可写目录；完成后标记完成且不再每冷启动重复；可随后 ready（T25） |
 
 ---
 
@@ -787,7 +787,7 @@ flowchart TB
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪用 `playReadyOnce`（`ready-2s.mov`）；已醒开录用 `playEyeClickOnce`；离开睡觉用 `playWakeOnce`（`wake-shy-S1.mov`）；暂停直进睡觉、不播 eye-click；每冷启动就绪 ≤1 次。
-- 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`（Concept A 深色毛玻璃 + 柔绿胶囊，v0.3.20；拖拽实时跟随，v0.3.21）；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏；引导未完成时启动路径不 `SMAppService.register` / 不请求麦与屏幕——与就绪门无关（v0.3.21）；冷启动默认醒来 idle，睡觉留给暂停后（v0.3.21）。
+- 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`（Concept A 深色毛玻璃 + 柔绿胶囊，v0.3.20；拖拽 child-window 实时跟随 +「上一步」+ 正文无黑底，v0.3.26）；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏；引导未完成时启动路径不 `SMAppService.register` / 不请求麦与屏幕——与就绪门无关（v0.3.21）；冷启动默认醒来 idle，睡觉留给暂停后（v0.3.21）。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
 ---
@@ -819,6 +819,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.26 | 2026-10-30 21:35 | §2.7.6：气泡拖拽跟随改为 `addChildWindow`（禁拖中用滞后 AppKit frame 硬 setFrame）；介绍/权限页加「上一步」；正文/清单去掉近黑 `NSTextField` 实心底；T27 更新；**Segment schema 不变** |
 | v0.3.25 | 2026-10-30 21:15 | §2.8.3 UK meeting skill shelf：5 个 en-GB 技能（stable ids）+ 设置单面板浏览/示例预览/复制一行指针；`get_clipboard_prompt` 可选 `name`；agent-skills VERSION 0.4.0；**Segment schema 不变** |
 | v0.3.24 | 2026-10-30 19:30 | §3.3.4：送识 single-flight 改为「候选窗已被覆盖 / 高 IoU / 端点 slop」，不再用 overlap/min(dur)（修短窗误杀加长窗导致的 ASR 饿死）；落库近同窗规则不变；**Segment schema 不变** |
 | v0.3.23 | 2026-10-30 19:00 | §3.3.4：同窗去重（墙钟 single-flight + 近同窗折并不拼接）与邻域重叠合并，修环缓冲裁切后 sample 去重失效导致的 3.8× 假增量；软顶 source_ids/文本；**Segment schema 不变** |
@@ -845,7 +846,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.25 | **已完成** | v0.3.25 = UK meeting skill shelf；v0.3.24 = 送识 cover-based single-flight；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.26 | **已完成** | v0.3.26 = 首启气泡跟随/上一步/无黑底；v0.3.25 = UK meeting skill shelf；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
@@ -860,7 +861,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.25 UK meeting skill shelf（首批 5 styles）；v0.3.24 送识 cover-based single-flight；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.26 首启气泡跟随/上一步/无黑底；v0.3.25 UK meeting skill shelf（首批 5 styles）；正式公证/上架留待人工提交。**
 
 ---
 

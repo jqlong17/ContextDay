@@ -13,6 +13,7 @@ enum OnboardingBubbleLayout {
     static let tailHeight: CGFloat = 11
     static let pillHeight: CGFloat = 28
     static let nextPillWidth: CGFloat = 80
+    static let prevButtonWidth: CGFloat = 72
     static let grantPillWidth: CGFloat = 96
     /// Soft sage green for primary CTAs (Concept A).
     static let softGreen = NSColor(calibratedRed: 0.42, green: 0.70, blue: 0.54, alpha: 1.0)
@@ -23,7 +24,7 @@ enum OnboardingBubbleLayout {
 }
 
 /// Small speech-bubble panel above the desktop orb for first-run onboarding (Spec §2.7.6).
-/// Streams intro copy in chunks with 「下一步」, then a short permission checklist + real TCC prompts.
+/// Streams intro copy in chunks with 「上一步」/「下一步」, then a short permission checklist + real TCC prompts.
 /// Visual: Concept A — dark frosted glass (`NSVisualEffectView`) + soft green pill CTAs.
 final class OnboardingBubbleController: NSObject {
     /// Called after the user finishes the permission step (or skips); host may re-eval ready blink.
@@ -33,6 +34,7 @@ final class OnboardingBubbleController: NSObject {
     private var bubbleView: BubbleChromeView?
     private var bodyLabel: NSTextField!
     private var nextButton: SoftGreenPillButton!
+    private var prevButton: NSButton!
     private var grantButton: SoftGreenPillButton!
     private var skipButton: NSButton!
     private var checklistStack: NSStackView!
@@ -45,9 +47,17 @@ final class OnboardingBubbleController: NSObject {
     private var fullSegment = ""
     private var orbWindow: NSWindow?
     private var moveObserver: NSObjectProtocol?
-    /// Live follow while orb is dragged via `isMovableByWindowBackground` (didMove alone can lag / skip).
+    /// Live follow while orb is dragged via `isMovableByWindowBackground`.
+    /// AppKit's `frame` / `didMove` often lag or skip during background-drag; child-window
+    /// attachment lets Window Server move the bubble with the orb. KVO + end-of-drag snap
+    /// correct relative offset after release / programmatic moves (resize).
     private var frameObservation: NSKeyValueObservation?
+    /// True while the primary button is down on the orb (background-drag).
+    private var isOrbDragging = false
+    /// Fallback poll when bubble is not a child of the orb (WS bounds → setFrame).
     private var dragFollowTimer: Timer?
+    private var localMouseMonitor: Any?
+    private var lastOrbOrigin: NSPoint?
 
     private enum Phase {
         case intro
@@ -59,6 +69,7 @@ final class OnboardingBubbleController: NSObject {
     private static let tickInterval: TimeInterval = 0.028
 
     func present(above orbWindow: NSWindow) {
+        detachFromOrbParent()
         self.orbWindow = orbWindow
         if window == nil {
             buildWindow()
@@ -68,9 +79,14 @@ final class OnboardingBubbleController: NSObject {
         showIntroChrome()
         startTyping(OnboardingFlow.introSegments[0])
         reposition()
+        attachAsChildOfOrb()
         window?.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
 
+        if let moveObserver {
+            NotificationCenter.default.removeObserver(moveObserver)
+            self.moveObserver = nil
+        }
         moveObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification,
             object: orbWindow,
@@ -78,37 +94,115 @@ final class OnboardingBubbleController: NSObject {
         ) { [weak self] _ in
             self?.reposition()
         }
+        frameObservation?.invalidate()
         // `isMovableByWindowBackground` often does not post didMove on every drag tick.
-        // KVO on frame + a short drag timer keep the bubble glued above the orb in real time.
         frameObservation = orbWindow.observe(\.frame, options: [.new]) { [weak self] _, _ in
             self?.reposition()
         }
-        startDragFollowTimer()
+        installDragTracking()
         AppLog.info(.app, "onboarding bubble presented")
     }
 
     func dismiss() {
         typeTimer?.invalidate()
         typeTimer = nil
+        isOrbDragging = false
         stopDragFollowTimer()
+        removeDragTracking()
         frameObservation?.invalidate()
         frameObservation = nil
         if let moveObserver {
             NotificationCenter.default.removeObserver(moveObserver)
             self.moveObserver = nil
         }
+        detachFromOrbParent()
         window?.orderOut(nil)
+        lastOrbOrigin = nil
         AppLog.info(.app, "onboarding bubble dismissed")
     }
 
-    private func startDragFollowTimer() {
+    /// Child-window attachment: Window Server moves bubble with orb during live background-drag,
+    /// even when AppKit's `frame` property has not caught up yet.
+    private func attachAsChildOfOrb() {
+        guard let window, let orbWindow else { return }
+        if window.parent !== orbWindow {
+            if let existing = window.parent {
+                existing.removeChildWindow(window)
+            }
+            orbWindow.addChildWindow(window, ordered: .above)
+        }
+    }
+
+    private func detachFromOrbParent() {
+        guard let window else { return }
+        if let parent = window.parent {
+            parent.removeChildWindow(window)
+        }
+    }
+
+    private func installDragTracking() {
+        removeDragTracking()
+        // Local monitor: while the user drags with the primary button down, keep polling the
+        // orb's on-screen frame (CGWindowList) so reposition stays glued even if KVO is quiet.
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+        ) { [weak self] event in
+            self?.handleOrbDragEvent(event)
+            return event
+        }
+    }
+
+    private func removeDragTracking() {
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+            self.localMouseMonitor = nil
+        }
         stopDragFollowTimer()
-        // ~60 Hz reposition while presented — cheap; covers any frame-KVO miss during drag.
+    }
+
+    private func handleOrbDragEvent(_ event: NSEvent) {
+        guard let orbWindow else { return }
+        // Only track drags that belong to the orb window (background-drag path).
+        guard event.window === orbWindow else {
+            if event.type == .leftMouseUp, isOrbDragging {
+                endOrbDrag()
+            }
+            return
+        }
+        switch event.type {
+        case .leftMouseDown:
+            beginOrbDrag()
+        case .leftMouseDragged:
+            if !isOrbDragging { beginOrbDrag() }
+            // Child-attached: Window Server keeps the bubble glued — do not setFrame
+            // from a possibly-stale AppKit frame (that was the #22 residual failure mode).
+            if window?.parent !== orbWindow {
+                reposition(force: true)
+            }
+        case .leftMouseUp:
+            endOrbDrag()
+        default:
+            break
+        }
+    }
+
+    private func beginOrbDrag() {
+        isOrbDragging = true
+        // Fallback ~60 Hz only when not child-attached.
+        guard window?.parent !== orbWindow else { return }
+        guard dragFollowTimer == nil else { return }
         let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            self?.reposition()
+            self?.reposition(force: true)
         }
         RunLoop.main.add(timer, forMode: .common)
         dragFollowTimer = timer
+    }
+
+    private func endOrbDrag() {
+        isOrbDragging = false
+        stopDragFollowTimer()
+        // AppKit frame is trustworthy again after release — snap relative offset.
+        reposition(force: true)
     }
 
     private func stopDragFollowTimer() {
@@ -140,14 +234,18 @@ final class OnboardingBubbleController: NSObject {
         let chrome = BubbleChromeView(frame: NSRect(origin: .zero, size: size))
         chrome.autoresizingMask = [.width, .height]
 
-        bodyLabel = NSTextField(wrappingLabelWithString: "")
+        bodyLabel = Self.makeTransparentWrappingLabel()
         bodyLabel.font = .systemFont(ofSize: 13, weight: .regular)
         bodyLabel.textColor = OnboardingBubbleLayout.creamText
         bodyLabel.maximumNumberOfLines = 8
-        bodyLabel.lineBreakMode = .byWordWrapping
-        bodyLabel.drawsBackground = false
-        bodyLabel.backgroundColor = .clear
         chrome.addSubview(bodyLabel)
+
+        prevButton = NSButton(title: "上一步", target: self, action: #selector(goPrevious))
+        prevButton.isBordered = false
+        prevButton.font = .systemFont(ofSize: 12, weight: .medium)
+        prevButton.contentTintColor = OnboardingBubbleLayout.creamSecondary
+        prevButton.isHidden = true
+        chrome.addSubview(prevButton)
 
         nextButton = SoftGreenPillButton(title: "下一步", target: self, action: #selector(advanceIntro))
         nextButton.keyEquivalent = "\r"
@@ -162,12 +260,11 @@ final class OnboardingBubbleController: NSObject {
         chrome.addSubview(checklistStack)
 
         for item in OnboardingFlow.permissionItems {
-            let row = NSTextField(wrappingLabelWithString: "○ \(item.title) — \(item.detail)")
+            let row = Self.makeTransparentWrappingLabel()
+            row.stringValue = "○ \(item.title) — \(item.detail)"
             row.font = .systemFont(ofSize: 12)
             row.textColor = OnboardingBubbleLayout.creamSecondary
             row.maximumNumberOfLines = 2
-            row.drawsBackground = false
-            row.backgroundColor = .clear
             row.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             checklistStack.addArrangedSubview(row)
             checklistRows.append(row)
@@ -191,6 +288,30 @@ final class OnboardingBubbleController: NSObject {
         layoutChrome(height: OnboardingBubbleLayout.bubbleHeightIntro)
     }
 
+    /// Plain non-bezeled field — avoids the opaque near-black rect `wrappingLabelWithString`
+    /// can paint inside a layer-backed dark frosted chrome.
+    private static func makeTransparentWrappingLabel() -> NSTextField {
+        let label = NSTextField(frame: .zero)
+        label.isEditable = false
+        label.isSelectable = false
+        label.isBezeled = false
+        label.isBordered = false
+        label.drawsBackground = false
+        label.backgroundColor = .clear
+        label.refusesFirstResponder = true
+        label.allowsDefaultTighteningForTruncation = true
+        label.lineBreakMode = .byWordWrapping
+        label.usesSingleLineMode = false
+        label.maximumNumberOfLines = 0
+        if let cell = label.cell as? NSTextFieldCell {
+            cell.wraps = true
+            cell.isScrollable = false
+            cell.drawsBackground = false
+            cell.backgroundColor = .clear
+        }
+        return label
+    }
+
     private func layoutChrome(height: CGFloat) {
         guard let chrome = bubbleView else { return }
         let w = OnboardingBubbleLayout.bubbleWidth
@@ -204,6 +325,12 @@ final class OnboardingBubbleController: NSObject {
             y: contentBottom + 34,
             width: w - pad * 2,
             height: contentTop - contentBottom - 40
+        )
+        prevButton.frame = NSRect(
+            x: pad,
+            y: contentBottom,
+            width: OnboardingBubbleLayout.prevButtonWidth,
+            height: OnboardingBubbleLayout.pillHeight
         )
         nextButton.frame = NSRect(
             x: w - pad - OnboardingBubbleLayout.nextPillWidth,
@@ -224,21 +351,32 @@ final class OnboardingBubbleController: NSObject {
             width: OnboardingBubbleLayout.grantPillWidth,
             height: OnboardingBubbleLayout.pillHeight
         )
-        skipButton.frame = NSRect(x: pad, y: contentBottom, width: 72, height: OnboardingBubbleLayout.pillHeight)
+        // Permissions row: 「上一步」 + 「稍后再说」 on the left, 「授予权限」 on the right.
+        skipButton.frame = NSRect(
+            x: pad + OnboardingBubbleLayout.prevButtonWidth + 4,
+            y: contentBottom,
+            width: 72,
+            height: OnboardingBubbleLayout.pillHeight
+        )
 
         chrome.frame.size = NSSize(width: w, height: height)
         window?.setContentSize(NSSize(width: w, height: height))
     }
 
-    private func reposition() {
+    private func reposition(force: Bool = false) {
         guard let window, let orbWindow else { return }
-        let orb = orbWindow.frame
+        // Mid-drag with child attachment: Window Server already keeps the relative offset.
+        // Writing setFrame from a possibly-stale AppKit `frame` would yank the bubble back.
+        if !force, isOrbDragging, window.parent === orbWindow {
+            return
+        }
+        let orb = liveOrbFrame(for: orbWindow)
         let size = window.frame.size
         var origin = NSPoint(
             x: orb.midX - size.width / 2,
             y: orb.maxY + OnboardingBubbleLayout.gapAboveOrb
         )
-        if let screen = orbWindow.screen ?? NSScreen.main {
+        if let screen = orbWindow.screen ?? screenContaining(orb) ?? NSScreen.main {
             let vis = screen.visibleFrame
             origin.x = min(max(origin.x, vis.minX + 8), vis.maxX - size.width - 8)
             if origin.y + size.height > vis.maxY - 8 {
@@ -246,8 +384,51 @@ final class OnboardingBubbleController: NSObject {
                 origin.y = max(vis.minY + 8, vis.maxY - size.height - 8)
             }
         }
+        // Skip no-op writes so child-window WS coupling is not fought every tick.
+        if !force,
+           let last = lastOrbOrigin,
+           abs(last.x - orb.origin.x) < 0.5,
+           abs(last.y - orb.origin.y) < 0.5,
+           abs(window.frame.origin.x - origin.x) < 0.5,
+           abs(window.frame.origin.y - origin.y) < 0.5 {
+            return
+        }
+        lastOrbOrigin = orb.origin
         // Origin-only update avoids resize flicker while following a live drag.
         window.setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
+    }
+
+    /// Prefer Window Server bounds during live drag — AppKit `frame` can lag behind
+    /// `isMovableByWindowBackground` motion. Used when child attachment is unavailable.
+    private func liveOrbFrame(for orbWindow: NSWindow) -> NSRect {
+        let appKit = orbWindow.frame
+        let windowID = CGWindowID(orbWindow.windowNumber)
+        guard windowID != 0,
+              let infoList = CGWindowListCopyWindowInfo(.optionIncludingWindow, windowID) as? [[String: Any]],
+              let info = infoList.first,
+              let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
+              let cgRect = CGRect(dictionaryRepresentation: boundsDict)
+        else {
+            return appKit
+        }
+        // Quartz global (top-left of main display, Y down) → AppKit (bottom-left, Y up).
+        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main
+        guard let primary else { return appKit }
+        let converted = NSRect(
+            x: cgRect.origin.x,
+            y: primary.frame.maxY - cgRect.origin.y - cgRect.height,
+            width: cgRect.width,
+            height: cgRect.height
+        )
+        // Sanity: size must match; if conversion is nonsense, keep AppKit.
+        if abs(converted.width - appKit.width) > 2 || abs(converted.height - appKit.height) > 2 {
+            return appKit
+        }
+        return converted
+    }
+
+    private func screenContaining(_ rect: NSRect) -> NSScreen? {
+        NSScreen.screens.first { $0.frame.intersects(rect) }
     }
 
     // MARK: - Intro typing
@@ -259,8 +440,22 @@ final class OnboardingBubbleController: NSObject {
         skipButton.isHidden = true
         nextButton.isHidden = true
         nextButton.title = segmentIndex + 1 < OnboardingFlow.introCount ? "下一步" : "了解权限"
+        updatePrevButtonVisibility(typing: true)
         bodyLabel.isHidden = false
         reposition()
+    }
+
+    private func updatePrevButtonVisibility(typing: Bool) {
+        switch phase {
+        case .intro:
+            // Hidden on page 0; shown once the user can go back (and after typing finishes).
+            let canGoBack = segmentIndex > 0
+            prevButton.isHidden = !canGoBack || typing
+            prevButton.isEnabled = canGoBack
+        case .permissions:
+            prevButton.isHidden = false
+            prevButton.isEnabled = true
+        }
     }
 
     private func startTyping(_ text: String) {
@@ -269,6 +464,7 @@ final class OnboardingBubbleController: NSObject {
         typedCount = 0
         bodyLabel.stringValue = ""
         nextButton.isHidden = true
+        updatePrevButtonVisibility(typing: true)
         typeTimer = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
             self?.typeTick()
         }
@@ -283,6 +479,7 @@ final class OnboardingBubbleController: NSObject {
             typeTimer?.invalidate()
             typeTimer = nil
             nextButton.isHidden = false
+            updatePrevButtonVisibility(typing: false)
             return
         }
         let end = min(typedCount + Self.charsPerTick, chars.count)
@@ -298,6 +495,7 @@ final class OnboardingBubbleController: NSObject {
             bodyLabel.stringValue = fullSegment
             typedCount = fullSegment.count
             nextButton.isHidden = false
+            updatePrevButtonVisibility(typing: false)
             return
         }
         let next = segmentIndex + 1
@@ -307,6 +505,33 @@ final class OnboardingBubbleController: NSObject {
             startTyping(OnboardingFlow.introSegments[segmentIndex])
         } else {
             showPermissionsPhase()
+        }
+    }
+
+    @objc private func goPrevious() {
+        typeTimer?.invalidate()
+        typeTimer = nil
+        switch phase {
+        case .permissions:
+            // Return to the last intro segment (fully shown — no re-type).
+            phase = .intro
+            segmentIndex = max(0, OnboardingFlow.introCount - 1)
+            showIntroChrome()
+            fullSegment = OnboardingFlow.introSegments[segmentIndex]
+            typedCount = fullSegment.count
+            bodyLabel.stringValue = fullSegment
+            nextButton.isHidden = false
+            updatePrevButtonVisibility(typing: false)
+        case .intro:
+            guard segmentIndex > 0 else { return }
+            segmentIndex -= 1
+            showIntroChrome()
+            fullSegment = OnboardingFlow.introSegments[segmentIndex]
+            typedCount = fullSegment.count
+            bodyLabel.stringValue = fullSegment
+            nextButton.isHidden = false
+            nextButton.title = segmentIndex + 1 < OnboardingFlow.introCount ? "下一步" : "了解权限"
+            updatePrevButtonVisibility(typing: false)
         }
     }
 
@@ -323,6 +548,7 @@ final class OnboardingBubbleController: NSObject {
         checklistStack.isHidden = false
         grantButton.isHidden = false
         skipButton.isHidden = false
+        updatePrevButtonVisibility(typing: false)
         refreshChecklistMarks()
         reposition()
     }
@@ -347,6 +573,7 @@ final class OnboardingBubbleController: NSObject {
     @objc private func grantPermissions() {
         grantButton.isEnabled = false
         skipButton.isEnabled = false
+        prevButton.isEnabled = false
         AppLog.info(.app, "onboarding grantPermissions tapped")
 
         // 1) Login Item preference ON + register.
@@ -371,6 +598,7 @@ final class OnboardingBubbleController: NSObject {
                 PermissionStatus.logSnapshot(reason: "onboarding_complete")
                 self.grantButton.isEnabled = true
                 self.skipButton.isEnabled = true
+                self.prevButton.isEnabled = true
                 self.finish()
             }
         }
