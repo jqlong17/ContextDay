@@ -16,8 +16,9 @@ final class CapturePipeline {
 
     private var processQueue = DispatchQueue(label: "app.contextday.capture.process")
     private var processTimer: DispatchSourceTimer?
-    private var emittedMic: [(Int, Int)] = []
-    private var emittedSystem: [(Int, Int)] = []
+    /// Wall-clock [t0,t1] already sent to ASR — survives ring trim (sample-index dedupe does not).
+    private var emittedMic: [(Int64, Int64)] = []
+    private var emittedSystem: [(Int64, Int64)] = []
     private var converter: AVAudioConverter?
     private let targetSampleRate: Double = 16_000
     private var systemCapture: AnyObject?
@@ -192,15 +193,21 @@ final class CapturePipeline {
             "track=\(track.rawValue) utterances=\(utterances.count) pcmBytes=\(snap.data.count) forceFlush=\(forceFlush)"
         )
         for utt in utterances {
-            if emitted.contains(where: { abs($0.0 - utt.startSample) < 800 && abs($0.1 - utt.endSample) < 800 }) {
+            // Single-flight by wall-clock window (Spec v0.3.23). Sample-index ±800 failed after
+            // ring trim shifted indices while t0/t1 only jittered 1–2ms — same utterance re-ASR'd dozens of times.
+            if emitted.contains(where: {
+                SegmentMerger.isNearDuplicateInterval(a0: $0.0, a1: $0.1, b0: utt.t0Ms, b1: utt.t1Ms)
+            }) {
                 continue
             }
             let samplesNow = snap.data.count / 2
             if !forceFlush && utt.endSample > samplesNow - snap.sampleRate { continue }
-            emitted.append((utt.startSample, utt.endSample))
+            emitted.append((utt.t0Ms, utt.t1Ms))
             handleUtterance(utt, pcm: snap.data, track: track)
         }
-        if track == .mic { emittedMic = emitted } else { emittedSystem = emitted }
+        // Drop emission records older than the ring's stream start (already trimmed away).
+        let pruned = emitted.filter { $0.1 >= snap.streamStartMs - 2_000 }
+        if track == .mic { emittedMic = pruned } else { emittedSystem = pruned }
     }
 
     private func handleUtterance(_ utt: VoiceActivityDetector.Utterance, pcm: Data, track: SegmentTrack) {
