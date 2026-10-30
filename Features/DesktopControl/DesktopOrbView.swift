@@ -3,7 +3,7 @@ import AVFoundation
 import CoreGraphics
 import ImageIO
 
-/// Twin-eye 3D orb: sleep frame-loop when idle, one-shot eye-click movie, keyed idle settle (Spec §2.7).
+/// Twin-eye 3D orb: sleep frame-loop when idle, one-shot clips (eye-click / ready), keyed idle settle (Spec §2.7).
 final class DesktopOrbView: NSView {
     private let idleLayer = CALayer()
     private let playerView = NSView()
@@ -271,7 +271,22 @@ final class DesktopOrbView: NSView {
             NSLog("ContextDay: eye-click-2s.mov not found in bundle (alpha rematte required)")
             return
         }
+        playOrbClipOnce(url: url)
+    }
 
+    /// Spec §2.7.4 dedicated ready clip (`ready-2s.mov`, 首尾针 = idle). Falls back to
+    /// eye-click only if the rematted ready asset is missing from the bundle.
+    func playReadyOnce() {
+        if let url = Self.readyURL() {
+            playOrbClipOnce(url: url)
+            return
+        }
+        NSLog("ContextDay: ready-2s.mov not found — falling back to eye-click")
+        playEyeClickOnce()
+    }
+
+    /// Shared one-shot AVPlayer path for rematted DesktopOrb clips.
+    private func playOrbClipOnce(url: URL) {
         sleepLoop.stop()
         isPlayingOneShot = true
 
@@ -332,10 +347,19 @@ final class DesktopOrbView: NSView {
     }
 
     private static func eyeClickURL() -> URL? {
-        if let url = Bundle.main.url(forResource: "eye-click-2s", withExtension: "mov", subdirectory: "DesktopOrb") {
+        orbClipURL(resource: "eye-click-2s")
+    }
+
+    private static func readyURL() -> URL? {
+        orbClipURL(resource: "ready-2s")
+    }
+
+    /// Alpha rematte `.mov` only — never return legacy greenscreen H.264 `.mp4`.
+    private static func orbClipURL(resource: String) -> URL? {
+        if let url = Bundle.main.url(forResource: resource, withExtension: "mov", subdirectory: "DesktopOrb") {
             return url
         }
-        return Bundle.main.url(forResource: "eye-click-2s", withExtension: "mov")
+        return Bundle.main.url(forResource: resource, withExtension: "mov")
     }
 
     override func layout() {

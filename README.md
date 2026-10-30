@@ -73,4 +73,4 @@ ASR：**SenseVoice Core ML int8 only**。Gate：YAMNet；Music>Speech 同高时 
 
 Phase 0–4 MVP：双轨采集、合并落库、配置/时间线/隐私、HTTP + MCP stdio、磁盘守卫与睡眠停采、诊断自检、`ContextDayTests`。
 
-仍待：正式公证与上架提交、Opus 比特流替换 CAF 证据档、eye-click 去绿幕 rematte。
+仍待：正式公证与上架提交、Opus 比特流替换 CAF 证据档、DesktopOrb rematte：`eye-click-2s.mov` + `ready-2s.mov`。
