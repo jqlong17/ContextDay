@@ -1,6 +1,6 @@
 import Foundation
 
-/// Simple growable Int16 LE PCM buffer for smoke-test capture (not a fixed ring yet).
+/// Growable Int16 LE PCM buffer for capture (soft-capped; not a fixed ring yet).
 final class PCMRingBuffer: @unchecked Sendable {
     private let lock = NSLock()
     private var storage = Data()
@@ -35,18 +35,33 @@ final class PCMRingBuffer: @unchecked Sendable {
         }
     }
 
+    /// Point-in-time copy under lock. Callers may slice on another queue; returning shared
+    /// `storage` races with `append`/`removeFirst` and can SIGTRAP inside `Data.subdata`.
     func snapshot() -> (data: Data, streamStartMs: Int64, sampleRate: Int) {
         lock.lock()
         defer { lock.unlock() }
-        return (storage, streamStartMs, sampleRate)
+        return (Data(storage), streamStartMs, sampleRate)
     }
 
     func slice(startSample: Int, endSample: Int) -> Data {
         lock.lock()
         defer { lock.unlock() }
-        let start = max(0, startSample * 2)
-        let end = min(storage.count, endSample * 2)
-        guard start < end else { return Data() }
-        return storage.subdata(in: start..<end)
+        return PCMInt16Slice.subdata(pcm: storage, startSample: startSample, endSample: endSample) ?? Data()
+    }
+}
+
+/// Int16 LE sample-index → byte slice. Returns nil on empty / OOB (never traps).
+enum PCMInt16Slice {
+    static func subdata(pcm: Data, startSample: Int, endSample: Int) -> Data? {
+        let sampleCount = pcm.count / 2
+        guard startSample >= 0, endSample > startSample, startSample < sampleCount else {
+            return nil
+        }
+        let clampedEnd = min(endSample, sampleCount)
+        guard clampedEnd > startSample else { return nil }
+        let start = startSample * 2
+        let end = clampedEnd * 2
+        guard start < end, end <= pcm.count else { return nil }
+        return pcm.subdata(in: start..<end)
     }
 }
