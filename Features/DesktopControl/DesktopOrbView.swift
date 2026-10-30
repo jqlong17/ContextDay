@@ -3,7 +3,7 @@ import AVFoundation
 import CoreGraphics
 import ImageIO
 
-/// Twin-eye 3D orb: idle still + one-shot eye-click movie (Spec §2.7).
+/// Twin-eye 3D orb: sleep frame-loop when idle, one-shot eye-click movie, keyed idle settle (Spec §2.7).
 final class DesktopOrbView: NSView {
     private let idleLayer = CALayer()
     private let playerView = NSView()
@@ -13,6 +13,12 @@ final class DesktopOrbView: NSView {
 
     /// Fired on left-button click (not drag). Controller may start recording when idle.
     var onPrimaryClick: (() -> Void)?
+
+    private let sleepLoop = OrbFrameLoopPlayer()
+    /// When true (not recording), settle / show paths prefer looping sleep frames.
+    var prefersSleepIdle = true
+    private var isPlayingOneShot = false
+
     var onSecondaryClick: ((NSPoint) -> Void)?
 
     private var mouseDownLocationInWindow: NSPoint?
@@ -30,6 +36,10 @@ final class DesktopOrbView: NSView {
         layer?.isOpaque = false
         setupIdle()
         setupPlayerHost()
+        _ = sleepLoop.loadFromBundle(subdirectory: "sleep")
+        if prefersSleepIdle {
+            startSleepIdleLoop()
+        }
     }
 
     @available(*, unavailable)
@@ -38,6 +48,7 @@ final class DesktopOrbView: NSView {
     }
 
     deinit {
+        sleepLoop.stop()
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
         }
@@ -131,7 +142,6 @@ final class DesktopOrbView: NSView {
             let b = Int(pixels[i + 2])
             let a = Int(pixels[i + 3])
             if a < 200 { return true }
-            // Lime / chroma plate (covers #00FF00-ish and spill)
             if g > 40 && g > r + 15 && g > b + 15 && (g - max(r, b)) > 12 {
                 return true
             }
@@ -179,7 +189,6 @@ final class DesktopOrbView: NSView {
             pixels[pi + 3] = 0
         }
 
-        // Soft fringe: punch residual green next to keyed bg
         for idx in 0..<(width * height) where !bg[idx] {
             let x = idx % width
             let y = idx / width
@@ -222,13 +231,49 @@ final class DesktopOrbView: NSView {
         addSubview(playerView)
     }
 
-    /// Plays rematted `eye-click-2s.mov` (ProRes 4444 / yuva) once, then settles to
-    /// keyed `idle.png` (player torn down). Legacy greenscreen `.mp4` is never used.
+    // MARK: - Sleep idle loop (Spec §2.7.5)
+
+    /// Loop sleep frames on `idleLayer` when not recording. No-op if frames missing
+    /// (keeps keyed idle.png still — designer asset gap documented in sleep/README.md).
+    func startSleepIdleLoop() {
+        prefersSleepIdle = true
+        guard !isPlayingOneShot else { return }
+        guard sleepLoop.frameCount >= 2 || sleepLoop.loadFromBundle(subdirectory: "sleep") else {
+            NSLog("ContextDay: sleep frames missing — holding keyed idle.png (see DesktopOrb/sleep/README.md)")
+            showKeyedIdleStill()
+            return
+        }
+        sleepLoop.framesPerSecond = 10
+        sleepLoop.start(on: idleLayer)
+        idleLayer.isHidden = false
+    }
+
+    func stopSleepIdleLoop() {
+        prefersSleepIdle = false
+        sleepLoop.stop()
+        showKeyedIdleStill()
+    }
+
+    private func showKeyedIdleStill() {
+        if let image = Self.loadKeyedIdleImage() {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            idleLayer.contents = image
+            CATransaction.commit()
+        }
+        idleLayer.isHidden = false
+    }
+
+    /// Plays rematted `eye-click-2s.mov` once, then settles to sleep loop (if prefersSleepIdle)
+    /// or keyed idle.png. Legacy greenscreen `.mp4` is never used.
     func playEyeClickOnce() {
         guard let url = Self.eyeClickURL() else {
             NSLog("ContextDay: eye-click-2s.mov not found in bundle (alpha rematte required)")
             return
         }
+
+        sleepLoop.stop()
+        isPlayingOneShot = true
 
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
@@ -248,8 +293,8 @@ final class DesktopOrbView: NSView {
         playerView.layer?.isOpaque = false
         playerView.layer?.sublayers?.forEach { $0.removeFromSuperlayer() }
         playerView.layer?.addSublayer(layer)
-        // Keep idleLayer visible underneath so end-of-clip / settle never blinks the orb away.
         idleLayer.isHidden = false
+        showKeyedIdleStill()
         playerView.isHidden = false
 
         player = avPlayer
@@ -260,17 +305,15 @@ final class DesktopOrbView: NSView {
             object: item,
             queue: .main
         ) { [weak self] _ in
-            self?.settleToIdle()
+            self?.settleAfterOneShot()
         }
 
         avPlayer.seek(to: .zero)
         avPlayer.play()
     }
 
-    private func settleToIdle() {
-        // Tear down AVPlayer and show keyed idle.png. Holding the rematted last frame
-        // still left ~1% green fringe (soft rematte leftovers) in screenshot QA; idle
-        // stays under the player during play, so hide+teardown snaps cleanly (greenish=0).
+    private func settleAfterOneShot() {
+        isPlayingOneShot = false
         idleLayer.isHidden = false
         player?.pause()
         playerLayer?.removeFromSuperlayer()
@@ -281,10 +324,14 @@ final class DesktopOrbView: NSView {
             NotificationCenter.default.removeObserver(endObserver)
             self.endObserver = nil
         }
+        if prefersSleepIdle {
+            startSleepIdleLoop()
+        } else {
+            showKeyedIdleStill()
+        }
     }
 
     private static func eyeClickURL() -> URL? {
-        // Alpha rematte only — never return the legacy greenscreen H.264 `.mp4`.
         if let url = Bundle.main.url(forResource: "eye-click-2s", withExtension: "mov", subdirectory: "DesktopOrb") {
             return url
         }
@@ -293,8 +340,6 @@ final class DesktopOrbView: NSView {
 
     override func layout() {
         super.layout()
-        // Sync layer frames without implicit CA actions so window-driven resize
-        // (NSAnimationContext ease-in-out) stays smooth and settle/idle don't lag.
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         idleLayer.frame = bounds

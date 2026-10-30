@@ -67,6 +67,8 @@
 		B14LOGIN000000000000001 /* LoginItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14LOGIN000000000000001 /* LoginItemService.swift */; };
 		B14READY000000000000001 /* LaunchReadyGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14READY000000000000001 /* LaunchReadyGate.swift */; };
 		B14READY000000000000002 /* LaunchReadyGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14READY000000000000002 /* LaunchReadyGateTests.swift */; };
+		B15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift */; };
+		B15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -91,6 +93,7 @@
 		AB4C527B9EBB47B9A6DD45A7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		9BE876CF1F9C4B78A7FE6984 /* DesktopControlController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopControlController.swift; sourceTree = "<group>"; };
 		D36F2862DF7B46BF95124EBB /* DesktopOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopOrbView.swift; sourceTree = "<group>"; };
+		A15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbFrameLoopPlayer.swift; sourceTree = "<group>"; };
 		4E7917F4F7684C8D95136058 /* AgentPromptTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPromptTemplate.swift; sourceTree = "<group>"; };
 		7FF2CFA738984C4B80DC4517 /* CapturePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturePipeline.swift; sourceTree = "<group>"; };
 		8A0DC1F0799142EF910DC650 /* YamNetGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YamNetGate.swift; sourceTree = "<group>"; };
@@ -145,6 +148,7 @@
 		A14LOGIN000000000000001 /* LoginItemService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemService.swift; sourceTree = "<group>"; };
 		A14READY000000000000001 /* LaunchReadyGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGate.swift; sourceTree = "<group>"; };
 		A14READY000000000000002 /* LaunchReadyGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGateTests.swift; sourceTree = "<group>"; };
+		A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbFrameLoopPlayerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -201,6 +205,7 @@
 			children = (
 				9BE876CF1F9C4B78A7FE6984 /* DesktopControlController.swift */,
 				D36F2862DF7B46BF95124EBB /* DesktopOrbView.swift */,
+				A15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift */,
 				4E7917F4F7684C8D95136058 /* AgentPromptTemplate.swift */,
 			);
 			path = DesktopControl;
@@ -329,6 +334,7 @@
 				A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */,
 				A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */,
 				A14READY000000000000002 /* LaunchReadyGateTests.swift */,
+				A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -467,6 +473,7 @@
 				2E22C58D34EB4C7F86A7C2EF /* AppDelegate.swift in Sources */,
 				B55CBF16D61A43CCBFC8BB85 /* DesktopControlController.swift in Sources */,
 				284A0959962841A29033E3EF /* DesktopOrbView.swift in Sources */,
+				B15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift in Sources */,
 				BE1D1B5209E04D1E8181E172 /* AgentPromptTemplate.swift in Sources */,
 				AC6186876BFA44D99FB7086B /* CapturePipeline.swift in Sources */,
 				253123C68A824FC79A909C2B /* SystemAudioCapture.swift in Sources */,
@@ -509,6 +516,7 @@
 				B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */,
 				B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */,
 				B14READY000000000000002 /* LaunchReadyGateTests.swift in Sources */,
+				B15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
