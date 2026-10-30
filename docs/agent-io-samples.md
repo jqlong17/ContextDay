@@ -195,7 +195,7 @@ HTTP **501**。`export_audio` 同理。未知路径 **404** → `{ "error":"not_
 
 ## 助手提示词用法（推荐）
 
-1. 粘贴短「助手索引」或先 `get_clipboard_prompt`。  
+1. 粘贴一行「请阅读 …/README.md」或先 `get_clipboard_prompt`。  
 2. `list_activity` 看 mic `speech_count` 高峰 → `list_speech_blocks` → 每块 `get_window` / `search_segments`。  
 3. `get_agent_skill` → `meeting-minutes.md`，按技能结构写纪要。  
 4. **不要**调用 `summarize_window`。  

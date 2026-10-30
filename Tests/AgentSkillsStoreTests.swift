@@ -132,20 +132,24 @@ final class AgentSkillsStoreTests: XCTestCase {
         let promptData = try AgentIOProtocol.dispatch(tool: "get_clipboard_prompt", arguments: [:], service: service)
         let prompt = try JSONDecoder().decode(AgentClipboardPromptDTO.self, from: promptData)
         XCTAssertEqual(prompt.kind, "index")
-        XCTAssertTrue(prompt.text.contains(skillsRoot.path))
-        XCTAssertLessThan(prompt.text.count, 600)
+        XCTAssertTrue(prompt.text.hasPrefix("请阅读 "))
+        XCTAssertTrue(prompt.text.contains(skillsRoot.appendingPathComponent("README.md").path))
+        XCTAssertLessThan(prompt.text.count, 400)
         XCTAssertFalse(prompt.text.contains("docs/agent-skills"))
         XCTAssertFalse(prompt.text.contains("Spec §"))
         XCTAssertFalse(prompt.text.contains("Segment 字段摘要"))
+        XCTAssertFalse(prompt.text.contains("/health"))
     }
 
     func testClipboardIndexUsesAbsoluteAppSupportPaths() {
         let text = AgentPromptTemplate.makeClipboardIndex(
             recordsRoot: URL(fileURLWithPath: "/tmp/ContextDayRecordsTest")
         )
-        XCTAssertTrue(text.contains(skillsRoot.path))
-        XCTAssertTrue(text.contains("get_agent_skill") || text.contains("get_recent"))
+        XCTAssertTrue(text.hasPrefix("请阅读 "))
+        XCTAssertTrue(text.contains(skillsRoot.appendingPathComponent("README.md").path))
         XCTAssertFalse(text.contains("docs/agent-skills"))
         XCTAssertFalse(text.contains("Spec §"))
+        XCTAssertFalse(text.contains("/health"))
+        XCTAssertFalse(text.contains("get_recent"))
     }
 }

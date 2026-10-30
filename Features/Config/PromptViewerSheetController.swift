@@ -14,7 +14,7 @@ final class PromptViewerSheetController: NSWindowController {
 
         guard let content = window.contentView else { return }
 
-        let hint = NSTextField(labelWithString: "仅在本机设置中查看；右键「复制提示词」只复制短索引，不会复制下文。")
+        let hint = NSTextField(labelWithString: "仅在本机设置中查看；右键「复制提示词」只复制一行「请阅读 …/agent-skills/README.md」，不会复制下文。")
         hint.frame = NSRect(x: 16, y: 382, width: 528, height: 28)
         hint.font = .systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor

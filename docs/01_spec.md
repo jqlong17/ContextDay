@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.8** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=短索引；诊断 + `self_check`；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
+| Spec 版本 | **v0.3.9** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=一行「请阅读 …/README.md」；诊断 + `self_check`；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-29 10:02 Asia/Shanghai |
+| 最后更新 | 2026-10-30 08:36 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -31,7 +31,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | 本机分类门控 + SenseVoice Core ML int8 转写 | 云端 ASR 主路径 |
 | 时间线日志、邻近段合并、本地查询 | 重度社交 / 习惯打卡（避免与 DayTrace 等品类混淆） |
 | 配置：门控、留音频策略与体积预估 | 与输入法壳强绑定（独立 App） |
-| 桌面拟物浮控 + 右键「打开记录文件夹 / 复制提示词（短索引）」 | 另写每日转写 `.txt` 平行文件 |
+| 桌面拟物浮控 + 右键「打开记录文件夹 / 复制提示词（一行指针）」 | 另写每日转写 `.txt` 平行文件 |
 | 向 Grok Bot 类产品暴露只读数据（MVP 剪贴板提示词；后续 MCP/API） | 替助手做推理与总结（可由上层做） |
 
 ### 1.3 命名与竞品注意
@@ -111,7 +111,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 - 本地可查询的「今天到现在」语音时间线（权威在 SQLite，**不**另写每日转写 txt）。
 - 稳定 schema（时间、轨、文本、可选音频路径、分类标签）——与 §3.3 定稿一致；Phase 4 Agent IO 只读暴露同一模型。
-- **MVP 轻量供数**：右键「复制提示词」把**短助手索引**（指向 Application Support 技能绝对路径 + Agent IO）放进剪贴板；**不**把完整专有提示词正文写入剪贴板（见 §2.8）。
+- **MVP 轻量供数**：右键「复制提示词」把**一行指针**（`请阅读 {AGENT_SKILLS_ROOT}/README.md`）放进剪贴板；**不**把完整专有提示词正文写入剪贴板（见 §2.8）。
 - 后续：本机 MCP / HTTP / CLI，只读为主，供对话助手拉取上下文。
 
 ### 2.6 隐私与系统边界（产品文案必写）
@@ -161,7 +161,7 @@ MVP 视觉约定：
 | 录音 | **暂停录音** | 停止采集；正在录制时可点；播放眼神微动 |
 | — | （分隔） | |
 | 数据 | **打开记录文件夹** | Finder 打开**当前记录根**（可见 `db/` / `audio/`；无每日 txt） |
-| 数据 | **复制提示词** | 将 §2.8 **短助手索引**写入剪贴板（**不是**全文） |
+| 数据 | **复制提示词** | 将 §2.8 **一行指针**写入剪贴板（**不是**全文） |
 | — | （分隔） | |
 | 设置▾ | **偏好设置…** | 配置窗：门控、留音/Opus、保留天数、系统声；含「查看完整提示词…」只读 sheet |
 | 设置▾ | **时间线…** | 只读时间线（SQLite） |
@@ -173,18 +173,19 @@ MVP 视觉约定：
 
 ### 2.8 剪贴板索引与完整提示词（Agent IO 轻量路径）
 
-> **v0.3.6**：系统剪贴板**只**放短「助手索引」；完整专有提示词正文**仅**在设置「查看完整提示词…」只读 sheet 内展示，**禁止**经「复制提示词」或 `get_clipboard_prompt` 写出全文。  
-> **v0.3.4 起**：索引须指向本机 **Application Support** 技能绝对路径（Bundle `Resources/AgentSkills/` → `~/Library/Application Support/ContextDay/agent-skills/`）与 Agent IO（`127.0.0.1:18787–18797`；`/health` 含 `"service":"ContextDay"`）。剪贴板**不得**含仓库相对路径或 Spec 章节号。仓库 `docs/agent-skills/` 仍是 Git SSOT；**禁止**提交个人 Feishu/Lark chat_id / open_id。
+> **v0.3.9**：系统剪贴板**只**放一行「请阅读 {AGENT_SKILLS_ROOT}/README.md」；完整专有提示词正文**仅**在设置「查看完整提示词…」只读 sheet 内展示，**禁止**经「复制提示词」或 `get_clipboard_prompt` 写出全文 / health / 工具列表 / 数据根长段。  
+> **v0.3.6**：曾用多句「助手索引」；现已收短为一行指针（见上）。  
+> **v0.3.4 起**：指针须指向本机 **Application Support** 技能绝对路径（Bundle `Resources/AgentSkills/` → `~/Library/Application Support/ContextDay/agent-skills/`）。剪贴板**不得**含仓库相对路径或 Spec 章节号。仓库 `docs/agent-skills/` 仍是 Git SSOT；**禁止**提交个人 Feishu/Lark chat_id / open_id。Agent IO /health 与工具细节写在 README / 全文 sheet，不进剪贴板。
 
-#### 2.8.1 剪贴板短索引（右键「复制提示词」+ `get_clipboard_prompt`）
+#### 2.8.1 剪贴板一行指针（右键「复制提示词」+ `get_clipboard_prompt`）
 
-运行时替换花括号为绝对路径 / 端口；保持一两行内可读：
+运行时替换花括号为 Application Support 技能绝对路径；**仅一行**：
 
 ```text
-ContextDay 助手索引（只读本机数据；勿删录音/数据库除非用户再次确认）：先确认 http://127.0.0.1:{AGENT_IO_PORT}/health 含 service=ContextDay；再经 Agent IO 调用 get_recent / get_agent_skill / self_check，或直接读取 {AGENT_SKILLS_ROOT}/（如 README.md、meeting-minutes.md）；转写权威 {RECORDS_ROOT}/db/contextday.sqlite（无每日 txt）。
+请阅读 {AGENT_SKILLS_ROOT}/README.md
 ```
 
-`get_clipboard_prompt` JSON：`text` = 同上短索引；`kind` = `"index"`。
+`get_clipboard_prompt` JSON：`text` = 同上一行；`kind` = `"index"`。
 
 #### 2.8.2 完整提示词（仅设置内只读查看）
 
@@ -216,7 +217,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
 （`list_speech_blocks` 与分轨 activity / ISO 派生见 docs/02_spec.md）
 技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
-说明：get_clipboard_prompt 仅返回短「助手索引」，不是本全文。
+说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」，不是本全文。
 
 助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
 {AGENT_SKILLS_ROOT}/README.md
@@ -275,7 +276,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `get_agent_skill` | `name` | 读单个技能文件 |
 | `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（packaged `.md` 或 `agent-skills.local.md`） |
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged；**跳过** `agent-skills.local.md` |
-| `get_clipboard_prompt` | — | 返回 §2.8.1 **短索引**（`kind=index`）；**不是**全文 |
+| `get_clipboard_prompt` | — | 返回 §2.8.1 **一行指针**（`kind=index`）；**不是**全文 |
 | `self_check` | — | 只读诊断：权限快照、DB、模型文件、录音 UI/管线 desync、上次采集错误、Agent IO 监听 |
 
 播种：启动时若缺文件或 Bundle `VERSION` 与 `.seeded-from-version` 不一致，从 Bundle 复制 packaged 文件；永不覆盖 `agent-skills.local.md`。
@@ -292,7 +293,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 #### 2.9.3 承载
 
 - 源码：`Features/AgentIO/`（服务 API + JSON DTO；HTTP + MCP stdio）；`Features/Diagnostics/`（`AppLog` / 权限 / `self_check`）；`Features/Store/AgentSkillsStore.swift`；Bundle `Resources/AgentSkills/`。
-- MVP 仍保留 §2.8 短索引剪贴板；全文仅设置内查看；样例见 `docs/agent-io-mcp.md`。
+- MVP 仍保留 §2.8 一行指针剪贴板；全文仅设置内查看；样例见 `docs/agent-io-mcp.md`。
 
 #### 2.9.4 诊断与日志（v0.3.6）
 
@@ -318,7 +319,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt；`AgentSkillsStore`（Bundle→App Support） |
 | `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI；完整提示词只读 sheet（§2.8.2） |
 | `Features/Diagnostics` | `AppLog`、权限快照、`RuntimeHealth`、`SelfCheck` |
-| `Features/AgentIO` | §2.9 Segment 只读 + 技能读写 + `self_check`；HTTP + MCP stdio；§2.8 短索引 |
+| `Features/AgentIO` | §2.9 Segment 只读 + 技能读写 + `self_check`；HTTP + MCP stdio；§2.8 一行指针 |
 | `Resources` | `DesktopOrb/`、`AppIcon/`、`AgentSkills/`（打包技能模版）等 |
 
 源码树草图（实现期可微调文件名，**模块边界与资源路径保持一致**）：
@@ -643,7 +644,7 @@ flowchart TB
 | T15 | 内存 | 记录 1h | 本进程内存保持 Core ML 档（量级几十 MB，允许波动） |
 | T16 | 浮控层级 | 浮控（orb）可见时打开浏览器全屏/前置窗口 | 浏览器**可遮盖**浮控；非 always-on-top |
 | T17 | 打开记录文件夹 | 右键 → 打开记录文件夹 | Finder 打开 Application Support 根；可见 `db/`（及可选 `audio/`）；**无**要求存在每日 txt |
-| T18 | 复制提示词（短索引） | 右键 → 复制提示词 → 粘贴 | 短「助手索引」：含 skills / sqlite 绝对路径与 Agent IO 指引；**无** Segment 字段长摘要 / 无完整专有正文 |
+| T18 | 复制提示词（一行指针） | 右键 → 复制提示词 → 粘贴 | 仅 `请阅读 …/agent-skills/README.md`；**无** health/工具列表/sqlite 长段 / Segment 字段摘要 / 完整专有正文 |
 | T18b | 设置内看全文 | 设置 → 查看完整提示词… | sheet 只读可滚动展示 §2.8.2 全文；不自动写入剪贴板 |
 | T18c | self_check | CLI / HTTP `self_check` | JSON 含 permissions、database、models、recording_desync；可无 UI |
 | T19 | 无 txt 落盘 | 激活并产生至少一条转写后扫盘 | Application Support 下**无**转写用途的 `.txt`；文本仅在 sqlite |
@@ -664,7 +665,7 @@ flowchart TB
 6. 隐私：默认不上云；Application Support 路径与删除方式可查（§3.4）。
 7. 命名与商店素材使用 ContextDay，不与输入法产品混品牌。
 8. 桌面浮控：透明 idle 双眼球；右键开始/暂停时 eye-click ~2s；**左键不启停录音**；「调整大小」平滑缩放；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
-9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 短索引；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
+9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 一行指针；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
 
 ---
 
@@ -697,6 +698,7 @@ flowchart TB
 | v0.3.6 | 2026-10-29 12:30 | 离线加固：权限快照 + `AppLog`（OSLog/可选 logs 文件；info 不写转写正文）+ `self_check`；右键菜单分组精简（设置子菜单 + 退出）；§2.8 剪贴板改为短索引，完整提示词仅设置内只读 sheet；重申双轨门控独立（系统 Music 不抑制麦 ASR；`per-track gate … scope=this_track_only` 日志）；Agent IO DTO 增补 `tz_at_capture` / `audio_path`（SQLite schema 未破改）；样例见 `docs/agent-io-samples.md` |
 | v0.3.7 | 2026-10-29 12:45 | 「调整大小」定稿为绕中心 ease-in-out 平滑缩放（约 0.28s，`NSAnimationContext`）；窗口 `animationBehavior = .documentWindow` 保证 borderless 浮控可见动画；补 T23；左键无录音 / `.normal` 层级 / Segment schema **不变** |
 | v0.3.8 | 2026-10-29 20:50 | 交叉链接 [`docs/02_spec.md`](02_spec.md)（Agent IO 优化轨）；本文件仍为 MVP SSOT；§2.9 / Segment schema **合同正文不迁** |
+| v0.3.9 | 2026-10-30 08:36 | §2.8 剪贴板收短为一行「请阅读 {AGENT_SKILLS_ROOT}/README.md」；keep-audio MVP interim 改纯 Swift WAV（避开 AVAudioFile/ExtAudioFile SIGTRAP）；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -718,7 +720,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.8 | **已完成** | v0.3.8 = 交叉链接 02；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.9 | **已完成** | v0.3.9 = 剪贴板一行指针 + keep-audio WAV interim；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
@@ -727,7 +729,7 @@ flowchart TB
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
-| Agent IO | **已完成（MVP + 02 优化已合入）** | 短索引剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check`；02 分轨/ISO/`list_speech_blocks`/错误分页见 [#9](https://github.com/jqlong17/ContextDay/pull/9) |
+| Agent IO | **已完成（MVP + 02 优化已合入）** | 一行指针剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check`；02 分轨/ISO/`list_speech_blocks`/错误分页见 [#9](https://github.com/jqlong17/ContextDay/pull/9) |
 | 诊断 / 权限日志 | **已完成（MVP）** | `Features/Diagnostics`；采集失败 / 设置 / 启动打权限快照 |
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |

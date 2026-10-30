@@ -34,5 +34,5 @@ Usage 字符串见 `Info.plist`；关于页见 App 内「关于与隐私…」�
 ## 已知限制（披露）
 
 - Music>Speech 偏置：有 BGM 的说话可能不送 ASR。
-- keep-audio 当前可能落 CAF 容器（Opus 比特流路径仍在完善）；目录仍在 Spec `audio/` 树下。
+- keep-audio 当前 MVP interim 落 **WAV Linear PCM 16 kHz mono**（纯 Swift 写头；Opus 比特流路径仍在完善）；目录仍在 Spec `audio/` 树下。
 - 锁屏下系统声可能中断；24h 目标需保持唤醒策略。

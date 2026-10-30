@@ -213,7 +213,7 @@ enum AgentIOMCPStdio {
             ],
             [
                 "name": "get_clipboard_prompt",
-                "description": "Return the short clipboard index (same as 复制提示词; not the full proprietary brief).",
+                "description": "Return the one-line clipboard pointer (请阅读 …/README.md; same as 复制提示词; not the full brief).",
                 "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
             ],
             [

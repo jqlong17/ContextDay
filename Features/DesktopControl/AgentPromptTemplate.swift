@@ -1,18 +1,14 @@
 import Foundation
 
-/// Spec §2.8 — clipboard gets a short index; full brief is in-app viewer only.
+/// Spec §2.8 — clipboard gets a one-line pointer; full brief is in-app viewer only.
 enum AgentPromptTemplate {
-    /// Pasteboard + `get_clipboard_prompt`. Never embeds the full proprietary brief.
+    /// Pasteboard + `get_clipboard_prompt`. Never embeds the full proprietary brief,
+    /// health URL, tool lists, or data-root paragraphs — only a single “请阅读 …” line.
     static func makeClipboardIndex(recordsRoot: URL = AppPaths.recordsRoot) -> String {
+        _ = recordsRoot // signature kept for callers / tests; skills path is App Support.
         let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
-        let skills = skillsRoot.path
-        let root = recordsRoot.path
-        let port = AgentIOHTTPServer.shared.port
-        let healthPort = port > 0 ? port : AgentIOPort.preferred()
-
-        return """
-        ContextDay 助手索引（只读本机数据；勿删录音/数据库除非用户再次确认）：先确认 http://127.0.0.1:\(healthPort)/health 含 service=ContextDay；再经 Agent IO 调用 get_recent / get_agent_skill / self_check，或直接读取 \(skills)/（如 README.md、meeting-minutes.md）；转写权威 \(root)/db/contextday.sqlite（无每日 txt）。
-        """
+        let readme = skillsRoot.appendingPathComponent("README.md").path
+        return "请阅读 \(readme)"
     }
 
     /// Full operational brief for the in-app read-only viewer (Settings).
@@ -49,7 +45,7 @@ enum AgentPromptTemplate {
         期望 JSON 含 "service":"ContextDay"。
         转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
         技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
-        说明：get_clipboard_prompt 仅返回短「助手索引」（与右键「复制提示词」相同），不是下方全文。
+        说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」，不是下方全文。
         长会议：list_activity（分轨）→ list_speech_blocks → 每块 get_window；勿调用 summarize_window。段 DTO 含派生 t0_iso/t1_iso（权威仍为 t0_ms/t1_ms）。
 
         助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
