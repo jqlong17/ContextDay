@@ -50,6 +50,7 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("AVKit"),
                 .linkedFramework("CoreML"),
+                .linkedFramework("ServiceManagement"),
                 .linkedLibrary("sqlite3"),
             ]
         ),

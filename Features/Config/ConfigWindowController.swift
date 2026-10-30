@@ -8,12 +8,13 @@ final class ConfigWindowController: NSWindowController {
     private var qualityPopup: NSPopUpButton!
     private var retentionField: NSTextField!
     private var systemAudioButton: NSButton!
+    private var openAtLoginButton: NSButton!
     private var estimateLabel: NSTextField!
     private var promptViewer: PromptViewerSheetController?
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 400),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -27,7 +28,7 @@ final class ConfigWindowController: NSWindowController {
 
     private func buildUI() {
         guard let content = window?.contentView else { return }
-        var y = 310.0
+        var y = 350.0
 
         gateButton = NSButton(checkboxWithTitle: "分类过滤（YAMNet）", target: self, action: #selector(changed))
         gateButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
@@ -72,6 +73,15 @@ final class ConfigWindowController: NSWindowController {
         systemAudioButton = NSButton(checkboxWithTitle: "采集系统声（ScreenCaptureKit）", target: self, action: #selector(changed))
         systemAudioButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
         content.addSubview(systemAudioButton)
+        y -= 36
+
+        openAtLoginButton = NSButton(
+            checkboxWithTitle: "登录时打开（Login Item）",
+            target: self,
+            action: #selector(changed)
+        )
+        openAtLoginButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
+        content.addSubview(openAtLoginButton)
         y -= 40
 
         estimateLabel = NSTextField(labelWithString: "")
@@ -108,6 +118,7 @@ final class ConfigWindowController: NSWindowController {
             retentionField.stringValue = ""
         }
         systemAudioButton.state = cfg.captureSystemAudio ? .on : .off
+        openAtLoginButton.state = cfg.openAtLogin ? .on : .off
         refreshEstimate()
     }
 
@@ -146,6 +157,7 @@ final class ConfigWindowController: NSWindowController {
             cfg.retentionDays = Int(trimmed) ?? 30
         }
         cfg.captureSystemAudio = systemAudioButton.state == .on
+        cfg.openAtLogin = openAtLoginButton.state == .on
         cfg.normalize()
         return cfg
     }
@@ -163,7 +175,9 @@ final class ConfigWindowController: NSWindowController {
     }
 
     @objc private func save() {
-        AppConfigStore.save(currentConfig())
+        let cfg = currentConfig()
+        AppConfigStore.save(cfg)
+        LoginItemService.syncFromPreference(cfg.openAtLogin)
         window?.close()
     }
 }

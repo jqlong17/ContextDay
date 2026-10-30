@@ -64,6 +64,9 @@
 		B13DIAG0000000000000005 /* PromptViewerSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000005 /* PromptViewerSheetController.swift */; };
 		B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */; };
 		B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */; };
+		B14LOGIN000000000000001 /* LoginItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14LOGIN000000000000001 /* LoginItemService.swift */; };
+		B14READY000000000000001 /* LaunchReadyGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14READY000000000000001 /* LaunchReadyGate.swift */; };
+		B14READY000000000000002 /* LaunchReadyGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14READY000000000000002 /* LaunchReadyGateTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -139,6 +142,9 @@
 		A13DIAG0000000000000005 /* PromptViewerSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptViewerSheetController.swift; sourceTree = "<group>"; };
 		A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSelfCheckTests.swift; sourceTree = "<group>"; };
 		A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentIOMeetingFixtureTests.swift; sourceTree = "<group>"; };
+		A14LOGIN000000000000001 /* LoginItemService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemService.swift; sourceTree = "<group>"; };
+		A14READY000000000000001 /* LaunchReadyGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGate.swift; sourceTree = "<group>"; };
+		A14READY000000000000002 /* LaunchReadyGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGateTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -254,6 +260,7 @@
 			isa = PBXGroup;
 			children = (
 				E4753C59064F4531AE5B2F3D /* AppConfig.swift */,
+				A14LOGIN000000000000001 /* LoginItemService.swift */,
 				BC459B47DBFB421EAF092B78 /* ConfigWindowController.swift */,
 				A13DIAG0000000000000005 /* PromptViewerSheetController.swift */,
 				891B91507C974F0C945BC397 /* TimelineWindowController.swift */,
@@ -269,6 +276,7 @@
 				A13DIAG0000000000000002 /* PermissionStatus.swift */,
 				A13DIAG0000000000000003 /* RuntimeHealth.swift */,
 				A13DIAG0000000000000004 /* SelfCheck.swift */,
+				A14READY000000000000001 /* LaunchReadyGate.swift */,
 			);
 			path = Diagnostics;
 			sourceTree = "<group>";
@@ -320,6 +328,7 @@
 				A12SKILL0000000000000003 /* AgentSkillsStoreTests.swift */,
 				A13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift */,
 				A13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift */,
+				A14READY000000000000002 /* LaunchReadyGateTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -482,6 +491,8 @@
 				B13DIAG0000000000000003 /* RuntimeHealth.swift in Sources */,
 				B13DIAG0000000000000004 /* SelfCheck.swift in Sources */,
 				B13DIAG0000000000000005 /* PromptViewerSheetController.swift in Sources */,
+				B14LOGIN000000000000001 /* LoginItemService.swift in Sources */,
+				B14READY000000000000001 /* LaunchReadyGate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -497,6 +508,7 @@
 				B12SKILL0000000000000003 /* AgentSkillsStoreTests.swift in Sources */,
 				B13DIAG0000000000000006 /* DiagnosticsSelfCheckTests.swift in Sources */,
 				B13IOFIX000000000000001 /* AgentIOMeetingFixtureTests.swift in Sources */,
+				B14READY000000000000002 /* LaunchReadyGateTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

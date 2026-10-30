@@ -32,6 +32,8 @@ struct AppConfig: Equatable, Sendable {
     var retentionDays: Int?
     /// Capture system audio via ScreenCaptureKit when true.
     var captureSystemAudio: Bool
+    /// Open at login via `SMAppService.mainApp` (Spec §2.2). Default ON; user can turn off (App Store).
+    var openAtLogin: Bool
 
     static let `default` = AppConfig(
         gateEnabled: true,
@@ -40,7 +42,8 @@ struct AppConfig: Equatable, Sendable {
         audioQuality: .opus24,
         mergeGapMs: 2_000,
         retentionDays: 30,
-        captureSystemAudio: true
+        captureSystemAudio: true,
+        openAtLogin: true
     )
 
     /// Approximate GB/day for full-day keep-audio (Spec §2.4).
@@ -76,6 +79,7 @@ enum AppConfigStore {
         static let mergeGapMs = "merge_gap_ms"
         static let retentionDays = "retention_days"
         static let captureSystemAudio = "capture_system_audio"
+        static let openAtLogin = "open_at_login"
         static let retentionNil = "retention_days_is_nil"
     }
 
@@ -109,6 +113,9 @@ enum AppConfigStore {
         if d.object(forKey: Key.captureSystemAudio) != nil {
             cfg.captureSystemAudio = d.bool(forKey: Key.captureSystemAudio)
         }
+        if d.object(forKey: Key.openAtLogin) != nil {
+            cfg.openAtLogin = d.bool(forKey: Key.openAtLogin)
+        }
         cfg.normalize()
         return cfg
     }
@@ -130,6 +137,7 @@ enum AppConfigStore {
             d.removeObject(forKey: Key.retentionDays)
         }
         d.set(cfg.captureSystemAudio, forKey: Key.captureSystemAudio)
+        d.set(cfg.openAtLogin, forKey: Key.openAtLogin)
     }
 }
 

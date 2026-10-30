@@ -15,6 +15,8 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     /// Wired to 右键「开始录音 / 暂停录音」/ 睡眠暂停. Left-click does **not** toggle recording (Spec §2.7.3).
     private(set) var isRecording = false
     private let capture = CapturePipeline()
+    /// One-shot ready blink per cold start (Spec §2.7.4) — never spam.
+    private var didPlayReadyBlink = false
 
     func show() {
         let pt = OrbSizeStore.load()
@@ -220,6 +222,22 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         aboutWindow?.showWindow(nil)
         aboutWindow?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Spec §2.7.4: after cold start reaches ready (mic + screen + records writable), play eye-click once.
+    func considerReadyBlink() {
+        guard !didPlayReadyBlink else { return }
+        let gate = LaunchReadyGate.evaluate()
+        guard gate.isReady else {
+            AppLog.info(
+                .app,
+                "ready-blink deferred mic=\(gate.micAuthorized) screen=\(gate.screenAuthorized) writable=\(gate.recordsWritable)"
+            )
+            return
+        }
+        didPlayReadyBlink = true
+        orbView?.playEyeClickOnce()
+        AppLog.info(.app, "ready-blink played (cold start all-good)")
     }
 
     /// Called on system sleep / terminate — stop capture; do not auto-resume on wake.

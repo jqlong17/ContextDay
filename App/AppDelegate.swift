@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         PermissionStatus.logSnapshot(reason: "launch")
 
+        // Spec §2.2 / §2.10: Login Item preference → SMAppService (default ON; user can disable).
+        LoginItemService.syncFromPreference(AppConfigStore.load().openAtLogin)
+
         RetentionPurger.purgeIfNeeded()
         if let warning = DiskSpaceGuard.status().warning {
             AppLog.info(.store, "disk: \(warning)")
@@ -22,8 +25,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
         AppLog.info(.app, "agent-skills root \(skillsRoot.path)")
 
+        let controller = DesktopControlController()
+        controller.show()
+        desktopControl = controller
+
         let preferredPort = AgentIOPort.preferred()
-        DispatchQueue.global(qos: .utility).async {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
             // Prefer --port / UserDefaults / Info.plist; scan upward in 18787…18797 if busy.
             AgentIOHTTPServer.shared.start(port: preferredPort)
             let bound = AgentIOHTTPServer.shared.port
@@ -38,11 +45,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "HTTP NOT LISTENING — preferred \(preferredPort) and fallback range exhausted"
                 )
             }
+            // Spec §2.7.4: after Agent IO bind attempt, evaluate ready-blink once (+ one short retry).
+            DispatchQueue.main.async {
+                self?.scheduleReadyBlink()
+            }
         }
-
-        let controller = DesktopControlController()
-        controller.show()
-        desktopControl = controller
 
         registerSleepWakeObservers()
 
@@ -50,6 +57,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 controller.smokeRecord(forSeconds: seconds)
             }
+        }
+    }
+
+    /// Play eye-click once when mic + screen + records root are OK; at most one blink per cold start.
+    private func scheduleReadyBlink() {
+        desktopControl?.considerReadyBlink()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.desktopControl?.considerReadyBlink()
         }
     }
 

@@ -17,6 +17,11 @@ ContextDay 是用户**显式激活**的本机 24h 语音上下文工具，服务
 
 Usage 字符串见 `Info.plist`；关于页见 App 内「关于与隐私…」。
 
+## 登录项
+
+- 使用 `SMAppService.mainApp`；设置内「登录时打开」可关（App Store 要求用户可控）。
+- 若状态为 `requiresApproval`，用户须在系统设置 → 通用 → 登录项中批准。
+
 ## 隐私要点（审核可核对）
 
 - 默认本地-only；转写在 SQLite；无每日 txt；不上云。
