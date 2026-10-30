@@ -4,7 +4,7 @@ import QuartzCore
 /// Borderless transparent desktop orb window (Spec §2.7.2 / §2.7.3).
 /// Window level sits at/below normal apps so Safari etc. can cover it — not HUD / floating.
 final class DesktopControlController: NSObject, NSMenuItemValidation {
-    /// Short ease-in-out for 「调整大小」 presets — long enough to read as motion, short enough to feel snappy.
+    /// Short ease-in-out for 「浮控大小」 presets — long enough to read as motion, short enough to feel snappy.
     private static let orbResizeDuration: TimeInterval = 0.28
     private var window: NSWindow?
     private var orbView: DesktopOrbView?
@@ -44,7 +44,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         // sits under Finder desktop icons and the orb becomes invisible in normal bring-up.
         win.level = .normal
         // Borderless utility-ish windows can skip frame animation; document behavior keeps
-        // 「调整大小」 NSAnimationContext / animator().setFrame ease-in-out visible (Spec §2.7.3).
+        // 「浮控大小」 NSAnimationContext / animator().setFrame ease-in-out visible (Spec §2.7.3).
         win.animationBehavior = .documentWindow
         win.title = "ContextDay"
         win.isReleasedWhenClosed = false
@@ -91,7 +91,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private func showContextMenu(at point: NSPoint) {
         guard let orbView else { return }
 
-        // Top-level: Recording | Folder + prompt index | Settings submenu | Quit
+        // Spec v0.3.11: flat top-level only — no 「设置▾」 / 「调整大小」 submenu.
         let menu = NSMenu()
         menu.addItem(withTitle: "开始录音", action: #selector(startRecordingFromMenu), keyEquivalent: "")
         menu.addItem(withTitle: "暂停录音", action: #selector(pauseRecordingFromMenu), keyEquivalent: "")
@@ -99,44 +99,15 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         menu.addItem(withTitle: "打开记录文件夹", action: #selector(openRecordsFolder), keyEquivalent: "")
         menu.addItem(withTitle: "复制提示词", action: #selector(copyAgentPrompt), keyEquivalent: "")
         menu.addItem(.separator())
-
-        let settingsMenu = NSMenu(title: "设置")
-        settingsMenu.addItem(withTitle: "偏好设置…", action: #selector(openSettings), keyEquivalent: "")
-        settingsMenu.addItem(withTitle: "时间线…", action: #selector(openTimeline), keyEquivalent: "")
-        settingsMenu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
-        settingsMenu.addItem(.separator())
-
-        let sizeMenu = NSMenu(title: "调整大小")
-        for pt in OrbSizeStore.allowed {
-            let title = "\(Int(pt)) pt" + (pt == OrbSizeStore.default ? "（默认）" : "")
-            let item = NSMenuItem(title: title, action: #selector(changeOrbSize(_:)), keyEquivalent: "")
-            item.representedObject = Double(pt)
-            item.state = OrbSizeStore.load() == pt ? .on : .off
-            sizeMenu.addItem(item)
-        }
-        let sizeRoot = NSMenuItem(title: "调整大小", action: nil, keyEquivalent: "")
-        sizeRoot.submenu = sizeMenu
-        settingsMenu.addItem(sizeRoot)
-
-        settingsMenu.addItem(withTitle: "关于与隐私…", action: #selector(openAboutPrivacy), keyEquivalent: "")
-
-        let settingsRoot = NSMenuItem(title: "设置", action: nil, keyEquivalent: "")
-        settingsRoot.submenu = settingsMenu
-        menu.addItem(settingsRoot)
-
+        menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: "")
+        menu.addItem(withTitle: "时间线…", action: #selector(openTimeline), keyEquivalent: "")
+        menu.addItem(withTitle: "修改保存文件夹…", action: #selector(changeRecordsFolder), keyEquivalent: "")
+        menu.addItem(withTitle: "关于与隐私…", action: #selector(openAboutPrivacy), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "退出 ContextDay", action: #selector(quitApp), keyEquivalent: "q")
 
         for item in menu.items {
             item.target = self
-            if let sub = item.submenu {
-                for child in sub.items {
-                    child.target = self
-                    if let nested = child.submenu {
-                        for nestedChild in nested.items { nestedChild.target = self }
-                    }
-                }
-            }
         }
 
         menu.popUp(positioning: nil, at: point, in: orbView)
@@ -161,12 +132,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         setRecording(false, playEyeClick: true)
     }
 
-    @objc private func changeOrbSize(_ sender: NSMenuItem) {
-        guard let value = sender.representedObject as? Double else { return }
-        applyOrbSize(CGFloat(value), animated: true)
-    }
-
-    /// Resize orb window about its center. Persistence unchanged (`OrbSizeStore` / `orbSizePt`).
+    /// Resize orb window about its center. Persistence via `OrbSizeStore` / `orbSizePt`.
     /// Animated path uses `NSAnimationContext` ease-in-out; contentView fills the window so
     /// `DesktopOrbView.layout` keeps idle + AVPlayer layers in sync (no settle flicker).
     private func applyOrbSize(_ pt: CGFloat, animated: Bool) {
@@ -198,7 +164,11 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     @objc private func openSettings() {
         PermissionStatus.logSnapshot(reason: "settings")
         if configWindow == nil {
-            configWindow = ConfigWindowController()
+            let wc = ConfigWindowController()
+            wc.onOrbSizeChange = { [weak self] pt in
+                self?.applyOrbSize(pt, animated: true)
+            }
+            configWindow = wc
         }
         configWindow?.showWindow(nil)
         configWindow?.window?.makeKeyAndOrderFront(nil)

@@ -1,7 +1,10 @@
 import AppKit
 
-/// Minimal config surface (Spec §2.2 / §3.3.5).
+/// Single settings panel (Spec §2.7.3 / v0.3.11): prefs + orb size; no nested menus.
 final class ConfigWindowController: NSWindowController {
+    /// Fired when user picks a new orb size (pt). Host applies animated resize.
+    var onOrbSizeChange: ((CGFloat) -> Void)?
+
     private var gateButton: NSButton!
     private var keepAudioButton: NSButton!
     private var scopePopup: NSPopUpButton!
@@ -9,12 +12,13 @@ final class ConfigWindowController: NSWindowController {
     private var retentionField: NSTextField!
     private var systemAudioButton: NSButton!
     private var openAtLoginButton: NSButton!
+    private var orbSizePopup: NSPopUpButton!
     private var estimateLabel: NSTextField!
     private var promptViewer: PromptViewerSheetController?
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 460),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -28,78 +32,98 @@ final class ConfigWindowController: NSWindowController {
 
     private func buildUI() {
         guard let content = window?.contentView else { return }
-        var y = 350.0
 
-        gateButton = NSButton(checkboxWithTitle: "分类过滤（YAMNet）", target: self, action: #selector(changed))
-        gateButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
-        content.addSubview(gateButton)
-        y -= 36
+        let scroll = NSScrollView(frame: content.bounds)
+        scroll.autoresizingMask = [.width, .height]
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
+        scroll.borderType = .noBorder
+        scroll.drawsBackground = false
 
-        keepAudioButton = NSButton(checkboxWithTitle: "保留音频（证据回听）", target: self, action: #selector(changed))
-        keepAudioButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
-        content.addSubview(keepAudioButton)
-        y -= 36
+        let documentHeight: CGFloat = 520
+        let doc = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: documentHeight))
+        var y = documentHeight - 36
 
-        let sLabel = NSTextField(labelWithString: "音频范围")
-        sLabel.frame = NSRect(x: 24, y: y, width: 100, height: 24)
-        content.addSubview(sLabel)
-        scopePopup = NSPopUpButton(frame: NSRect(x: 130, y: y, width: 200, height: 26))
+        func placeCheckbox(_ title: String) -> NSButton {
+            let b = NSButton(checkboxWithTitle: title, target: self, action: #selector(changed))
+            b.frame = NSRect(x: 24, y: y, width: 380, height: 24)
+            doc.addSubview(b)
+            y -= 34
+            return b
+        }
+
+        func placeLabeledPopup(label: String, width: CGFloat) -> NSPopUpButton {
+            let l = NSTextField(labelWithString: label)
+            l.frame = NSRect(x: 24, y: y, width: 100, height: 24)
+            doc.addSubview(l)
+            let p = NSPopUpButton(frame: NSRect(x: 130, y: y - 1, width: width, height: 26))
+            p.target = self
+            p.action = #selector(changed)
+            doc.addSubview(p)
+            y -= 36
+            return p
+        }
+
+        gateButton = placeCheckbox("分类过滤（YAMNet）")
+        keepAudioButton = placeCheckbox("保留音频（证据回听）")
+
+        scopePopup = placeLabeledPopup(label: "音频范围", width: 200)
+        scopePopup.removeAllItems()
         scopePopup.addItems(withTitles: ["仅人声", "全部"])
-        scopePopup.target = self
-        scopePopup.action = #selector(changed)
-        content.addSubview(scopePopup)
-        y -= 36
 
-        let qLabel = NSTextField(labelWithString: "音频质量")
-        qLabel.frame = NSRect(x: 24, y: y, width: 100, height: 24)
-        content.addSubview(qLabel)
-        qualityPopup = NSPopUpButton(frame: NSRect(x: 130, y: y, width: 180, height: 26))
+        qualityPopup = placeLabeledPopup(label: "音频质量", width: 200)
+        qualityPopup.removeAllItems()
         qualityPopup.addItems(withTitles: ["Opus 12 kbps", "Opus 24 kbps（默认）", "Opus 64 kbps"])
-        qualityPopup.target = self
-        qualityPopup.action = #selector(changed)
-        content.addSubview(qualityPopup)
-        y -= 36
 
         let rLabel = NSTextField(labelWithString: "保留天数")
         rLabel.frame = NSRect(x: 24, y: y, width: 100, height: 24)
-        content.addSubview(rLabel)
+        doc.addSubview(rLabel)
         retentionField = NSTextField(frame: NSRect(x: 130, y: y, width: 80, height: 24))
         retentionField.placeholderString = "30 / 空=不自动删"
         retentionField.target = self
         retentionField.action = #selector(changed)
-        content.addSubview(retentionField)
+        doc.addSubview(retentionField)
         y -= 36
 
-        systemAudioButton = NSButton(checkboxWithTitle: "采集系统声（ScreenCaptureKit）", target: self, action: #selector(changed))
-        systemAudioButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
-        content.addSubview(systemAudioButton)
-        y -= 36
+        systemAudioButton = placeCheckbox("采集系统声（ScreenCaptureKit）")
+        openAtLoginButton = placeCheckbox("登录时打开（Login Item）")
 
-        openAtLoginButton = NSButton(
-            checkboxWithTitle: "登录时打开（Login Item）",
-            target: self,
-            action: #selector(changed)
-        )
-        openAtLoginButton.frame = NSRect(x: 24, y: y, width: 360, height: 24)
-        content.addSubview(openAtLoginButton)
-        y -= 40
+        orbSizePopup = placeLabeledPopup(label: "浮控大小", width: 200)
+        orbSizePopup.removeAllItems()
+        for pt in OrbSizeStore.allowed {
+            let title = "\(Int(pt)) pt" + (pt == OrbSizeStore.default ? "（默认）" : "")
+            orbSizePopup.addItem(withTitle: title)
+        }
+        orbSizePopup.target = self
+        orbSizePopup.action = #selector(orbSizeChanged)
 
         estimateLabel = NSTextField(labelWithString: "")
-        estimateLabel.frame = NSRect(x: 24, y: y, width: 370, height: 40)
+        estimateLabel.frame = NSRect(x: 24, y: y - 20, width: 390, height: 44)
         estimateLabel.maximumNumberOfLines = 2
-        content.addSubview(estimateLabel)
+        doc.addSubview(estimateLabel)
+        y -= 56
 
         let viewPrompt = NSButton(
             title: "查看完整提示词…",
             target: self,
             action: #selector(showFullPrompt)
         )
-        viewPrompt.frame = NSRect(x: 24, y: 16, width: 160, height: 28)
-        content.addSubview(viewPrompt)
+        viewPrompt.frame = NSRect(x: 24, y: y, width: 160, height: 28)
+        doc.addSubview(viewPrompt)
 
         let save = NSButton(title: "保存", target: self, action: #selector(save))
-        save.frame = NSRect(x: 300, y: 16, width: 90, height: 28)
-        content.addSubview(save)
+        save.keyEquivalent = "\r"
+        save.frame = NSRect(x: 320, y: y, width: 90, height: 28)
+        doc.addSubview(save)
+
+        scroll.documentView = doc
+        content.addSubview(scroll)
+        // After layout, scroll to top.
+        DispatchQueue.main.async {
+            if let docView = scroll.documentView {
+                docView.scroll(NSPoint(x: 0, y: docView.bounds.maxY))
+            }
+        }
     }
 
     private func loadFromStore() {
@@ -119,10 +143,24 @@ final class ConfigWindowController: NSWindowController {
         }
         systemAudioButton.state = cfg.captureSystemAudio ? .on : .off
         openAtLoginButton.state = cfg.openAtLogin ? .on : .off
+
+        let currentPt = OrbSizeStore.load()
+        if let idx = OrbSizeStore.allowed.firstIndex(of: currentPt) {
+            orbSizePopup.selectItem(at: idx)
+        } else {
+            orbSizePopup.selectItem(at: OrbSizeStore.allowed.firstIndex(of: OrbSizeStore.default) ?? 1)
+        }
         refreshEstimate()
     }
 
     @objc private func changed() { refreshEstimate() }
+
+    @objc private func orbSizeChanged() {
+        let idx = orbSizePopup.indexOfSelectedItem
+        guard idx >= 0, idx < OrbSizeStore.allowed.count else { return }
+        let pt = OrbSizeStore.allowed[idx]
+        onOrbSizeChange?(pt)
+    }
 
     private func refreshEstimate() {
         let gateOn = gateButton.state == .on
@@ -178,6 +216,13 @@ final class ConfigWindowController: NSWindowController {
         let cfg = currentConfig()
         AppConfigStore.save(cfg)
         LoginItemService.syncFromPreference(cfg.openAtLogin)
+        // Persist size even if user only hit Save without changing popup again.
+        let idx = orbSizePopup.indexOfSelectedItem
+        if idx >= 0, idx < OrbSizeStore.allowed.count {
+            let pt = OrbSizeStore.allowed[idx]
+            OrbSizeStore.save(pt)
+            onOrbSizeChange?(pt)
+        }
         window?.close()
     }
 }
