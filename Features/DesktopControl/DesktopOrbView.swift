@@ -3,7 +3,7 @@ import AVFoundation
 import CoreGraphics
 import ImageIO
 
-/// Twin-eye 3D orb: keyed idle by default, optional sleep loop after pause, one-shot clips (eye-click / ready) (Spec §2.7).
+/// Twin-eye 3D orb: keyed idle by default, Concept A sleep after pause, wake S1 / eye-click / ready one-shots (Spec §2.7).
 final class DesktopOrbView: NSView {
     private let idleLayer = CALayer()
     private let playerView = NSView()
@@ -248,10 +248,17 @@ final class DesktopOrbView: NSView {
         idleLayer.isHidden = false
     }
 
-    func stopSleepIdleLoop() {
+    /// Whether the sleep frame loop timer is currently advancing.
+    var isSleepLoopRunning: Bool { sleepLoop.isRunning }
+
+    /// Stop sleep loop. When `resetUnderlayToIdle` is false, keep the last sleep frame
+    /// on `idleLayer` so wake-S1 can play without flashing open-eye idle underneath.
+    func stopSleepIdleLoop(resetUnderlayToIdle: Bool = true) {
         prefersSleepIdle = false
         sleepLoop.stop()
-        showKeyedIdleStill()
+        if resetUnderlayToIdle {
+            showKeyedIdleStill()
+        }
     }
 
     private func showKeyedIdleStill() {
@@ -271,14 +278,26 @@ final class DesktopOrbView: NSView {
             NSLog("ContextDay: eye-click-2s.mov not found in bundle (alpha rematte required)")
             return
         }
-        playOrbClipOnce(url: url)
+        playOrbClipOnce(url: url, resetUnderlayToIdle: true)
+    }
+
+    /// Spec §2.7.5 leave-sleep: `wake-shy-S1.mov` (A → S1 soft shy blush → idle). Falls back to
+    /// eye-click if the rematted wake asset is missing.
+    func playWakeOnce() {
+        if let url = Self.wakeURL() {
+            // Keep last sleep frame under alpha video so open-eye idle does not flash.
+            playOrbClipOnce(url: url, resetUnderlayToIdle: false)
+            return
+        }
+        NSLog("ContextDay: wake-shy-S1.mov not found — falling back to eye-click")
+        playEyeClickOnce()
     }
 
     /// Spec §2.7.4 dedicated ready clip (`ready-2s.mov`, 首尾针 = idle). Falls back to
     /// eye-click only if the rematted ready asset is missing from the bundle.
     func playReadyOnce() {
         if let url = Self.readyURL() {
-            playOrbClipOnce(url: url)
+            playOrbClipOnce(url: url, resetUnderlayToIdle: true)
             return
         }
         NSLog("ContextDay: ready-2s.mov not found — falling back to eye-click")
@@ -286,7 +305,7 @@ final class DesktopOrbView: NSView {
     }
 
     /// Shared one-shot AVPlayer path for rematted DesktopOrb clips.
-    private func playOrbClipOnce(url: URL) {
+    private func playOrbClipOnce(url: URL, resetUnderlayToIdle: Bool) {
         sleepLoop.stop()
         isPlayingOneShot = true
 
@@ -309,7 +328,9 @@ final class DesktopOrbView: NSView {
         playerView.layer?.sublayers?.forEach { $0.removeFromSuperlayer() }
         playerView.layer?.addSublayer(layer)
         idleLayer.isHidden = false
-        showKeyedIdleStill()
+        if resetUnderlayToIdle {
+            showKeyedIdleStill()
+        }
         playerView.isHidden = false
 
         player = avPlayer
@@ -352,6 +373,10 @@ final class DesktopOrbView: NSView {
 
     private static func readyURL() -> URL? {
         orbClipURL(resource: "ready-2s")
+    }
+
+    private static func wakeURL() -> URL? {
+        orbClipURL(resource: "wake-shy-S1")
     }
 
     /// Alpha rematte `.mov` only — never return legacy greenscreen H.264 `.mp4`.

@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.21** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.21 气泡拖拽跟随 + 冷启动不弹权限 + 冷启动眨眼 idle；v0.3.20 首启气泡 Concept A；v0.3.19 引导前不自动弹权限；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.22** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.22 暂停直进 Concept A 睡觉 + 起床 S1；v0.3.21 气泡拖拽跟随 + 冷启动不弹权限 + 冷启动眨眼 idle；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 10:46 Asia/Shanghai |
+| 最后更新 | 2026-10-30 11:10 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -133,9 +133,10 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | 资源 | 路径 / Asset 名 | 说明 |
 |------|-----------------|------|
 | Idle（产品 + 桌面） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；醒来 / 录制态静帧底图 |
-| 睡觉循环（未录音） | `Resources/DesktopOrb/sleep/fNN.png` | **首尾针** PNG 序列；`OrbFrameLoopPlayer` 循环；占位含浮动 **Zzz**；设计稿可替换 |
-| 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4` / `.mov`；可拷入 Bundle | 约 **2s**；首帧=尾帧；仅眼神微动；运行时播 **`.mov`**（ProRes 4444 alpha） |
-| 冷启动就绪 | `Resources/DesktopOrb/ready-2s.mp4`（绿幕源）+ `ready-2s.mov`（rematte） | 约 **2s**；**首尾针**=`idle.png`；轻自信眨眼 / 提神；与 eye-click **分轨** |
+| 睡觉循环（暂停后） | `Resources/DesktopOrb/sleep/fNN.png` | **Concept A**（闭眼 + 奶油色浮动 Zzz）；**首尾针**；`OrbFrameLoopPlayer` ~10fps；由 `scripts/generate_sleep_wake_assets.py` 从 `design/sleep-concepts/A-zzz.jpg` / `preview-sleep-A.mp4` 生成 |
+| 起床（离开睡觉） | `Resources/DesktopOrb/wake-shy-S1.mov`（+ `.mp4` 绿幕源） | 约 **2s**；**A → S1（轻柔害羞腮红，无星星）→ idle**；运行时 `.mov` ProRes 4444 alpha |
+| 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4` / `.mov`；可拷入 Bundle | 约 **2s**；首帧=尾帧；仅眼神微动；用于**已醒**态开录；运行时 `.mov` |
+| 冷启动就绪 | `Resources/DesktopOrb/ready-2s.mp4`（绿幕源）+ `ready-2s.mov`（rematte） | 约 **2s**；**首尾针**=`idle.png`；轻自信眨眼 / 提神；与 eye-click / wake **分轨** |
 | App Icon 源图 | `Resources/AppIcon/icon-1024.png` → `AppIcon.appiconset` | **与 idle 同款艺术图**；导出各尺寸 |
 
 | 废弃（已删） | `Resources/DesktopButton/` | 旧 Bauhaus 双态；已被 DesktopOrb 取代；仓库中已移除 |
@@ -143,9 +144,10 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 MVP 视觉约定：
 
 - **冷启动 / 未开过录**：默认醒来 `idle.png`（可叠 ready 眨眼），**不**进睡觉循环——保持与用户的互动感（§2.7.5）。
-- **暂停录音之后**：可进入睡觉循环（§2.7.5）；**录制中**：离开睡觉，底下为醒来 `idle.png`（录制态额外光环 / 角标 = **二期可选**）。
-- 右键「开始录音 / 暂停录音」或左键开录时播放 `eye-click-2s`；播完后：若已暂停且 `prefersSleepIdle` → 睡觉循环；若在录音或冷启动默认 → settle 到醒来 idle 静帧。
-- **不做**旧版「raised/pressed 双 PNG + 2px 下移」按压叙事；启停反馈以**眼神微动**为主。
+- **暂停录音之后**：立即进入 Concept A 睡觉循环（§2.7.5）；**不**播 eye-click。**录制中**：离开睡觉时播 wake S1，底下为醒来 `idle.png`（录制态额外光环 / 角标 = **二期可选**）。
+- **开录反馈**：若当前在睡觉 → 播 `wake-shy-S1`（A→S1→idle）；若已醒（冷启动 idle / 录中再点菜单开录）→ 可播 `eye-click-2s`。播完 settle 到醒来 idle。
+- **暂停反馈**：右键「暂停录音」→ **直接** `prefersSleepIdle=true` + `startSleepIdleLoop()`，**禁止**先播 eye-click。
+- **不做**旧版「raised/pressed 双 PNG + 2px 下移」按压叙事。
 
 #### 2.7.2 窗口层级（硬性要求）
 
@@ -155,15 +157,15 @@ MVP 视觉约定：
 
 | 操作 | 行为 |
 |------|------|
-| 左键 / 主键点击 | **未录音 / 已暂停**：单击 → **开始录音**并播放眼神微动（引导更快进入采集）。**正在录音**：左键**不**暂停、不切换、不播 eye-click（避免误关）。按住拖动仍可移动浮控（`isMovableByWindowBackground`；位移超过 ~4pt 视为拖动、不触发开始）。MVP：**录制中与 idle 视觉可相同**（二期再加录制态线索） |
+| 左键 / 主键点击 | **未录音 / 已暂停**：单击 → **开始录音**；若在睡觉则播 wake S1，若已醒则播 eye-click。**正在录音**：左键**不**暂停、不切换、不播 clip（避免误关）。按住拖动仍可移动浮控（`isMovableByWindowBackground`；位移超过 ~4pt 视为拖动、不触发开始）。MVP：**录制中与 idle 视觉可相同**（二期再加录制态线索） |
 | 右键 | 弹出上下文菜单（见下）；**暂停录音**仅由此（及睡眠停采）触发 |
 
 右键菜单（MVP；**全部顶层扁平**，**禁止**「设置▾」或「调整大小」子菜单）：
 
 | 分组 | 菜单项 | 行为 |
 |------|--------|------|
-| 录音 | **开始录音** | 开始采集；未在录制时可点；播放眼神微动 |
-| 录音 | **暂停录音** | 停止采集；正在录制时可点；播放眼神微动 |
+| 录音 | **开始录音** | 开始采集；未在录制时可点；睡觉中 → wake S1，已醒 → eye-click |
+| 录音 | **暂停录音** | 停止采集；正在录制时可点；**直接**进 Concept A 睡觉（不播 eye-click） |
 | — | （分隔） | |
 | 数据 | **打开记录文件夹** | Finder 打开**当前记录根**（可见 `db/` / `audio/`；无每日 txt） |
 | 数据 | **复制提示词** | 将 §2.8 **一行指针**写入剪贴板（**不是**全文） |
@@ -192,19 +194,21 @@ MVP 视觉约定：
 - 左键开始录音的行为见 §2.7.3 / T22（就绪动画本身仍不因左键触发；左键仍按 T22 开录并播 eye-click）。
 - **首尾针**：`ready-2s` 首帧=尾帧=`idle.png`（rematte 后）；播完 tear-down：冷启动默认回 keyed idle（眨眼互动）；仅当 `prefersSleepIdle`（例如暂停后）才回睡觉循环（§2.7.5）；若在录音 → keyed idle。
 
-### 2.7.5 睡觉循环（sleep idle；暂停后）
+### 2.7.5 睡觉循环与起床（Concept A → S1 → idle；暂停后）
 
-睡觉循环播放 `DesktopOrb/sleep/fNN.png`（**首尾针**，`OrbFrameLoopPlayer`，约 8–12 fps）。**冷启动默认不进睡觉**——用醒来 idle / ready 眨眼体现互动（v0.3.21）；睡觉主要用于**暂停录音之后**。
+睡觉循环播放 `DesktopOrb/sleep/fNN.png`（**Concept A**：闭眼 + 奶油色浮动 Zzz；**首尾针**，`OrbFrameLoopPlayer`，约 10 fps）。**冷启动默认不进睡觉**——用醒来 idle / ready 眨眼体现互动（v0.3.21）；睡觉主要用于**暂停录音之后**（v0.3.22）。
 
 规则：
 
 1. **冷启动 / `show()`**：`prefersSleepIdle = false`；显示 keyed `idle.png`；就绪则播 §2.7.4 ready，settle 仍回 idle（不自动 `startSleepIdleLoop`）。
-2. **开始录音**（右键菜单或左键开录）：立即 `stopSleepIdleLoop()`，切到醒来视觉；可叠播 eye-click。
-3. **暂停录音** / 停止采集后：`prefersSleepIdle = true`；eye-click settle 后 `startSleepIdleLoop()`。
-4. **资源缺口**：若 Bundle 内 sleep 帧 < 2，则保持 keyed `idle.png` 静帧，并在 `Resources/DesktopOrb/sleep/README.md` 标明需设计同学补睡觉艺术图（闭眼 / 轻微呼吸 / **浮动 Zzz**，首尾同帧）。当前仓库可含**占位**帧（由 idle 派生 bob+dim + 浮动 Zzz，`scripts/generate_sleep_zzz_frames.py`），不视为终稿；预览见 `design/icon-orb-sleep-preview.mp4`。
-5. 播放器 API（`OrbFrameLoopPlayer`）与目录约定独立于 `DesktopOrbView` 的 AVPlayer 眼神片，便于其它帧循环复用。
+2. **暂停录音** / 用户主动停止采集：立即 `prefersSleepIdle = true` + `startSleepIdleLoop()`；**不**播 eye-click、**不**经其它过渡片。
+3. **开始录音**（右键菜单或左键开录）且当前在睡觉：`stopSleepIdleLoop(resetUnderlayToIdle: false)`（保留末帧作底），播 `playWakeOnce()` → `wake-shy-S1.mov`（**A → S1 轻柔害羞腮红 → idle**）；settle 到醒来 idle。缺 wake 资源时可回退 eye-click 并打日志。
+4. **开始录音**且已醒（未进过睡觉 / 冷启动 idle）：可叠播 eye-click；settle 到 idle。
+5. **系统睡眠 / 退出停采**：同暂停路径（直进睡觉 / 停采），不播 clip。
+6. **资源缺口**：若 Bundle 内 sleep 帧 < 2，则保持 keyed `idle.png` 静帧，并在 `Resources/DesktopOrb/sleep/README.md` 标明。生成脚本：`scripts/generate_sleep_wake_assets.py`；设计源：`design/sleep-concepts/A-zzz.jpg`、`design/wake-concepts/S1-soft-blush.jpg`；预览：`design/icon-orb-sleep-preview.mp4`、`design/preview-wake-shy-S1.mp4`。
+7. 播放器 API（`OrbFrameLoopPlayer`）与目录约定独立于 `DesktopOrbView` 的 AVPlayer 片，便于其它帧循环复用。
 
-验收：T26。
+验收：T21 / T26。
 
 #### 2.7.6 首启引导气泡（onboarding）
 
@@ -403,8 +407,9 @@ ContextDay/
   Resources/
     DesktopOrb/
       idle.png                 # 透明 1024；产品 + 桌面
-      sleep/fNN.png            # 未录音睡觉循环；首尾针
-      eye-click-2s.mp4/.mov    # ~2s 眼神微动；首帧=尾帧
+      sleep/fNN.png            # Concept A 暂停后睡觉；首尾针
+      wake-shy-S1.mov/.mp4     # A→S1→idle 起床
+      eye-click-2s.mp4/.mov    # ~2s 眼神微动；已醒开录
       ready-2s.mp4/.mov        # ~2s 就绪；首尾针=idle
     AppIcon/
       icon-1024.png            # 与 idle 同款 → Assets.xcassets/AppIcon.appiconset
@@ -422,7 +427,7 @@ ContextDay/
     contextday-cli.sh
 ```
 
-**资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `sleep/` 帧循环 + `eye-click-2s` + `ready-2s`（`.mov` 运行时 / `.mp4` 绿幕源）；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。`DesktopButton/` 已删除，勿再引用。
+**资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `sleep/` Concept A 帧循环 + `wake-shy-S1` + `eye-click-2s` + `ready-2s`（`.mov` 运行时 / `.mp4` 绿幕源）；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。`DesktopButton/` 已删除，勿再引用。
 
 ### 3.2 运行时原则
 
@@ -715,12 +720,12 @@ flowchart TB
 | T18c | self_check | CLI / HTTP `self_check` | JSON 含 permissions、database、models、recording_desync；可无 UI |
 | T19 | 无 txt 落盘 | 激活并产生至少一条转写后扫盘 | Application Support 下**无**转写用途的 `.txt`；文本仅在 sqlite |
 | T20 | 合并留最早音 | keep_audio 开；两段均有 opus 且间隔 ≤gap | 合并后 `audio_path` 指向最早段文件；孤儿文件被调度删除 |
-| T21 | 眼神微动 | 右键 → 开始录音或暂停录音 | 播放约 2s eye-click；首尾同帧 settle；球身无明显缩放/位移 |
+| T21 | 开录 / 暂停动画 | 右键 → 开始录音（已醒 / 睡觉中各一次）；右键 → 暂停录音 | 已醒开录：约 2s eye-click；睡觉中开录：wake S1（A→腮红→idle）；**暂停：无 eye-click，直接 Concept A 睡觉循环**；球身无明显缩放/位移 |
 | T22 | 左键开始录音 | 未录音时左键单击浮控；录中再左键单击；按住拖动 | 未录音：开始采集并播放 eye-click；录中：不暂停、不切换、不播 eye-click；拖动（位移≳4pt）可移动浮控且不误触开始 |
 | T23 | 调整大小动画 | 右键 → 设置… → 浮控大小，在两档 pt 间切换 | 浮控绕中心平滑缩放（约 0.28s ease-in-out），**不**瞬时跳变；层级仍为 `.normal`；暂停仍仅右键；右键**无**大小子菜单 |
 | T24 | 登录项开关 | 设置 → 登录时打开 开/关 → 保存；查看系统登录项 | 开：`SMAppService` enabled 或 requiresApproval；关：notRegistered；偏好与服务一致 |
 | T25 | 就绪动画 | 冷启动；mic+屏幕录制已授权且记录根可写 | Agent IO 绑定后 orb 播 **ready-2s 一次**（非录音 eye-click）；同一次进程内不再因轮询重复；就绪动画本身不启停录音；左键开录仍见 T22 |
-| T26 | 睡觉循环 | **冷启动**为醒来 idle（可 ready 眨眼），**不**自动睡觉；开始录音离开睡觉；**暂停后** settle 回睡觉（含浮动 Zzz） | 冷启动可见互动 idle/blink；暂停后首尾针无跳变；可见上升 Zzz；缺帧时静帧 idle + README 标明设计资产 |
+| T26 | 睡觉 / 起床 | **冷启动**醒来 idle（可 ready 眨眼），**不**自动睡觉；**暂停**直进 Concept A（闭眼+奶油 Zzz）；再开录播 S1 起床后 settle idle | 冷启动互动 idle/blink；暂停无 eye-click；可见 Zzz 循环；起床见害羞腮红、无星星；缺帧时静帧 idle + README |
 | T27 | 首启引导气泡 | 清除 `onboarding_completed_v1`；冷启动 | 冷启动**不**先弹 Login Item / 麦 / 屏幕（门已绿也不弹）；球上方气泡分段打字 +「下一步」；拖拽球时气泡实时跟随；末段后权限清单；「授予权限」才触发真实 TCC / Login Item / 可写目录；完成后标记完成且不再每冷启动重复；可随后 ready（T25） |
 
 ---
@@ -752,7 +757,7 @@ flowchart TB
 - **已知限制**：Music>Speech 偏置可能导致**同一轨**上「有 BGM 的说话」被标成 music 而不送 ASR（例如麦拾到外放音乐+人声）；须在产品已知问题 / 设置说明中披露，不可静默。这**不是**跨轨抑制：系统轨 Music 不关麦轨。
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
-- 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪用 `playReadyOnce`（`ready-2s.mov`），录音用 `playEyeClickOnce`；每冷启动就绪 ≤1 次。
+- 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪用 `playReadyOnce`（`ready-2s.mov`）；已醒开录用 `playEyeClickOnce`；离开睡觉用 `playWakeOnce`（`wake-shy-S1.mov`）；暂停直进睡觉、不播 eye-click；每冷启动就绪 ≤1 次。
 - 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`（Concept A 深色毛玻璃 + 柔绿胶囊，v0.3.20；拖拽实时跟随，v0.3.21）；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏；引导未完成时启动路径不 `SMAppService.register` / 不请求麦与屏幕——与就绪门无关（v0.3.21）；冷启动默认醒来 idle，睡觉留给暂停后（v0.3.21）。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
@@ -785,6 +790,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.22 | 2026-10-30 11:10 | §2.7.5：暂停录音不播 eye-click，直进 Concept A 睡觉；落地 A sleep 帧 + `wake-shy-S1`（A→S1→idle）；开录从睡觉走 wake、已醒仍可 eye-click；T21/T26 更新；**Segment schema 不变** |
 | v0.3.21 | 2026-10-30 10:46 | §2.7.6：气泡拖拽实时跟随；引导未完成时启动绝不自动 Login Item/TCC（门已绿也不例外）；§2.7.5：冷启动默认醒来 idle/blink，睡觉循环留给暂停后；T26/T27 更新；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
@@ -807,12 +813,12 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.21 | **已完成** | v0.3.21 = 气泡跟随 + 启动不弹权限收紧 + 冷启动 idle；v0.3.20 = 气泡 Concept A；v0.3.19 = 引导前不自动弹权限；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.22 | **已完成** | v0.3.22 = 暂停直进 A 睡觉 + S1 起床；v0.3.21 = 气泡跟随 + 启动不弹权限 + 冷启动 idle；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡（v0.3.20 Concept A + v0.3.21 拖拽跟随） / 冷启动醒来 idle、暂停后睡觉 / 左键未录音开录 / 右键启停+eye-click / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡 / 冷启动醒来 idle、暂停直进 Concept A、开录 wake S1 / 左键未录音开录 / 右键启停 / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝防 `Data.subdata` SIGTRAP |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小）/ 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -821,7 +827,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.21 气泡拖拽跟随 + 冷启动不弹权限 + 冷启动眨眼 idle；v0.3.20 Concept A；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.22 暂停直进 Concept A + 起床 S1；v0.3.21 气泡跟随 / 冷启动不弹权限 / 冷启动 idle；正式公证/上架留待人工提交。**
 
 ---
 

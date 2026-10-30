@@ -17,3 +17,10 @@ Resources/Models/YAMNet/**
 !Resources/Models/YAMNet/.gitkeep
 *.mlmodelc/
 *.onnx
+
+# Generated temp frames (regenerate via scripts/generate_sleep_wake_assets.py)
+design/_tmp_sleep_extract/
+design/wake_shy_s1_green/
+design/wake_shy_s1_preview/
+design/wake_shy_s1_frames/
+design/sleep_preview_frames/

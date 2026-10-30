@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Generate DesktopOrb sleep idle frames: bob+dim + floating Zzz (首尾针).
+"""DEPRECATED — use generate_sleep_wake_assets.py (Concept A + wake S1).
 
-Writes Resources/DesktopOrb/sleep/fNN.png (transparent RGBA, 512) and
-design/sleep_preview_frames/ for mp4 preview compositing.
+Legacy: idle-derived bob+dim + floating Zzz (首尾针).
 """
 from __future__ import annotations
 
