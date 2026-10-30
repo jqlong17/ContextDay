@@ -153,6 +153,41 @@ final class SegmentStoreMergeTests: XCTestCase {
         XCTAssertEqual(capped?.count, SegmentMerger.maxMergedTextChars)
     }
 
+    /// v0.3.23 emission bug: overlap/min(dur) blocked longer refinements after a short emit.
+    /// Capture must use `isAlreadyEmittedInterval` so extensions still reach ASR.
+    func testEmissionDedupeAllowsExtensionButBlocksJitterAndContained() {
+        // Same-window jitter (±tens of ms) → skip
+        XCTAssertTrue(
+            SegmentMerger.isAlreadyEmittedInterval(a0: 1_000, a1: 4_690, b0: 1_002, b1: 4_692)
+        )
+        // Longer refinement of short prior emit → MUST send (store near-dup folds later)
+        XCTAssertFalse(
+            SegmentMerger.isAlreadyEmittedInterval(a0: 1_000, a1: 5_000, b0: 1_000, b1: 20_000),
+            "extension must not be treated as already-emitted"
+        )
+        // Old store helper still calls this a near-dup (fold text, don't concat) — fine for DB
+        XCTAssertTrue(
+            SegmentMerger.isNearDuplicateInterval(a0: 1_000, a1: 5_000, b0: 1_000, b1: 20_000),
+            "document: store fold still sees extension as near-dup via minDur ratio"
+        )
+        // Short window fully inside an already-emitted long one → skip re-ASR
+        XCTAssertTrue(
+            SegmentMerger.isAlreadyEmittedInterval(a0: 0, a1: 30_000, b0: 10_000, b1: 13_000)
+        )
+        // Adjacent new speech → send
+        XCTAssertFalse(
+            SegmentMerger.isAlreadyEmittedInterval(a0: 0, a1: 30_000, b0: 31_000, b1: 35_000)
+        )
+        // Empty emitted list semantics: nothing to compare — caller skips the contains check
+        // Spam window from Mac 2026-10-30 → skip
+        XCTAssertTrue(
+            SegmentMerger.isAlreadyEmittedInterval(
+                a0: 1_793_355_032_850, a1: 1_793_355_036_550,
+                b0: 1_793_355_032_887, b1: 1_793_355_036_577
+            )
+        )
+    }
+
     private func makeSegment(
         id: UUID,
         track: SegmentTrack,

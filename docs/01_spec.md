@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.23** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.23 同窗去重 + 重叠/邻域合并（修 3.8× 假增量）；v0.3.22 暂停直进 Concept A 睡觉 + 起床 S1；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.24** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.24 送识 single-flight 按「候选窗已被覆盖」而非 overlap/min(dur)；v0.3.23 同窗去重 + 重叠/邻域合并；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 19:00 Asia/Shanghai |
+| 最后更新 | 2026-10-30 19:30 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -488,7 +488,9 @@ ContextDay/
 1. **同轨**：仅 `mic` 与 `mic`、或 `system` 与 `system` 可合并。
 2. **间隙 / 重叠**：两段区间的分离距离（不重叠时为中间空隙；重叠或相接为 0）**≤ `merge_gap_ms`** 则合并。`merge_gap_ms` 默认 **2000**，用户可配 **1000–3000**（与 §2.2 一致）。重叠视为可合并（等价于 gap &lt; 0）。
 3. **邻域查找（v0.3.23）**：落库时在同轨、时间邻域内找最佳合并对象（优先重叠最大 / 近同窗，其次空隙最小），**不得**只与「`t0_ms` 最新一行」比较——否则晚到的同窗重送识会插成新行。
-4. **近同窗去重（v0.3.23）**：若两端点均在 **500ms** 内，或重叠 / min(时长) ≥ **80%**，视为同一句的重复窗：合并时间并集，**文本取较长非空**（**不**拼接），避免 ASR 微差连成「假长句」。采集侧送识前亦按墙钟 `[t0,t1]` 做同阈值 single-flight（环缓冲裁切后 sample 下标会漂，不能再靠 sample±800）。
+4. **近同窗去重（v0.3.23 / v0.3.24）**：
+   - **落库**：若两端点均在 **500ms** 内，或重叠 / min(时长) ≥ **80%**，视为同一句的重复窗：合并时间并集，**文本取较长非空**（**不**拼接），避免 ASR 微差连成「假长句」。
+   - **采集送识 single-flight（v0.3.24）**：按墙钟 `[t0,t1]` 记录已送识窗（环缓冲裁切后 sample 下标会漂，不能再靠 sample±800）。判定「已送过」用：**两端点 slop≤500ms**，或 **IoU≥90%**，或 **重叠 / 候选时长 ≥80%**（候选窗已被先前窗盖住）。**禁止**用重叠/min(时长) 做送识去重——短窗先发出后，加长 refinement 会被误杀，表现为录音中说话却长时间无 gate/ASR/落库。
 5. **时间**：合并后 `t0_ms = min(...)`，`t1_ms = max(...)`。
 6. **文本（非近同窗）**：按时间序拼接；**段间不加空格/换行**（中文生活日志优先；英文粘连可接受，二期再加智能空格）。空 `text` 跳过。合并结果文本软顶 **8000** 字。
 7. **音频（MVP 定稿）**：若多段均有 `audio_path`，**保留最早一段（按 t0_ms）的文件**，更新合并行的 `audio_path`；其余文件标为孤儿并**调度删除**。拼接成新 Opus = **后期**能力，不进 MVP。仅一段有音频则继承该路径。
@@ -792,6 +794,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.24 | 2026-10-30 19:30 | §3.3.4：送识 single-flight 改为「候选窗已被覆盖 / 高 IoU / 端点 slop」，不再用 overlap/min(dur)（修短窗误杀加长窗导致的 ASR 饿死）；落库近同窗规则不变；**Segment schema 不变** |
 | v0.3.23 | 2026-10-30 19:00 | §3.3.4：同窗去重（墙钟 single-flight + 近同窗折并不拼接）与邻域重叠合并，修环缓冲裁切后 sample 去重失效导致的 3.8× 假增量；软顶 source_ids/文本；**Segment schema 不变** |
 | v0.3.22 | 2026-10-30 11:10 | §2.7.5：暂停录音不播 eye-click，直进 Concept A 睡觉；落地 A sleep 帧 + `wake-shy-S1`（A→S1→idle）；开录从睡觉走 wake、已醒仍可 eye-click；T21/T26 更新；**Segment schema 不变** |
 | v0.3.21 | 2026-10-30 10:46 | §2.7.6：气泡拖拽实时跟随；引导未完成时启动绝不自动 Login Item/TCC（门已绿也不例外）；§2.7.5：冷启动默认醒来 idle/blink，睡觉循环留给暂停后；T26/T27 更新；**Segment schema 不变** |
@@ -816,7 +819,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.23 | **已完成** | v0.3.23 = 同窗去重 + 邻域重叠合并；v0.3.22 = 暂停直进 A 睡觉 + S1 起床；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.24 | **已完成** | v0.3.24 = 送识 cover-based single-flight；v0.3.23 = 同窗去重 + 邻域重叠合并；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
@@ -830,7 +833,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.23 同窗去重 + 邻域重叠合并；v0.3.22 暂停直进 Concept A + 起床 S1；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.24 送识 cover-based single-flight；v0.3.23 同窗去重 + 邻域重叠合并；正式公证/上架留待人工提交。**
 
 ---
 

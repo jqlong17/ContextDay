@@ -41,7 +41,9 @@ enum SegmentMerger {
         return overlap * 100 / minDur >= nearDuplicateMinOverlapPercent
     }
 
-    /// Wall-clock near-dup check for VAD emission single-flight (same thresholds).
+    /// Wall-clock near-dup check for **store** fold (same thresholds as `isNearDuplicateWindow`).
+    /// Do **not** use this for VAD emission single-flight — `overlap/min(dur)` treats a longer
+    /// refinement of an already-emitted short window as a duplicate and can starve ASR.
     static func isNearDuplicateInterval(a0: Int64, a1: Int64, b0: Int64, b1: Int64) -> Bool {
         let slop = nearDuplicateEndpointSlopMs
         if abs(a0 - b0) <= slop && abs(a1 - b1) <= slop { return true }
@@ -49,6 +51,32 @@ enum SegmentMerger {
         let minDur = min(a1 - a0, b1 - b0)
         guard minDur > 0 else { return false }
         return overlap * 100 / minDur >= nearDuplicateMinOverlapPercent
+    }
+
+    /// Fraction of the **candidate** duration already covered by an emitted window (percent).
+    /// Used only for capture-side single-flight (Spec v0.3.24).
+    static let emissionCoveredCandidatePercent: Int64 = 80
+    /// Symmetric IoU (percent) for capture-side single-flight.
+    static let emissionMinIoUPercent: Int64 = 90
+
+    /// True when candidate `[b0,b1]` should **not** be sent to ASR again given prior emission `[a0,a1]`.
+    ///
+    /// Unlike `isNearDuplicateInterval`, this does **not** block a longer extension of a short
+    /// prior emit (overlap/minDur would). It blocks:
+    /// - endpoint jitter (both ends within slop),
+    /// - high IoU (≥90%),
+    /// - candidate mostly already covered by the prior window (overlap/candidateDur ≥80%).
+    static func isAlreadyEmittedInterval(a0: Int64, a1: Int64, b0: Int64, b1: Int64) -> Bool {
+        let slop = nearDuplicateEndpointSlopMs
+        if abs(a0 - b0) <= slop && abs(a1 - b1) <= slop { return true }
+        let overlap = max(0, min(a1, b1) - max(a0, b0))
+        let bDur = b1 - b0
+        guard bDur > 0 else { return true }
+        // Candidate almost entirely inside / overlapping prior emit → skip re-ASR.
+        if overlap * 100 / bDur >= emissionCoveredCandidatePercent { return true }
+        let union = max(a1, b1) - min(a0, b0)
+        guard union > 0 else { return false }
+        return overlap * 100 / union >= emissionMinIoUPercent
     }
 
     /// If `incoming` should merge into `previous`, returns the merged row; else nil.
