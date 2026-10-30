@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.15** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；未录音时桌面球**睡觉循环**（首尾针）；开录离开睡觉；冷启动就绪播 **ready-2s** 一次（与 eye-click 分轨）；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.16** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；首启权限未就绪时桌面球上方**引导气泡**（分段打字 +「下一步」+ 权限清单）；未录音睡觉循环；冷启动 ready-2s；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 09:05 Asia/Shanghai |
+| 最后更新 | 2026-10-30 09:15 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -55,7 +55,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 ### 2.1 核心体验
 
-1. 用户打开并**激活** ContextDay → 立即开始 24h 采集与（按策略）转写。默认**登录时打开**（`SMAppService.mainApp` Login Item，设置可关）；冷启动若权限与记录根就绪，桌面球播放 **ready** 动画一次作「一切正常」反馈（§2.7.4；首尾针，与录音 eye-click 分轨）。
+1. 用户打开并**激活** ContextDay → 立即开始 24h 采集与（按策略）转写。默认**登录时打开**（`SMAppService.mainApp` Login Item，设置可关）；**首次**若权限未就绪，球上方气泡引导说明 + 授权（§2.7.6）；冷启动若权限与记录根就绪，桌面球播放 **ready** 动画一次作「一切正常」反馈（§2.7.4；首尾针，与录音 eye-click 分轨）。
 2. 默认开启**分类过滤**：约每 5s 对环缓冲已有音频打标；仅判定为 **Speech** 的片段送入 SenseVoice Core ML int8。
 3. 时间线展示：**起止时间 + 文本**；落库时对邻近碎片自动合并，避免过于零散。
 4. 配置页可关过滤、可选择是否保留音频及质量；未开过滤时**只能保留全部音频**（不可选「仅人声」）。
@@ -204,6 +204,20 @@ MVP 视觉约定：
 5. 播放器 API（`OrbFrameLoopPlayer`）与目录约定独立于 `DesktopOrbView` 的 AVPlayer 眼神片，便于其它帧循环复用。
 
 验收：T26。
+
+#### 2.7.6 首启引导气泡（onboarding）
+
+冷启动时若 **尚未完成引导**（`UserDefaults` `onboarding_completed_v1`）且 **就绪门未绿**（§2.7.4：mic + 屏幕录制 + 记录根可写），在桌面球**上方**弹出**小气泡面板**（非远离的大模态），用对话口吻说明产品，再引导授权。
+
+规则：
+
+1. **分段**：文案分 ≥3 段展示（职责 / 本机落盘与 Agent 可读 / 本地安全），**禁止**一次堆出全部长文。段间点「下一步」前进；打字机可偏快；点「下一步」时可跳过当前段剩余打字。
+2. **位置**：气泡锚定浮控窗口上方（球移动时跟随）；圆角卡片 + 朝下小尾巴；窗口层级与浮控同为 `.normal`（可被其它 App 遮盖）。
+3. **权限步**：介绍结束后展示约 3–4 项清单——**登录时打开**、**麦克风**、**屏幕录制（系统声）**、**记录文件夹可写**。点「授予权限」依次触发真实系统请求：`SMAppService` / `AVAudioApplication.requestRecordPermission` / `CGRequestScreenCaptureAccess` / 确保记录根可写（必要时 `NSOpenPanel`）。「稍后再说」也标记引导完成，避免每次冷启动重复刷屏；之后仍可通过设置 / 首次录音补授权。
+4. **完成**：标记 `onboarding_completed_v1`；关闭气泡；再评一次就绪门并可播 §2.7.4 ready（若已就绪）。
+5. **实现**：`OnboardingFlow`（文案与 shouldPresent）+ `OnboardingBubbleController`；由 `DesktopControlController.considerOnboarding()` 在 `show()` 后调用。
+
+验收：T27。
 
 ### 2.8 剪贴板索引与完整提示词（Agent IO 轻量路径）
 
@@ -358,7 +372,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | 模块 | 职责 |
 |------|------|
 | `App` | `@main`、生命周期；可选 AppDelegate / 菜单栏入口 |
-| `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click + ready、右键菜单、剪贴板写入 |
+| `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click + ready、首启引导气泡（§2.7.6）、右键菜单、剪贴板写入 |
 | `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ 环缓冲 |
 | `Features/Gate` | YAMNet-ONNX，~5s 窗；双轨独立标签与送识；Music>Speech 偏置仅限本轨本窗 |
 | `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
@@ -644,7 +658,7 @@ flowchart TB
 
 - [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
 - [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
-- [x] DesktopControl：`.normal` 窗口、orb idle；左键未录音时开始录音（录中不关；拖动可移动）；右键菜单开始/暂停 + eye-click（末帧 settle）；麦权限引导
+- [x] DesktopControl：`.normal` 窗口、orb idle；左键未录音时开始录音（录中不关；拖动可移动）；右键菜单开始/暂停 + eye-click（末帧 settle）；首启气泡引导 + 麦/屏幕/登录项/文件夹权限（§2.7.6）
 - [x] 登录项 `SMAppService.mainApp` + 设置开关（默认开）；冷启动就绪 `ready-2s` 一次（§2.7.4）
 - [x] 右键扁平：打开记录根；复制 §2.8 提示词；开始/暂停录音；设置…（单面板含浮控大小）/时间线/修改保存文件夹/关于与隐私；无设置子菜单
 - [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
@@ -705,6 +719,7 @@ flowchart TB
 | T24 | 登录项开关 | 设置 → 登录时打开 开/关 → 保存；查看系统登录项 | 开：`SMAppService` enabled 或 requiresApproval；关：notRegistered；偏好与服务一致 |
 | T25 | 就绪动画 | 冷启动；mic+屏幕录制已授权且记录根可写 | Agent IO 绑定后 orb 播 **ready-2s 一次**（非录音 eye-click）；同一次进程内不再因轮询重复；就绪动画本身不启停录音；左键开录仍见 T22 |
 | T26 | 睡觉循环 | 未录音时球循环 sleep 帧；开始录音离开睡觉；暂停后 settle 回睡觉 | 首尾针无跳变；缺帧时静帧 idle + README 标明设计资产 |
+| T27 | 首启引导气泡 | 清除 `onboarding_completed_v1`；冷启动且 mic/屏幕/记录根未齐 | 球上方气泡分段打字 +「下一步」；末段后权限清单；「授予权限」触发真实 TCC / Login Item / 可写目录；完成后标记完成且不再每冷启动重复；可随后 ready（T25） |
 
 ---
 
@@ -721,6 +736,7 @@ flowchart TB
 9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 一行指针；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
 10. 登录项：设置可开关；默认开时登录后应拉起 App（或进入 `requiresApproval` 待用户在系统设置批准）；关闭后不再自动登录启动。
 11. 冷启动就绪：mic + 屏幕录制 + 记录根可写时，orb **仅一次** `ready-2s`；未就绪不播、不刷屏；与录音 eye-click 分轨。
+12. 首启引导：权限未就绪时球上方气泡分段说明 + 权限清单；完成后不每冷启动重复刷屏（§2.7.6 / T27）。
 
 ---
 
@@ -735,6 +751,7 @@ flowchart TB
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪用 `playReadyOnce`（`ready-2s.mov`），录音用 `playEyeClickOnce`；每冷启动就绪 ≤1 次。
+- 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
 ---
@@ -761,6 +778,7 @@ flowchart TB
 | v0.3.13 | （跳号） | 曾预留给 ready 动画；#16 睡觉循环先合入为 v0.3.14，ready 改记 v0.3.15 |
 | v0.3.14 | 2026-10-30 08:56 | §2.7.5 未录音睡觉循环（`sleep/fNN.png` + `OrbFrameLoopPlayer` 首尾针）；开录离开睡觉；缺帧占位 + 设计资产 README；T26；**Segment schema 不变** |
 | v0.3.15 | 2026-10-30 09:05 | §2.7.1 / §2.7.4 冷启动改为专用 **ready-2s**（首尾针=`idle`，与 eye-click 分轨）；`playReadyOnce`；T25 更新；播完未录音回到睡觉循环；**Segment schema 不变** |
+| v0.3.16 | 2026-10-30 09:15 | §2.7.6 首启引导气泡（球上方、分段打字 +「下一步」+ 权限清单并触发真实授权）；T27；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -782,12 +800,12 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.15 | **已完成** | v0.3.15 = 专用 ready-2s；v0.3.14 = 睡觉循环；v0.3.12 = 左键未录音开始；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.16 | **已完成** | v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 未录音睡觉循环 / 左键未录音开录 / 右键启停+eye-click / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡引导 / 未录音睡觉循环 / 左键未录音开录 / 右键启停+eye-click / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小）/ 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -796,7 +814,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
 
 ---
 
