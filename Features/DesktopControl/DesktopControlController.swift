@@ -63,6 +63,9 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
 
         window = win
         orbView = orb
+        // Spec §2.7.5: not recording → sleep idle loop (placeholder frames until designer art).
+        orb.prefersSleepIdle = true
+        orb.startSleepIdleLoop()
         win.orderFrontRegardless()
     }
 
@@ -72,13 +75,19 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         isRecording = recording
         RuntimeHealth.shared.setUIWantsRecording(isRecording)
         if isRecording {
+            // Leave sleep → awake/recording visual (keyed idle under eye-click).
+            orbView?.stopSleepIdleLoop()
             capture.start()
         } else {
             capture.stop()
+            // After pause, prefer sleep again; eye-click settle will restart the loop.
+            orbView?.prefersSleepIdle = true
         }
         AppLog.info(.app, "ui recording → \(isRecording) pipeline=\(capture.isRunning)")
         if playEyeClick {
             orbView?.playEyeClickOnce()
+        } else if !isRecording {
+            orbView?.startSleepIdleLoop()
         }
     }
 

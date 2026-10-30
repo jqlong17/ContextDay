@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.12** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；设置**单面板**（含浮控大小，无设置子菜单）；登录项默认开（可关）；冷启动就绪眨眼一次；浮控左键**未录音时开始录音**（录中不关；暂停仍走右键）；§2.8 剪贴板=一行「请阅读 …/README.md」；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
+| Spec 版本 | **v0.3.14** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；未录音时桌面球**睡觉循环**（首尾针）；开录离开睡觉；左键未录音开录；设置单面板；登录项默认开；冷启动就绪反馈；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 09:55 Asia/Shanghai |
+| 最后更新 | 2026-10-30 08:56 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -132,16 +132,18 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 | 资源 | 路径 / Asset 名 | 说明 |
 |------|-----------------|------|
-| Idle（产品 + 桌面） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；双眼球默认态 |
-| 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4`；可拷入 Bundle 或 Asset | 约 **2s**；首帧=尾帧；仅眼神微动，球身几乎不动 |
+| Idle（产品 + 桌面） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；醒来 / 录制态静帧底图 |
+| 睡觉循环（未录音） | `Resources/DesktopOrb/sleep/fNN.png` | **首尾针** PNG 序列；`OrbFrameLoopPlayer` 循环；设计稿待替换时可用占位帧 |
+| 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4` / `.mov`；可拷入 Bundle | 约 **2s**；首帧=尾帧；仅眼神微动，球身几乎不动 |
 | App Icon 源图 | `Resources/AppIcon/icon-1024.png` → `AppIcon.appiconset` | **与 idle 同款艺术图**；导出各尺寸 |
+
 | 废弃（已删） | `Resources/DesktopButton/` | 旧 Bauhaus 双态；已被 DesktopOrb 取代；仓库中已移除 |
 
 MVP 视觉约定：
 
-- **录制中与 idle 可用同一颗球**（同一 `idle.png`）；录制态额外视觉提示（如微光环 / 角标）= **二期可选**，不挡 MVP。
-- 右键「开始录音 / 暂停录音」、以及**未录音时左键开始录音**时播放 `eye-click-2s.mp4`，播完后回到 idle 静帧（首尾同帧，可无缝循环或 settle）。录中左键**不**播放、不暂停。
-- **不做**旧版「raised/pressed 双 PNG + 2px 下移」按压叙事；反馈以**眼神微动**为主（绑开始/暂停录音路径）。
+- **未录音**：循环播放睡觉帧（§2.7.5）；**录制中**：离开睡觉，底下为醒来 `idle.png`（录制态额外光环 / 角标 = **二期可选**）。
+- 右键「开始录音 / 暂停录音」或左键开录时播放 `eye-click-2s`；播完后：若仍未录音 → 回到睡觉循环；若在录音 → settle 到醒来 idle 静帧。
+- **不做**旧版「raised/pressed 双 PNG + 2px 下移」按压叙事；启停反馈以**眼神微动**为主。
 
 #### 2.7.2 窗口层级（硬性要求）
 
@@ -185,6 +187,20 @@ MVP 视觉约定：
 - 未就绪时可短延迟再评一次（例如 +2s）；仍未就绪则本轮不眨，不阻塞主流程。
 - 与右键「开始/暂停录音」的 eye-click **共用**同一播放路径；就绪眨眼**不**启停录音。
 - 左键开始录音的行为见 §2.7.3 / T22（就绪动画本身仍不因左键触发）。
+
+### 2.7.5 未录音睡觉循环（sleep idle）
+
+未在录音时，桌面球表现**睡觉中**：循环播放 `DesktopOrb/sleep/fNN.png`（**首尾针**，`OrbFrameLoopPlayer`，约 8–12 fps）。
+
+规则：
+
+1. **开始录音**（右键菜单或左键开录）：立即 `stopSleepIdleLoop()`，切到醒来视觉；可叠播 eye-click。
+2. **暂停录音** / 停止采集后：`prefersSleepIdle = true`；eye-click settle 后重新 `startSleepIdleLoop()`。
+3. 冷启动就绪反馈（§2.7.4）播完后，若未录音，同样回到睡觉循环。
+4. **资源缺口**：若 Bundle 内 sleep 帧 < 2，则保持 keyed `idle.png` 静帧，并在 `Resources/DesktopOrb/sleep/README.md` 标明需设计同学补睡觉艺术图（闭眼 / 轻微呼吸，首尾同帧）。当前仓库可含**占位**帧（由 idle 派生 bob+dim），不视为终稿。
+5. 播放器 API（`OrbFrameLoopPlayer`）与目录约定独立于 `DesktopOrbView` 的 AVPlayer 眼神片，便于其它帧循环复用。
+
+验收：T26。
 
 ### 2.8 剪贴板索引与完整提示词（Agent IO 轻量路径）
 
@@ -339,7 +355,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | 模块 | 职责 |
 |------|------|
 | `App` | `@main`、生命周期；可选 AppDelegate / 菜单栏入口 |
-| `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` idle + eye-click 播放、右键菜单、剪贴板写入 |
+| `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click、右键菜单、剪贴板写入 |
 | `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ 环缓冲 |
 | `Features/Gate` | YAMNet-ONNX，~5s 窗；双轨独立标签与送识；Music>Speech 偏置仅限本轨本窗 |
 | `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
@@ -356,7 +372,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 ContextDay/
   App/                         # @main；AppDelegate / Menu 若有
   Features/
-    DesktopControl/            # window、DesktopOrb idle + eye-click、context menu、pasteboard
+    DesktopControl/            # window、DesktopOrb sleep loop + idle + eye-click、context menu、pasteboard
     Capture/
     Gate/
     VAD/
@@ -683,6 +699,7 @@ flowchart TB
 | T23 | 调整大小动画 | 右键 → 设置… → 浮控大小，在两档 pt 间切换 | 浮控绕中心平滑缩放（约 0.28s ease-in-out），**不**瞬时跳变；层级仍为 `.normal`；暂停仍仅右键；右键**无**大小子菜单 |
 | T24 | 登录项开关 | 设置 → 登录时打开 开/关 → 保存；查看系统登录项 | 开：`SMAppService` enabled 或 requiresApproval；关：notRegistered；偏好与服务一致 |
 | T25 | 就绪眨眼 | 冷启动；mic+屏幕录制已授权且记录根可写 | Agent IO 绑定后 orb **眨眼一次**；同一次进程内不再因轮询重复眨眼；就绪动画本身不启停录音 |
+| T26 | 睡觉循环 | 未录音时球循环 sleep 帧；开始录音离开睡觉；暂停后 settle 回睡觉 | 首尾针无跳变；缺帧时静帧 idle + README 标明设计资产 |
 
 ---
 
@@ -736,6 +753,8 @@ flowchart TB
 | v0.3.10 | 2026-10-30 08:50 | §2.2 / §2.10 登录项（`SMAppService.mainApp`，默认开、设置可关）；§2.7.4 冷启动就绪眨眼一次（mic+屏幕录制+记录根可写）；T24/T25；**Segment schema 不变** |
 | v0.3.11 | 2026-10-30 09:20 | §2.7.3 右键菜单扁平化：取消「设置▾」与「调整大小」子菜单；浮控大小并入单一设置面板；T23 路径更新；**Segment schema 不变** |
 | v0.3.12 | 2026-10-30 09:55 | §2.7.3 左键在**未录音**时开始录音并播 eye-click（引导更快开录）；**录中左键不暂停**；暂停/停止仍走右键菜单（及睡眠停采）；单击与拖动用 ~4pt slop 区分；T22 改写；**Segment schema 不变** |
+| v0.3.13 | （预留） | 若 ready 专用动画 PR 合入，升此版；本睡觉循环用 v0.3.14 避免与 #15 撞号 |
+| v0.3.14 | 2026-10-30 08:56 | §2.7.5 未录音睡觉循环（`sleep/fNN.png` + `OrbFrameLoopPlayer` 首尾针）；开录离开睡觉；缺帧占位 + 设计资产 README；T26；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -757,12 +776,12 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.12 | **已完成** | v0.3.12 = 左键未录音开始；v0.3.11 = 设置单面板 + 扁平右键；v0.3.10 = 登录项 + 就绪眨眼；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.14 | **已完成** | v0.3.14 = 睡觉循环；v0.3.12 = 左键未录音开始；v0.3.11 = 设置单面板；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 左键未录音开始（录中不关） / 右键启停+eye-click / 就绪眨眼一次 / 设置面板浮控大小 ease-in-out / 64pt / 扁平菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 未录音睡觉循环 / 左键未录音开录 / 右键启停+eye-click / 设置面板浮控大小 / 扁平菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小）/ 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -771,7 +790,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.12 左键未录音开始；v0.3.11 设置单面板 + 扁平右键；v0.3.10 登录项 + 就绪眨眼；v0.3.8 交叉链接 Agent IO 优化轨 `02_spec`；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
 
 ---
 
