@@ -4,11 +4,22 @@ import Foundation
 enum AgentPromptTemplate {
     /// Pasteboard + `get_clipboard_prompt`. Never embeds the full proprietary brief,
     /// health URL, tool lists, or data-root paragraphs — only a single “请阅读 …” line.
-    static func makeClipboardIndex(recordsRoot: URL = AppPaths.recordsRoot) -> String {
+    /// - Parameter skillFileName: optional packaged `.md` under agent-skills (e.g. `uk-mom-brief.md`);
+    ///   nil → README.md index pointer.
+    static func makeClipboardIndex(
+        recordsRoot: URL = AppPaths.recordsRoot,
+        skillFileName: String? = nil
+    ) -> String {
         _ = recordsRoot // signature kept for callers / tests; skills path is App Support.
         let skillsRoot = AgentSkillsStore.ensureSeededFromBundle()
-        let readme = skillsRoot.appendingPathComponent("README.md").path
-        return "请阅读 \(readme)"
+        let target: String
+        if let skillFileName, !skillFileName.isEmpty {
+            let base = (skillFileName as NSString).lastPathComponent
+            target = skillsRoot.appendingPathComponent(base).path
+        } else {
+            target = skillsRoot.appendingPathComponent("README.md").path
+        }
+        return "请阅读 \(target)"
     }
 
     /// Full operational brief for the in-app read-only viewer (Settings).
@@ -19,6 +30,9 @@ enum AgentPromptTemplate {
         let skills = skillsRoot.path
         let port = AgentIOHTTPServer.shared.port
         let healthPort = port > 0 ? port : AgentIOPort.preferred()
+        let ukLines = AgentSkillsStore.ukMeetingShelfFileNames
+            .map { "\(skills)/\($0)" }
+            .joined(separator: "\n")
 
         return """
         你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机转写数据，不要删除、移动或清空用户录音/数据库，除非用户在对话中明确要求并再次确认。
@@ -45,7 +59,7 @@ enum AgentPromptTemplate {
         期望 JSON 含 "service":"ContextDay"。
         转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
         技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
-        说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」，不是下方全文。
+        说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」（可选 name 指向某一技能文件），不是下方全文。
         长会议：list_activity（分轨）→ list_speech_blocks → 每块 get_window；勿调用 summarize_window。段 DTO 含派生 t0_iso/t1_iso（权威仍为 t0_ms/t1_ms）。
 
         助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
@@ -54,8 +68,9 @@ enum AgentPromptTemplate {
         \(skills)/daily-meeting-digest.md
         \(skills)/feishu-minutes-lark-cli.md
         \(skills)/meeting-notes-weekly-wiki.md
+        \(ukLines)
 
-        建议做法：先 curl /health 确认 service=ContextDay；用 Agent IO 取 Segment 或 Read 上述技能文件；整理纪要遵循技能模版。不要假设存在每日转写 .txt。飞书相关占位符仅用本机私密配置，勿把真实 chat_id 写入仓库或公开回复。
+        建议做法：先 curl /health 确认 service=ContextDay；用 Agent IO 取 Segment 或 Read 上述技能文件；整理纪要遵循技能模版。不要假设存在每日转写 .txt。飞书相关占位符仅用本机私密配置，勿把真实 chat_id 写入仓库或公开回复。UK meeting 导出默认不自动发邮件。
         """
     }
 }

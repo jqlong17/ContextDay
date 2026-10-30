@@ -2,24 +2,26 @@ import AppKit
 
 /// Read-only sheet showing the full §2.8 prompt / skill brief (never touches pasteboard).
 final class PromptViewerSheetController: NSWindowController {
-    convenience init(text: String) {
+    convenience init(text: String, title: String = "完整提示词（只读）", hint: String? = nil) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = "完整提示词（只读）"
+        window.title = title
         self.init(window: window)
 
         guard let content = window.contentView else { return }
 
-        let hint = NSTextField(labelWithString: "仅在本机设置中查看；右键「复制提示词」只复制一行「请阅读 …/agent-skills/README.md」，不会复制下文。")
-        hint.frame = NSRect(x: 16, y: 382, width: 528, height: 28)
-        hint.font = .systemFont(ofSize: 11)
-        hint.textColor = .secondaryLabelColor
-        hint.maximumNumberOfLines = 2
-        content.addSubview(hint)
+        let hintText = hint
+            ?? "仅在本机设置中查看；「复制提示词」只复制一行「请阅读 …」路径指针，不会复制下文。"
+        let hintField = NSTextField(labelWithString: hintText)
+        hintField.frame = NSRect(x: 16, y: 382, width: 528, height: 28)
+        hintField.font = .systemFont(ofSize: 11)
+        hintField.textColor = .secondaryLabelColor
+        hintField.maximumNumberOfLines = 2
+        content.addSubview(hintField)
 
         let scroll = NSScrollView(frame: NSRect(x: 16, y: 52, width: 528, height: 324))
         scroll.hasVerticalScroller = true

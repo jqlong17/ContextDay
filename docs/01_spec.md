@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.24** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.24 送识 single-flight 按「候选窗已被覆盖」而非 overlap/min(dur)；v0.3.23 同窗去重 + 重叠/邻域合并；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.25** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.25 UK meeting skill shelf（5 styles + 设置浏览/预览/复制一行指针）；v0.3.24 送识 cover-based single-flight；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 19:30 Asia/Shanghai |
+| 最后更新 | 2026-10-30 21:15 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -170,7 +170,7 @@ MVP 视觉约定：
 | 数据 | **打开记录文件夹** | Finder 打开**当前记录根**（可见 `db/` / `audio/`；无每日 txt） |
 | 数据 | **复制提示词** | 将 §2.8 **一行指针**写入剪贴板（**不是**全文） |
 | — | （分隔） | |
-| 面板 | **设置…** | 打开**单一**配置窗（可滚动表单）：门控、留音/Opus、保留天数、系统声、**登录时打开**、**浮控大小**（48/64/80/96/128 pt，默认 64；切换时绕中心 ease-in-out ~0.28s）；含「查看完整提示词…」只读 sheet。**不得**再嵌二级菜单 |
+| 面板 | **设置…** | 打开**单一**配置窗（可滚动表单）：门控、留音/Opus、保留天数、系统声、**登录时打开**、**浮控大小**（48/64/80/96/128 pt，默认 64；切换时绕中心 ease-in-out ~0.28s）；**UK meeting skill shelf**（浏览 5 样式 / 示例预览 / 复制一行指针 / 查看技能全文）；另含「查看 Agent 全文…」只读 sheet（§2.8.2）。**不得**再嵌二级菜单 |
 | 面板 | **时间线…** | 只读时间线（SQLite） |
 | 面板 | **修改保存文件夹…** | `NSOpenPanel` → `recordsRootPath`；Store 重开 DB |
 | 面板 | **关于与隐私…** | 路径、删除/保留、睡眠边界、Agent IO |
@@ -227,7 +227,8 @@ MVP 视觉约定：
 
 ### 2.8 剪贴板索引与完整提示词（Agent IO 轻量路径）
 
-> **v0.3.9**：系统剪贴板**只**放一行「请阅读 {AGENT_SKILLS_ROOT}/README.md」；完整专有提示词正文**仅**在设置「查看完整提示词…」只读 sheet 内展示，**禁止**经「复制提示词」或 `get_clipboard_prompt` 写出全文 / health / 工具列表 / 数据根长段。  
+> **v0.3.25**：设置单面板增加 **UK meeting skill shelf**（`category=uk-meeting`，`locale=en-GB`）：浏览 5 个稳定 id 样式、展示 skill 内 `## Example / Preview`、对选中技能复制一行「请阅读 {绝对路径}/{file}.md」。右键「复制提示词」仍默认指向 README。导出通道（Gmail/Docs/Word/本地文件）后续接线；**默认永不自动发邮件**。  
+> **v0.3.9**：系统剪贴板**只**放一行「请阅读 …」路径指针；完整专有提示词 / 技能正文**仅**在设置只读 sheet 内展示，**禁止**经「复制提示词」或 `get_clipboard_prompt` 写出全文 / health / 工具列表 / 数据根长段。  
 > **v0.3.6**：曾用多句「助手索引」；现已收短为一行指针（见上）。  
 > **v0.3.4 起**：指针须指向本机 **Application Support** 技能绝对路径（Bundle `Resources/AgentSkills/` → `~/Library/Application Support/ContextDay/agent-skills/`）。剪贴板**不得**含仓库相对路径或 Spec 章节号。仓库 `docs/agent-skills/` 仍是 Git SSOT；**禁止**提交个人 Feishu/Lark chat_id / open_id。Agent IO /health 与工具细节写在 README / 全文 sheet，不进剪贴板。
 
@@ -239,11 +240,29 @@ MVP 视觉约定：
 请阅读 {AGENT_SKILLS_ROOT}/README.md
 ```
 
-`get_clipboard_prompt` JSON：`text` = 同上一行；`kind` = `"index"`。
+设置 UK shelf「复制提示词」或 `get_clipboard_prompt` 带可选 `name`（技能文件 basename）时：
+
+```text
+请阅读 {AGENT_SKILLS_ROOT}/{name}
+```
+
+`get_clipboard_prompt` JSON：`text` = 上一行；`kind` = `"index"`（README）或 `"skill"`（具名文件）。
 
 #### 2.8.2 完整提示词（仅设置内只读查看）
 
-设置窗提供 **「查看完整提示词…」** → modal/sheet，只读可滚动，展示下列全文（运行时填绝对路径）。**不得**提供「一键复制全文到剪贴板」按钮（用户仍可在 sheet 内手动划选复制，属 OS 文本选择；产品路径不以全文入剪贴板为目标）。
+设置窗提供 **「查看 Agent 全文…」**（通用操作简报）以及 UK shelf 的 **「查看完整提示词…」**（当前选中技能 markdown）→ modal/sheet，只读可滚动。**不得**提供「一键复制全文到剪贴板」按钮（用户仍可在 sheet 内手动划选复制，属 OS 文本选择；产品路径不以全文入剪贴板为目标）。
+
+#### 2.8.3 UK meeting skill shelf（v0.3.25）
+
+| id | file | title |
+|----|------|-------|
+| `uk-mom-detailed` | `uk-mom-detailed.md` | Detailed MoM |
+| `uk-mom-brief` | `uk-mom-brief.md` | Brief |
+| `uk-weekly` | `uk-weekly.md` | Weekly |
+| `uk-monthly` | `uk-monthly.md` | Monthly |
+| `uk-followup-email` | `uk-followup-email.md` | Follow-up email |
+
+Frontmatter 必填：`id` / `title` / `version` / `category=uk-meeting` / `locale=en-GB`。共享硬规则：仅写可核对的 ContextDay 内容；含糊承诺标 TBC；无税/法结论；对外 UK English。与 UK landing / 共享 skill `uk-meeting-notes` 共用同一 catalog ids。
 
 ```text
 你正在协助使用 ContextDay（本机 24h 语音上下文采集与转写层）。请只读访问下列本机转写数据，不要删除、移动或清空用户录音/数据库，除非用户在对话中明确要求并再次确认。
@@ -271,7 +290,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
 （`list_speech_blocks` 与分轨 activity / ISO 派生见 docs/02_spec.md）
 技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
-说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」，不是本全文。
+说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」（可选 name 指向某一技能），不是本全文。
 
 助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
 {AGENT_SKILLS_ROOT}/README.md
@@ -279,8 +298,13 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 {AGENT_SKILLS_ROOT}/daily-meeting-digest.md
 {AGENT_SKILLS_ROOT}/feishu-minutes-lark-cli.md
 {AGENT_SKILLS_ROOT}/meeting-notes-weekly-wiki.md
+{AGENT_SKILLS_ROOT}/uk-mom-detailed.md
+{AGENT_SKILLS_ROOT}/uk-mom-brief.md
+{AGENT_SKILLS_ROOT}/uk-weekly.md
+{AGENT_SKILLS_ROOT}/uk-monthly.md
+{AGENT_SKILLS_ROOT}/uk-followup-email.md
 
-建议做法：先 curl /health 确认 service=ContextDay；用 Agent IO 取 Segment 或 Read 上述技能文件；整理纪要遵循技能模版。不要假设存在每日转写 .txt。飞书相关占位符仅用本机私密配置，勿把真实 chat_id 写入仓库或公开回复。
+建议做法：先 curl /health 确认 service=ContextDay；用 Agent IO 取 Segment 或 Read 上述技能文件；整理纪要遵循技能模版。不要假设存在每日转写 .txt。飞书相关占位符仅用本机私密配置，勿把真实 chat_id 写入仓库或公开回复。UK meeting 导出默认不自动发邮件。
 ```
 
 其中 `{AGENT_SKILLS_ROOT}` = `~/Library/Application Support/ContextDay/agent-skills`（展开后的绝对路径）。
@@ -330,7 +354,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `get_agent_skill` | `name` | 读单个技能文件 |
 | `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（packaged `.md` 或 `agent-skills.local.md`） |
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged；**跳过** `agent-skills.local.md` |
-| `get_clipboard_prompt` | — | 返回 §2.8.1 **一行指针**（`kind=index`）；**不是**全文 |
+| `get_clipboard_prompt` | `name?` | 返回 §2.8.1 **一行指针**（无 `name` → README，`kind=index`；有 `name` → 该技能文件，`kind=skill`）；**不是**全文 |
 | `self_check` | — | 只读诊断：权限快照、DB、模型文件、录音 UI/管线 desync、上次采集错误、Agent IO 监听 |
 
 播种：启动时若缺文件或 Bundle `VERSION` 与 `.seeded-from-version` 不一致，从 Bundle 复制 packaged 文件；永不覆盖 `agent-skills.local.md`。
@@ -384,7 +408,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
 | `Features/ASR` | SenseVoice Core ML int8（主力）；失败时明确降级策略（不默认偷开 ONNX） |
 | `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt；`AgentSkillsStore`（Bundle→App Support） |
-| `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI；完整提示词只读 sheet（§2.8.2） |
+| `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI；UK skill shelf（§2.8.3）；Agent 全文只读 sheet（§2.8.2） |
 | `Features/Diagnostics` | `AppLog`、权限快照、`RuntimeHealth`、`SelfCheck` |
 | `Features/AgentIO` | §2.9 Segment 只读 + 技能读写 + `self_check`；HTTP + MCP stdio；§2.8 一行指针 |
 | `Resources` | `DesktopOrb/`、`AppIcon/`、`AgentSkills/`（打包技能模版）等 |
@@ -401,7 +425,7 @@ ContextDay/
     VAD/
     ASR/
     Store/                     # SQLite + AgentSkillsStore；无每日 txt writer
-    Config/                    # 设置 + 完整提示词只读 sheet
+    Config/                    # 设置 + UK skill shelf + Agent 全文只读 sheet
     Diagnostics/               # AppLog / 权限 / self_check
     AgentIO/                   # §2.9 语义工具 + HTTP / MCP
   Resources/
@@ -589,7 +613,7 @@ flowchart TB
     Desk[DesktopControl 双眼球浮控]
     Activate[右键菜单: 开始/暂停录音 + 眼神微动]
     CtxMenu[右键: 打开记录文件夹 / 复制提示词]
-    Settings[配置页: 门控·留音·Opus·保留天数·预估]
+    Settings[配置页: 门控·留音·Opus·保留天数·UK skill shelf]
     Timeline[时间线视图]
   end
 
@@ -720,7 +744,8 @@ flowchart TB
 | T16 | 浮控层级 | 浮控（orb）可见时打开浏览器全屏/前置窗口 | 浏览器**可遮盖**浮控；非 always-on-top |
 | T17 | 打开记录文件夹 | 右键 → 打开记录文件夹 | Finder 打开 Application Support 根；可见 `db/`（及可选 `audio/`）；**无**要求存在每日 txt |
 | T18 | 复制提示词（一行指针） | 右键 → 复制提示词 → 粘贴 | 仅 `请阅读 …/agent-skills/README.md`；**无** health/工具列表/sqlite 长段 / Segment 字段摘要 / 完整专有正文 |
-| T18b | 设置内看全文 | 设置 → 查看完整提示词… | sheet 只读可滚动展示 §2.8.2 全文；不自动写入剪贴板 |
+| T18b | 设置内看全文 | 设置 → 查看 Agent 全文… | sheet 只读可滚动展示 §2.8.2 全文；不自动写入剪贴板 |
+| T18c | UK skill shelf | 设置 → UK meeting skill shelf 选样式 → 预览示例 → 复制提示词 | 剪贴板仅一行「请阅读 …/uk-*.md」；「查看完整提示词…」只读展示该 skill；不自动发邮件 |
 | T18c | self_check | CLI / HTTP `self_check` | JSON 含 permissions、database、models、recording_desync；可无 UI |
 | T19 | 无 txt 落盘 | 激活并产生至少一条转写后扫盘 | Application Support 下**无**转写用途的 `.txt`；文本仅在 sqlite |
 | T20 | 合并留最早音 | keep_audio 开；两段均有 opus 且间隔 ≤gap | 合并后 `audio_path` 指向最早段文件；孤儿文件被调度删除 |
@@ -794,6 +819,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.25 | 2026-10-30 21:15 | §2.8.3 UK meeting skill shelf：5 个 en-GB 技能（stable ids）+ 设置单面板浏览/示例预览/复制一行指针；`get_clipboard_prompt` 可选 `name`；agent-skills VERSION 0.4.0；**Segment schema 不变** |
 | v0.3.24 | 2026-10-30 19:30 | §3.3.4：送识 single-flight 改为「候选窗已被覆盖 / 高 IoU / 端点 slop」，不再用 overlap/min(dur)（修短窗误杀加长窗导致的 ASR 饿死）；落库近同窗规则不变；**Segment schema 不变** |
 | v0.3.23 | 2026-10-30 19:00 | §3.3.4：同窗去重（墙钟 single-flight + 近同窗折并不拼接）与邻域重叠合并，修环缓冲裁切后 sample 去重失效导致的 3.8× 假增量；软顶 source_ids/文本；**Segment schema 不变** |
 | v0.3.22 | 2026-10-30 11:10 | §2.7.5：暂停录音不播 eye-click，直进 Concept A 睡觉；落地 A sleep 帧 + `wake-shy-S1`（A→S1→idle）；开录从睡觉走 wake、已醒仍可 eye-click；T21/T26 更新；**Segment schema 不变** |
@@ -819,21 +845,22 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.24 | **已完成** | v0.3.24 = 送识 cover-based single-flight；v0.3.23 = 同窗去重 + 邻域重叠合并；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.25 | **已完成** | v0.3.25 = UK meeting skill shelf；v0.3.24 = 送识 cover-based single-flight；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
 | DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡 / 冷启动醒来 idle、暂停直进 Concept A、开录 wake S1 / 左键未录音开录 / 右键启停 / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝防 `Data.subdata` SIGTRAP |
-| 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小）/ 时间线… / 关于与隐私… |
+| 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小 + UK skill shelf）/ 时间线… / 关于与隐私… |
+| UK meeting skill shelf | **已完成（首批 5 styles）** | v0.3.25：bundled markdown + 设置浏览/预览/复制一行指针；导出后端后续 |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
 | Agent IO | **已完成（MVP + 02 优化已合入）** | 一行指针剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check`；02 分轨/ISO/`list_speech_blocks`/错误分页见 [#9](https://github.com/jqlong17/ContextDay/pull/9) |
 | 诊断 / 权限日志 | **已完成（MVP）** | `Features/Diagnostics`；采集失败 / 设置 / 启动打权限快照 |
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.24 送识 cover-based single-flight；v0.3.23 同窗去重 + 邻域重叠合并；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.25 UK meeting skill shelf（首批 5 styles）；v0.3.24 送识 cover-based single-flight；正式公证/上架留待人工提交。**
 
 ---
 
