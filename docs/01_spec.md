@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.17** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；首启权限未就绪时桌面球上方**引导气泡**（分段打字 +「下一步」+ 权限清单）；未录音睡觉循环；冷启动 ready-2s；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.18** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.18 采集 PCM 竞态热修；首启引导气泡；未录音睡觉循环；冷启动 ready-2s；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 09:15 Asia/Shanghai |
+| 最后更新 | 2026-10-30 10:28 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -780,6 +780,7 @@ flowchart TB
 | v0.3.15 | 2026-10-30 09:05 | §2.7.1 / §2.7.4 冷启动改为专用 **ready-2s**（首尾针=`idle`，与 eye-click 分轨）；`playReadyOnce`；T25 更新；播完未录音回到睡觉循环；**Segment schema 不变** |
 | v0.3.16 | 2026-10-30 09:15 | §2.7.6 首启引导气泡（球上方、分段打字 +「下一步」+ 权限清单并触发真实授权）；T27；**Segment schema 不变** |
 | v0.3.17 | 2026-10-30 09:25 | §2.7.5 睡觉占位帧加浮动 **Zzz**（`generate_sleep_zzz_frames.py` + `design/icon-orb-sleep-preview.mp4`）；播放器接线不变；**Segment schema 不变** |
+| v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -801,13 +802,13 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.17 | **已完成** | v0.3.17 = 睡觉 Zzz；v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.18 | **已完成** | v0.3.18 = PCM snapshot 竞态热修；v0.3.17 = 睡觉 Zzz；v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
 | DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡引导 / 未录音睡觉循环 / 左键未录音开录 / 右键启停+eye-click / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
-| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
+| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝防 `Data.subdata` SIGTRAP |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小）/ 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
 | Agent IO | **已完成（MVP + 02 优化已合入）** | 一行指针剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check`；02 分轨/ISO/`list_speech_blocks`/错误分页见 [#9](https://github.com/jqlong17/ContextDay/pull/9) |
@@ -815,7 +816,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.17 睡觉浮动 Zzz；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.18 采集 PCM snapshot 竞态热修；v0.3.17 睡觉浮动 Zzz；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
 
 ---
 

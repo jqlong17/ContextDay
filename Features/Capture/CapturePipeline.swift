@@ -204,10 +204,16 @@ final class CapturePipeline {
     }
 
     private func handleUtterance(_ utt: VoiceActivityDetector.Utterance, pcm: Data, track: SegmentTrack) {
-        let start = max(0, utt.startSample * 2)
-        let end = min(pcm.count, utt.endSample * 2)
-        guard start < end else { return }
-        let slice = pcm.subdata(in: start..<end)
+        guard let slice = PCMInt16Slice.subdata(
+            pcm: pcm, startSample: utt.startSample, endSample: utt.endSample
+        ) else {
+            AppLog.error(
+                .capture,
+                "skip utterance bad PCM range track=\(track.rawValue) "
+                    + "startSample=\(utt.startSample) endSample=\(utt.endSample) pcmBytes=\(pcm.count)"
+            )
+            return
+        }
         let durationMs = max(0, utt.t1Ms - utt.t0Ms)
         let cfg = AppConfigStore.load()
 

@@ -12,7 +12,7 @@ final class VoiceActivityDetector {
     struct Utterance {
         var t0Ms: Int64
         var t1Ms: Int64
-        /// Byte offsets into the Int16 PCM buffer that was analyzed (exclusive end).
+        /// Sample indices into the Int16 PCM buffer that was analyzed (exclusive end).
         var startSample: Int
         var endSample: Int
     }
