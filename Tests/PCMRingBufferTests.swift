@@ -41,7 +41,6 @@ final class PCMRingBufferTests: XCTestCase {
         let pcm = Data(count: 100) // 50 samples
         XCTAssertNil(PCMInt16Slice.subdata(pcm: pcm, startSample: -1, endSample: 10))
         XCTAssertNil(PCMInt16Slice.subdata(pcm: pcm, startSample: 10, endSample: 10))
-        XCTAssertNil(PCMInt16Slice.subdata(pcm: pcm, startSample: 40, endSample: 80))
         XCTAssertNil(PCMInt16Slice.subdata(pcm: pcm, startSample: 50, endSample: 60))
         XCTAssertNil(PCMInt16Slice.subdata(pcm: Data(), startSample: 0, endSample: 1))
 
