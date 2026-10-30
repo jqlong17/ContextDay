@@ -40,17 +40,23 @@ enum OnboardingFlow {
         ),
     ]
 
-    /// Present when the user has not finished onboarding and the ready gate is not yet green.
+    /// Present while first-run onboarding is incomplete (Spec §2.7.6).
+    /// `gateReady` is kept for call-site compatibility / logging; it does **not** suppress the
+    /// bubble — otherwise launch can skip intro while still needing Login Item / TCC ownership
+    /// in the bubble CTA.
     static func shouldPresent(completed: Bool, gateReady: Bool) -> Bool {
-        !completed && !gateReady
+        _ = gateReady
+        return !completed
     }
 
-    /// Cold start may sync Login Item (and similar preference→system bridges) only when the
-    /// first-run bubble is *not* owning the permission CTA (Spec §2.7.6).
-    /// While `shouldPresent` is true, launch must not fire `SMAppService.register` / TCC prompts;
-    /// the bubble's 「授予权限」 (or later Settings / first record) owns those requests.
+    /// Cold start may sync Login Item (and similar preference→system bridges) **only after**
+    /// onboarding has been marked completed (Spec §2.7.6 / v0.3.21).
+    /// Launch must never auto-fire `SMAppService.register` / TCC prompts while the first-run
+    /// flow is incomplete — even if the ready gate is already green. The bubble's 「授予权限」
+    /// (or later Settings / first record) owns those requests. `gateReady` is ignored.
     static func mayAutoSyncSystemPreferences(completed: Bool, gateReady: Bool) -> Bool {
-        !shouldPresent(completed: completed, gateReady: gateReady)
+        _ = gateReady
+        return completed
     }
 
     static func introSegment(at index: Int) -> String? {
