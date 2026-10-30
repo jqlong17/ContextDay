@@ -228,12 +228,21 @@ final class CapturePipeline {
         }
         let interesting = sent > 0 || skippedDup > 0 || !utterances.isEmpty
         if interesting || (track == .mic && processTick % 10 == 1) {
-            AppLog.info(
-                .vad,
+            var line =
                 "process track=\(track.rawValue) utt=\(utterances.count) sent=\(sent) "
-                    + "skip_dup=\(skippedDup) skip_pending=\(skippedPending) "
-                    + "pcmBytes=\(snap.data.count) emittedN=\(emitted.count) forceFlush=\(forceFlush)"
-            )
+                + "skip_dup=\(skippedDup) skip_pending=\(skippedPending) "
+                + "pcmBytes=\(snap.data.count) emittedN=\(emitted.count) forceFlush=\(forceFlush)"
+            // When mic produces no utterances, attach RMS/peak/voicedFraction so energy stalls
+            // (threshold too high / near-silence convert) are obvious — never log raw audio.
+            if track == .mic && utterances.isEmpty {
+                let probe = vad.probeEnergy(pcm: snap.data, sampleRate: snap.sampleRate)
+                line += String(
+                    format: " rms=%.4f peak=%.4f thr=%.4f noise=%.4f voicedFrac=%.2f frames=%d",
+                    probe.rmsMean, probe.rmsPeak, probe.effectiveThreshold,
+                    probe.noiseFloor, probe.voicedFraction, probe.frameCount
+                )
+            }
+            AppLog.info(.vad, line)
         }
         // Drop emission records older than the ring's stream start (already trimmed away).
         let pruned = emitted.filter { $0.1 >= snap.streamStartMs - 2_000 }

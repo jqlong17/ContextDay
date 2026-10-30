@@ -31,7 +31,20 @@ final class SystemAudioCapture: NSObject, SCStreamDelegate, SCStreamOutput {
             config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
 
             let stream = SCStream(filter: filter, configuration: config, delegate: self)
-            try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global(qos: .userInitiated))
+            let audioQueue = DispatchQueue(label: "app.contextday.sck.audio", qos: .userInitiated)
+            try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue)
+            // Best-effort no-op screen output so SCK does not spam
+            // "stream output NOT found. Dropping frame". Must not block mic or audio.
+            // System Music must never mute mic (Spec §1.4 dual-rail).
+            do {
+                let videoQueue = DispatchQueue(label: "app.contextday.sck.video", qos: .utility)
+                try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
+            } catch {
+                AppLog.info(
+                    .capture,
+                    "system screen output optional failed: \(error.localizedDescription) (audio continues)"
+                )
+            }
             try await stream.startCapture()
             self.stream = stream
             AppLog.info(.capture, "system audio started")

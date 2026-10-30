@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.27** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.27 权限气泡对话化（稍后再说 / 缺权限再提示；Login Item 不挡开录）；v0.3.26 首启气泡拖拽 child-window 跟随 +「上一步」+ 正文无黑底；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.28** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.28 VAD 自适应噪声底（修麦轨 utt=0 饿死）；v0.3.27 权限气泡对话化；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 21:50 Asia/Shanghai |
+| 最后更新 | 2026-10-30 22:10 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -83,7 +83,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | 保留音频 | **关** | 开则落盘 Opus，并展示**预估 1 天占用**；用途见 §2.1.1 |
 | 音频范围 | 仅人声 / 全部 | 仅人声依赖分类过滤开启 |
 | 质量档 | 开留音时默认 **Opus 24 kbps**；另可选 **12** / **64 kbps** | 用户可见全日留音档**仅此三档**；**不提供** WAV/PCM/16-bit 预设（见 §2.4） |
-| VAD | 静音结束约 1.5–2s；最短送识 **3s**；最长 **30s** | 与「展示合并 gap」分开配置 |
+| VAD | 静音结束约 1.5–2s；最短送识 **3s**；最长 **30s**；能量门限为**噪声底相对**（约 10th 百分位 ×3，封顶 0.02）+ 绝对下限约 **0.0035**（勿再用单一绝对 RMS 0.012） | 与「展示合并 gap」分开配置；连续有声逾最长须强制切段；utt=0 时 ~10s 诊断行附 rms/peak/voicedFrac |
 | 合并 gap | **2s**（可配 1–3s） | 同轨、相邻段间隔 ≤ gap 则合并（见 §3.3） |
 | 滚动保留天数 | **建议默认 30** | 可改；**nil = 不自动删**（仍提供手动清空）；设置里可发现 |
 | 登录时打开 | **开**（Debug/dev 默认） | `SMAppService.mainApp` Login Item（macOS 13+）；设置 checkbox 可关；上架须保留用户关闭路径（见 §2.10） |
@@ -91,7 +91,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 ### 2.3 分段与合并
 
 - **门控层（~5s）**：对**每一轨各自**的环缓冲窗打标，决定「本轨是否值得送 ASR / 是否按人声策略留音频」，**不**用 5s 硬切 ASR 句；**无跨轨 mute**（系统 Music ≠ 关麦）。
-- **VAD 层**：每轨独立断句；最短 3s、最长 30s。
+- **VAD 层**：每轨独立断句；最短 3s、最长 30s。能量门限优先相对噪声底（见 §2.2），避免安静 Mac/USB 麦在 48k→16k Int16 后因绝对 RMS 过高而 `inSpeech` 永不启动（无静音收尾、亦无 30s 强切 → 无 ASR）。开着的语音段逾 `maxSpeechMs` **必须**切出，即使全程有声、无静音。
 - **落库合并**：同轨（mic / system）、重叠或相邻 gap ≤ **2s**（可配 1–3s）合并为一条；近同窗去重不拼接；细则见 §3.3.4。
 
 ### 2.4 磁盘粗算（写进配置文案）
@@ -381,7 +381,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 #### 2.9.4 诊断与日志（v0.3.6）
 
 - **权限**：启动 / 打开设置 / 采集失败时记录 Microphone、Screen Recording（系统声）状态；Accessibility / Automation 若未使用则标 `not_applicable`（不伪造授权）。
-- **日志**：`AppLog` → OSLog（subsystem `app.contextday` + category）；可选滚动文件 `{recordsRoot}/logs/contextday-YYYY-MM-DD.log`。info **不**写转写正文（可用 id / 字符数）。
+- **日志**：`AppLog` → OSLog（subsystem `app.contextday` + category）；可选滚动文件 `{recordsRoot}/logs/contextday-YYYY-MM-DD.log`。info **不**写转写正文（可用 id / 字符数）。VAD 麦轨 ~10s 诊断在 `utt=0` 时附 `rms` / `peak` / `thr` / `noise` / `voicedFrac`（**禁止**写原始音频）。
 - **自检**：`POST /v1/tools/self_check` 或 `./Scripts/contextday-cli.sh self_check`；`GET /health` 保持轻量（含 `recording_desync` / `last_capture_error`，完整报告走 `self_check`）。
 
 
@@ -410,7 +410,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click + ready、首启引导气泡深色毛玻璃（§2.7.6）、右键菜单、剪贴板写入 |
 | `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ 环缓冲 |
 | `Features/Gate` | YAMNet-ONNX，~5s 窗；双轨独立标签与送识；Music>Speech 偏置仅限本轨本窗 |
-| `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
+| `Features/VAD` | 断句；min 3s / max 30s；噪声底相对能量门限 + 绝对下限；静音门槛与合并 gap 分离；utt=0 诊断附 rms/peak/voicedFrac |
 | `Features/ASR` | SenseVoice Core ML int8（主力）；失败时明确降级策略（不默认偷开 ONNX） |
 | `Features/Store` | SQLite 时间线、合并、可选 Opus 落盘；**唯一转写权威**；查询 API；**不**写平行 transcript txt；`AgentSkillsStore`（Bundle→App Support） |
 | `Features/Config` | 门控 / 留音 / 质量 / 预估占用 / 滚动保留 UI；UK skill shelf（§2.8.3）；Agent 全文只读 sheet（§2.8.2） |
@@ -736,7 +736,8 @@ flowchart TB
 | T03 | 门控开 + 纯音乐（系统轨） | 本机放歌（麦安静） | **系统轨** Music 优先、默认不送 ASR；**麦轨不受影响**（无跨轨 mute） |
 | T04 | 门控关 | 关过滤后说话/放歌 | 达 VAD 的段均可送 ASR；留音不可选仅人声 |
 | T05 | VAD 最短 | 极短爆破音 | 不足 3s 不落转写 |
-| T06 | VAD 最长 | 连续说 >30s | 约 30s 切段 |
+| T06 | VAD 最长 | 连续说 >30s（可无静音） | 约 30s 强制切段并送识 |
+| T06b | VAD 安静麦 | 安静房底 + 轻声对话（RMS≪0.012） | 仍断句 utt>0；纯静音不发；utt=0 时日志含 rms/peak/thr/voicedFrac |
 | T07 | 合并 | 两句间隔 ≤2s | 时间线一条；起止覆盖两端 |
 | T08 | 碎段 | 间隔 >2s | 两条独立 |
 | T09 | 留音预估 | 开留音并切换 Opus 12/24/64 | 默认关；开后默认 24；预估与 §2.4 同量级；无 WAV/PCM 全日档 |
@@ -785,6 +786,7 @@ flowchart TB
 ## 8. 备忘录
 
 - 门控 5s 与 VAD 切段是两级，不要合成一个旋钮。
+- VAD 能量门限勿回到单一绝对 RMS 0.012；安静 Mac/USB 麦会 `utt=0` 饿死 ASR。优先噪声底相对 + 绝对下限；连续有声必须 max 强切。
 - 留音默认关；开则默认 Opus 24，可选 12 / 64——为证据回听而非 hi-fi；禁止全日 WAV/PCM 预设；m4a/mp4 仅作日后导出。
 - 审核叙事：用户显式激活的本机上下文工具，服务个人助手；非隐蔽监控。
 - 与既有 YamnetGate / AsrCompare 实验代码可参考，但 ContextDay 工程独立，避免绑听写 ONNX 生命周期。
@@ -825,6 +827,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.28 | 2026-10-30 22:10 | §2.2 / §2.3 / VAD：噪声底相对能量门限（替脆弱绝对 RMS 0.012）+ 连续有声强制 max 切；utt=0 诊断附 rms/peak/voicedFrac；SCK 注册 no-op screen 输出抑 Dropping frame；T06/T06b；**Segment schema 不变** |
 | v0.3.27 | 2026-10-30 21:50 | §2.7.6：权限气泡对话化——「稍后再说」推迟文案；开录再检必需权限并点名缺失；Login Item 仅信息、不挡开录；齐备后短「那开始工作」/「我先回到后台」；T27b；**Segment schema 不变** |
 | v0.3.26 | 2026-10-30 21:35 | §2.7.6：气泡拖拽跟随改为 `addChildWindow`（禁拖中用滞后 AppKit frame 硬 setFrame）；介绍/权限页加「上一步」；正文/清单去掉近黑 `NSTextField` 实心底；T27 更新；**Segment schema 不变** |
 | v0.3.25 | 2026-10-30 21:15 | §2.8.3 UK meeting skill shelf：5 个 en-GB 技能（stable ids）+ 设置单面板浏览/示例预览/复制一行指针；`get_clipboard_prompt` 可选 `name`；agent-skills VERSION 0.4.0；**Segment schema 不变** |
@@ -853,13 +856,13 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.26 | **已完成** | v0.3.26 = 首启气泡跟随/上一步/无黑底；v0.3.25 = UK meeting skill shelf；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.28 | **已完成** | v0.3.28 = VAD 自适应噪声底 / max 强切 / utt=0 能量诊断；v0.3.27 = 权限气泡对话化；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
 | DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡 / 冷启动醒来 idle、暂停直进 Concept A、开录 wake S1 / 左键未录音开录 / 右键启停 / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
-| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝防 `Data.subdata` SIGTRAP |
+| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝；**v0.3.28** VAD 噪声底相对门限 + SCK no-op screen 输出 |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小 + UK skill shelf）/ 时间线… / 关于与隐私… |
 | UK meeting skill shelf | **已完成（首批 5 styles）** | v0.3.25：bundled markdown + 设置浏览/预览/复制一行指针；导出后端后续 |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -868,7 +871,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.26 首启气泡跟随/上一步/无黑底；v0.3.25 UK meeting skill shelf（首批 5 styles）；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.28 VAD 自适应噪声底（修麦轨饿死）；v0.3.27 权限气泡对话化；正式公证/上架留待人工提交。**
 
 ---
 
