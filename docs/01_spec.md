@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.19** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.19 引导完成前不自动弹权限；v0.3.18 采集 PCM 竞态热修；首启引导气泡；未录音睡觉循环；冷启动 ready-2s；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.20** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.20 首启气泡 Concept A 深色毛玻璃；v0.3.19 引导完成前不自动弹权限；v0.3.18 采集 PCM 竞态热修；首启引导气泡；未录音睡觉循环；冷启动 ready-2s；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 10:35 Asia/Shanghai |
+| 最后更新 | 2026-10-30 10:36 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -212,11 +212,11 @@ MVP 视觉约定：
 规则：
 
 1. **分段**：文案分 ≥3 段展示（职责 / 本机落盘与 Agent 可读 / 本地安全），**禁止**一次堆出全部长文。段间点「下一步」前进；打字机可偏快；点「下一步」时可跳过当前段剩余打字。
-2. **位置**：气泡锚定浮控窗口上方（球移动时跟随）；圆角卡片 + 朝下小尾巴；窗口层级与浮控同为 `.normal`（可被其它 App 遮盖）。
+2. **位置 / 视觉**（v0.3.20 Concept A）：气泡锚定浮控窗口上方（球移动时跟随）；**深色毛玻璃**（`NSVisualEffectView` `.hudWindow` + `.vibrantDark`）圆角卡片 + 朝下小尾巴；细浅描边 + 软阴影；紧凑内边距；正文奶油色；主按钮为柔和绿色胶囊「下一步」/「授予权限」。窗口层级与浮控同为 `.normal`（可被其它 App 遮盖）。禁止默认浅色 `NSPopover` / 纯白 `controlBackgroundColor` 卡片。
 3. **权限步**：介绍结束后展示约 3–4 项清单——**登录时打开**、**麦克风**、**屏幕录制（系统声）**、**记录文件夹可写**。点「授予权限」依次触发真实系统请求：`SMAppService` / `AVAudioApplication.requestRecordPermission` / `CGRequestScreenCaptureAccess` / 确保记录根可写（必要时 `NSOpenPanel`）。「稍后再说」也标记引导完成，避免每次冷启动重复刷屏；之后仍可通过设置 / 首次录音补授权。
 4. **冷启动不抢戏**（v0.3.19）：引导未完成且就绪门未绿时，`applicationDidFinishLaunching` **不得**自动 `SMAppService.register` / 麦 TCC / 屏幕录制请求。登录项偏好同步推迟到引导完成（或门已绿、气泡不展示）之后；麦与系统声仍仅在「授予权限」或用户开始录音时请求。`PermissionStatus` 启动快照只读、不弹窗。
 5. **完成**：标记 `onboarding_completed_v1`；关闭气泡；再评一次就绪门并可播 §2.7.4 ready（若已就绪）。
-6. **实现**：`OnboardingFlow`（文案、`shouldPresent`、`mayAutoSyncSystemPreferences`）+ `OnboardingBubbleController`；由 `DesktopControlController.considerOnboarding()` 在 `show()` 后调用。
+6. **实现**：`OnboardingFlow`（文案、`shouldPresent`、`mayAutoSyncSystemPreferences`）+ `OnboardingBubbleController`（`OnboardingBubbleLayout` + `BubbleChromeView` 毛玻璃）+ `SoftGreenPillButton`；由 `DesktopControlController.considerOnboarding()` 在 `show()` 后调用。
 
 验收：T27。
 
@@ -373,7 +373,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 | 模块 | 职责 |
 |------|------|
 | `App` | `@main`、生命周期；可选 AppDelegate / 菜单栏入口 |
-| `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click + ready、首启引导气泡（§2.7.6）、右键菜单、剪贴板写入 |
+| `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click + ready、首启引导气泡深色毛玻璃（§2.7.6）、右键菜单、剪贴板写入 |
 | `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ 环缓冲 |
 | `Features/Gate` | YAMNet-ONNX，~5s 窗；双轨独立标签与送识；Music>Speech 偏置仅限本轨本窗 |
 | `Features/VAD` | 断句；min 3s / max 30s；静音门槛与合并 gap 分离 |
@@ -752,7 +752,7 @@ flowchart TB
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
 - 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪用 `playReadyOnce`（`ready-2s.mov`），录音用 `playEyeClickOnce`；每冷启动就绪 ≤1 次。
-- 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏；引导未完成时启动路径不 `SMAppService.register` / 不请求麦与屏幕（v0.3.19）。
+- 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`（Concept A 深色毛玻璃 + 柔绿胶囊，v0.3.20）；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏；引导未完成时启动路径不 `SMAppService.register` / 不请求麦与屏幕（v0.3.19）。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
 ---
@@ -783,6 +783,7 @@ flowchart TB
 | v0.3.17 | 2026-10-30 09:25 | §2.7.5 睡觉占位帧加浮动 **Zzz**（`generate_sleep_zzz_frames.py` + `design/icon-orb-sleep-preview.mp4`）；播放器接线不变；**Segment schema 不变** |
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
+| v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -804,12 +805,12 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.19 | **已完成** | v0.3.19 = 引导前不自动弹权限；v0.3.18 = PCM snapshot 竞态热修；v0.3.17 = 睡觉 Zzz；v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.20 | **已完成** | v0.3.20 = 气泡 Concept A 深色毛玻璃；v0.3.19 = 引导前不自动弹权限；v0.3.18 = PCM snapshot 竞态热修；v0.3.17 = 睡觉 Zzz；v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡引导 / 未录音睡觉循环 / 左键未录音开录 / 右键启停+eye-click / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡引导（v0.3.20 深色毛玻璃 Concept A） / 未录音睡觉循环 / 左键未录音开录 / 右键启停+eye-click / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝防 `Data.subdata` SIGTRAP |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小）/ 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -818,7 +819,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.18 采集 PCM snapshot 竞态热修；v0.3.17 睡觉浮动 Zzz；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.20 首启气泡 Concept A 深色毛玻璃；v0.3.19 引导前不自动弹权限；v0.3.18 采集 PCM snapshot 竞态热修；v0.3.17 睡觉浮动 Zzz；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
 
 ---
 

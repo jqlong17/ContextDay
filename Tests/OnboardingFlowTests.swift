@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import ContextDay
 
@@ -81,5 +82,22 @@ final class OnboardingFlowTests: XCTestCase {
                 XCTAssertEqual(maySync, !present, "completed=\(completed) gateReady=\(gateReady)")
             }
         }
+    }
+
+    func testBubbleLayoutConceptACompactConstants() {
+        // Concept A: tighter card than the original ~312×196 light chrome.
+        XCTAssertLessThanOrEqual(OnboardingBubbleLayout.bubbleWidth, 300)
+        XCTAssertLessThanOrEqual(OnboardingBubbleLayout.bubbleHeightIntro, 170)
+        XCTAssertLessThan(OnboardingBubbleLayout.bubbleHeightIntro, OnboardingBubbleLayout.bubbleHeightPerms)
+        XCTAssertLessThanOrEqual(OnboardingBubbleLayout.contentPadding, 14)
+        XCTAssertGreaterThanOrEqual(OnboardingBubbleLayout.cornerRadius, 12)
+        XCTAssertGreaterThanOrEqual(OnboardingBubbleLayout.tailHeight, 8)
+        XCTAssertEqual(OnboardingBubbleLayout.pillHeight, 28, accuracy: 0.1)
+        // Soft green is clearly green-dominant (not gray / pink).
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        OnboardingBubbleLayout.softGreen.getRed(&r, green: &g, blue: &b, alpha: &a)
+        XCTAssertGreaterThan(g, r)
+        XCTAssertGreaterThan(g, b)
+        XCTAssertGreaterThan(a, 0.9)
     }
 }
