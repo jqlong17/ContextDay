@@ -43,6 +43,77 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertTrue(ids.contains("records_folder"))
     }
 
+    func testLoginItemIsInformationalOnly() {
+        let login = OnboardingFlow.permissionItems.first { $0.id == "login_item" }
+        XCTAssertEqual(login?.requirement, .informational)
+        XCTAssertTrue(OnboardingFlow.informationalItems.contains { $0.id == "login_item" })
+        XCTAssertFalse(OnboardingFlow.recordingRequiredItems.contains { $0.id == "login_item" })
+        let requiredIDs = Set(OnboardingFlow.recordingRequiredItems.map(\.id))
+        XCTAssertEqual(requiredIDs, ["microphone", "screen_recording", "records_folder"])
+    }
+
+    func testCanStartCaptureIgnoresLoginItem() {
+        // Only Login Item missing → still can start.
+        let loginOnlyMissing = OnboardingFlow.PermissionFlags(
+            loginItemOK: false,
+            microphoneOK: true,
+            screenRecordingOK: true,
+            recordsFolderOK: true
+        )
+        XCTAssertTrue(OnboardingFlow.canStartCapture(flags: loginOnlyMissing))
+        XCTAssertTrue(OnboardingFlow.missingRecordingRequired(flags: loginOnlyMissing).isEmpty)
+
+        // Mic missing → cannot start, even if Login Item OK.
+        let micMissing = OnboardingFlow.PermissionFlags(
+            loginItemOK: true,
+            microphoneOK: false,
+            screenRecordingOK: true,
+            recordsFolderOK: true
+        )
+        XCTAssertFalse(OnboardingFlow.canStartCapture(flags: micMissing))
+        XCTAssertEqual(
+            OnboardingFlow.missingRecordingRequired(flags: micMissing).map(\.id),
+            ["microphone"]
+        )
+
+        // Screen + folder missing.
+        let multi = OnboardingFlow.PermissionFlags(
+            loginItemOK: false,
+            microphoneOK: true,
+            screenRecordingOK: false,
+            recordsFolderOK: false
+        )
+        XCTAssertFalse(OnboardingFlow.canStartCapture(flags: multi))
+        XCTAssertEqual(
+            Set(OnboardingFlow.missingRecordingRequired(flags: multi).map(\.id)),
+            ["screen_recording", "records_folder"]
+        )
+    }
+
+    func testConversationalCopyForDeferMissingAndReady() {
+        XCTAssertTrue(OnboardingFlow.deferredSkipMessage.contains("暂时还不能完成录制"))
+        XCTAssertTrue(OnboardingFlow.deferredSkipMessage.contains("再检查权限"))
+
+        let one = OnboardingFlow.missingRequiredMessage(missingTitles: ["麦克风"])
+        XCTAssertTrue(one.contains("麦克风"))
+        XCTAssertTrue(one.contains("尚未开通"))
+        XCTAssertTrue(one.contains("不能完成录制"))
+
+        let two = OnboardingFlow.missingRequiredMessage(
+            missingTitles: ["麦克风", "屏幕录制（系统声）"]
+        )
+        XCTAssertTrue(two.contains("麦克风和屏幕录制（系统声）"))
+
+        let three = OnboardingFlow.missingRequiredMessage(
+            missingTitles: ["麦克风", "屏幕录制（系统声）", "记录文件夹可写"]
+        )
+        XCTAssertTrue(three.contains("麦克风、屏幕录制（系统声）和记录文件夹可写"))
+
+        XCTAssertEqual(OnboardingFlow.readyToWorkMessage, "那开始工作")
+        XCTAssertEqual(OnboardingFlow.returnToBackgroundMessage, "我先回到后台")
+        XCTAssertFalse(OnboardingFlow.permissionsIntroBody.isEmpty)
+    }
+
     func testOnboardingStoreMarkCompleted() {
         XCTAssertFalse(OnboardingStore.isCompleted)
         OnboardingStore.markCompleted()
