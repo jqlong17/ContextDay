@@ -152,11 +152,62 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     /// Left-click shortcut: start only when not already recording (no toggle-off).
     private func startRecordingFromPrimaryClick() {
         guard !isRecording else { return }
-        setRecording(true, playClip: true)
+        // First-run bubble owns the grant CTA until completed / deferred (Spec §2.7.6).
+        guard OnboardingStore.isCompleted else { return }
+        attemptStartRecording(playClip: true)
     }
 
     @objc private func startRecordingFromMenu() {
-        setRecording(true, playClip: true)
+        guard !isRecording else { return }
+        guard OnboardingStore.isCompleted else { return }
+        attemptStartRecording(playClip: true)
+    }
+
+    /// Re-check recording-required permissions before capture (Spec §2.7.6 v0.3.27).
+    /// Login Item never blocks. Missing required → conversational bubble; all OK → start.
+    private func attemptStartRecording(playClip: Bool) {
+        // Avoid stacking while a conversational ack / checklist is already up.
+        if onboardingBubble?.isVisible == true { return }
+        let flags = livePermissionFlags()
+        let missing = OnboardingFlow.missingRecordingRequired(flags: flags)
+        guard missing.isEmpty else {
+            presentMissingPermissionBubble(missingTitles: missing.map(\.title))
+            return
+        }
+        setRecording(true, playClip: playClip)
+    }
+
+    private func livePermissionFlags() -> OnboardingFlow.PermissionFlags {
+        let snap = PermissionStatus.snapshot()
+        let loginOK = LoginItemService.status == .enabled || LoginItemService.status == .requiresApproval
+        return OnboardingFlow.PermissionFlags(
+            loginItemOK: loginOK,
+            microphoneOK: snap.entry(.microphone)?.state == .authorized,
+            screenRecordingOK: snap.entry(.screenRecording)?.state == .authorized,
+            recordsFolderOK: LaunchReadyGate.isWritableDirectory(AppPaths.recordsRoot)
+        )
+    }
+
+    private func presentMissingPermissionBubble(missingTitles: [String]) {
+        guard let window else { return }
+        if onboardingBubble == nil {
+            onboardingBubble = makeOnboardingBubble()
+        }
+        onboardingBubble?.presentMissingRequired(above: window, missingTitles: missingTitles)
+    }
+
+    private func makeOnboardingBubble() -> OnboardingBubbleController {
+        let bubble = OnboardingBubbleController()
+        bubble.onFinished = { [weak self] in
+            self?.onboardingBubble = nil
+            self?.considerReadyBlink()
+        }
+        bubble.onReadyToStartRecording = { [weak self] in
+            guard let self, !self.isRecording else { return }
+            // Required perms just confirmed in the bubble — start without re-prompting.
+            self.setRecording(true, playClip: true)
+        }
+        return bubble
     }
 
     @objc private func pauseRecordingFromMenu() {
@@ -240,13 +291,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         }
         guard let window else { return }
         if onboardingBubble == nil {
-            let bubble = OnboardingBubbleController()
-            bubble.onFinished = { [weak self] in
-                self?.onboardingBubble = nil
-                // After grants, re-check ready blink once.
-                self?.considerReadyBlink()
-            }
-            onboardingBubble = bubble
+            onboardingBubble = makeOnboardingBubble()
         }
         onboardingBubble?.present(above: window)
     }

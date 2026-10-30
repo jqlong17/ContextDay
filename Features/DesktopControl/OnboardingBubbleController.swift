@@ -25,10 +25,13 @@ enum OnboardingBubbleLayout {
 
 /// Small speech-bubble panel above the desktop orb for first-run onboarding (Spec §2.7.6).
 /// Streams intro copy in chunks with 「上一步」/「下一步」, then a short permission checklist + real TCC prompts.
+/// Also re-presents conversationally when required recording perms are still missing (v0.3.27).
 /// Visual: Concept A — dark frosted glass (`NSVisualEffectView`) + soft green pill CTAs.
 final class OnboardingBubbleController: NSObject {
     /// Called after the user finishes the permission step (or skips); host may re-eval ready blink.
     var onFinished: (() -> Void)?
+    /// Fired after a start-intent grant succeeds (「那开始工作」) — host should begin capture.
+    var onReadyToStartRecording: (() -> Void)?
 
     private var window: NSWindow?
     private var bubbleView: BubbleChromeView?
@@ -42,7 +45,12 @@ final class OnboardingBubbleController: NSObject {
 
     private var segmentIndex = 0
     private var phase: Phase = .intro
+    /// First-run intro vs remissible missing-permission reminder (orb / menu start).
+    private var presentation: Presentation = .firstRun
+    /// When true, a successful grant ends with 「那开始工作」and asks the host to start capture.
+    private var startIntent = false
     private var typeTimer: Timer?
+    private var dismissTimer: Timer?
     private var typedCount = 0
     private var fullSegment = ""
     private var orbWindow: NSWindow?
@@ -59,25 +67,66 @@ final class OnboardingBubbleController: NSObject {
     private var localMouseMonitor: Any?
     private var lastOrbOrigin: NSPoint?
 
+    private enum Presentation {
+        case firstRun
+        case missingReminder
+    }
+
     private enum Phase {
         case intro
         case permissions
+        /// Short conversational ack (deferred skip / ready / still-missing lead-in).
+        case conversationalAck
+    }
+
+    private enum AckKind {
+        case deferredSkip
+        case readyToWork
+        case returnToBackground
     }
 
     /// Characters per tick — slightly fast so long Chinese copy does not feel sluggish.
     private static let charsPerTick = 2
     private static let tickInterval: TimeInterval = 0.028
+    private static let ackHoldInterval: TimeInterval = 1.35
 
+    /// First-run intro → permission checklist.
     func present(above orbWindow: NSWindow) {
-        detachFromOrbParent()
-        self.orbWindow = orbWindow
-        if window == nil {
-            buildWindow()
-        }
+        beginPresentation(above: orbWindow, presentation: .firstRun, startIntent: false)
         segmentIndex = 0
         phase = .intro
         showIntroChrome()
         startTyping(OnboardingFlow.introSegments[0])
+        AppLog.info(.app, "onboarding bubble presented mode=firstRun")
+    }
+
+    /// Orb / menu start while recording-required permissions are still incomplete (Spec §2.7.6 v0.3.27).
+    /// Login Item is never treated as blocking — `missing` should already exclude it.
+    func presentMissingRequired(above orbWindow: NSWindow, missingTitles: [String]) {
+        beginPresentation(above: orbWindow, presentation: .missingReminder, startIntent: true)
+        showMissingReminderPhase(missingTitles: missingTitles)
+        AppLog.info(
+            .app,
+            "onboarding bubble presented mode=missingReminder missing=\(missingTitles.joined(separator: ","))"
+        )
+    }
+
+    private func beginPresentation(
+        above orbWindow: NSWindow,
+        presentation: Presentation,
+        startIntent: Bool
+    ) {
+        dismissTimer?.invalidate()
+        dismissTimer = nil
+        typeTimer?.invalidate()
+        typeTimer = nil
+        detachFromOrbParent()
+        self.orbWindow = orbWindow
+        self.presentation = presentation
+        self.startIntent = startIntent
+        if window == nil {
+            buildWindow()
+        }
         reposition()
         attachAsChildOfOrb()
         window?.orderFrontRegardless()
@@ -100,12 +149,13 @@ final class OnboardingBubbleController: NSObject {
             self?.reposition()
         }
         installDragTracking()
-        AppLog.info(.app, "onboarding bubble presented")
     }
 
     func dismiss() {
         typeTimer?.invalidate()
         typeTimer = nil
+        dismissTimer?.invalidate()
+        dismissTimer = nil
         isOrbDragging = false
         stopDragFollowTimer()
         removeDragTracking()
@@ -119,6 +169,12 @@ final class OnboardingBubbleController: NSObject {
         window?.orderOut(nil)
         lastOrbOrigin = nil
         AppLog.info(.app, "onboarding bubble dismissed")
+    }
+
+    /// True while the bubble window is ordered in (host uses this to avoid stacking reminders).
+    var isVisible: Bool {
+        guard let window else { return false }
+        return window.isVisible
     }
 
     /// Child-window attachment: Window Server moves bubble with orb during live background-drag,
@@ -453,8 +509,13 @@ final class OnboardingBubbleController: NSObject {
             prevButton.isHidden = !canGoBack || typing
             prevButton.isEnabled = canGoBack
         case .permissions:
-            prevButton.isHidden = false
-            prevButton.isEnabled = true
+            // Reminder mode has no intro to step back into.
+            let showPrev = presentation == .firstRun
+            prevButton.isHidden = !showPrev
+            prevButton.isEnabled = showPrev
+        case .conversationalAck:
+            prevButton.isHidden = true
+            prevButton.isEnabled = false
         }
     }
 
@@ -478,8 +539,15 @@ final class OnboardingBubbleController: NSObject {
         if typedCount >= chars.count {
             typeTimer?.invalidate()
             typeTimer = nil
-            nextButton.isHidden = false
-            updatePrevButtonVisibility(typing: false)
+            switch phase {
+            case .conversationalAck:
+                // Soft-close is driven by dismissTimer started in showConversationalAck.
+                nextButton.isHidden = true
+                updatePrevButtonVisibility(typing: false)
+            case .intro, .permissions:
+                nextButton.isHidden = false
+                updatePrevButtonVisibility(typing: false)
+            }
             return
         }
         let end = min(typedCount + Self.charsPerTick, chars.count)
@@ -511,8 +579,11 @@ final class OnboardingBubbleController: NSObject {
     @objc private func goPrevious() {
         typeTimer?.invalidate()
         typeTimer = nil
+        dismissTimer?.invalidate()
+        dismissTimer = nil
         switch phase {
         case .permissions:
+            guard presentation == .firstRun else { return }
             // Return to the last intro segment (fully shown — no re-type).
             phase = .intro
             segmentIndex = max(0, OnboardingFlow.introCount - 1)
@@ -532,6 +603,8 @@ final class OnboardingBubbleController: NSObject {
             nextButton.isHidden = false
             nextButton.title = segmentIndex + 1 < OnboardingFlow.introCount ? "下一步" : "了解权限"
             updatePrevButtonVisibility(typing: false)
+        case .conversationalAck:
+            break
         }
     }
 
@@ -541,32 +614,69 @@ final class OnboardingBubbleController: NSObject {
         phase = .permissions
         typeTimer?.invalidate()
         typeTimer = nil
+        dismissTimer?.invalidate()
+        dismissTimer = nil
         layoutChrome(height: OnboardingBubbleLayout.bubbleHeightPerms)
-        bodyLabel.stringValue = "为了做到这件事，需要你授予下面几项权限。点「授予权限」后会依次弹出系统对话框："
+        bodyLabel.stringValue = OnboardingFlow.permissionsIntroBody
         bodyLabel.isHidden = false
         nextButton.isHidden = true
         checklistStack.isHidden = false
         grantButton.isHidden = false
         skipButton.isHidden = false
+        grantButton.isEnabled = true
+        skipButton.isEnabled = true
         updatePrevButtonVisibility(typing: false)
         refreshChecklistMarks()
         reposition()
     }
 
-    private func refreshChecklistMarks() {
-        let snap = PermissionStatus.snapshot()
-        let micOK = snap.entry(.microphone)?.state == .authorized
-        let screenOK = snap.entry(.screenRecording)?.state == .authorized
-        let folderOK = LaunchReadyGate.isWritableDirectory(AppPaths.recordsRoot)
-        let loginOK = LoginItemService.status == .enabled || LoginItemService.status == .requiresApproval
+    private func showMissingReminderPhase(missingTitles: [String]) {
+        phase = .permissions
+        typeTimer?.invalidate()
+        typeTimer = nil
+        dismissTimer?.invalidate()
+        dismissTimer = nil
+        layoutChrome(height: OnboardingBubbleLayout.bubbleHeightPerms)
+        bodyLabel.stringValue = OnboardingFlow.missingRequiredMessage(missingTitles: missingTitles)
+        bodyLabel.isHidden = false
+        nextButton.isHidden = true
+        checklistStack.isHidden = false
+        grantButton.isHidden = false
+        skipButton.isHidden = false
+        grantButton.isEnabled = true
+        skipButton.isEnabled = true
+        updatePrevButtonVisibility(typing: false)
+        refreshChecklistMarks()
+        reposition()
+    }
 
-        let flags = [loginOK, micOK, screenOK, folderOK]
+    private func currentPermissionFlags() -> OnboardingFlow.PermissionFlags {
+        let snap = PermissionStatus.snapshot()
+        let loginOK = LoginItemService.status == .enabled || LoginItemService.status == .requiresApproval
+        return OnboardingFlow.PermissionFlags(
+            loginItemOK: loginOK,
+            microphoneOK: snap.entry(.microphone)?.state == .authorized,
+            screenRecordingOK: snap.entry(.screenRecording)?.state == .authorized,
+            recordsFolderOK: LaunchReadyGate.isWritableDirectory(AppPaths.recordsRoot)
+        )
+    }
+
+    private func refreshChecklistMarks() {
+        let flags = currentPermissionFlags()
         for (idx, row) in checklistRows.enumerated() {
             guard OnboardingFlow.permissionItems.indices.contains(idx) else { continue }
             let item = OnboardingFlow.permissionItems[idx]
-            let mark = flags[idx] ? "●" : "○"
-            row.stringValue = "\(mark) \(item.title) — \(item.detail)"
-            row.textColor = flags[idx] ? OnboardingBubbleLayout.creamText : OnboardingBubbleLayout.creamSecondary
+            let ok = flags.isSatisfied(itemID: item.id)
+            let mark = ok ? "●" : "○"
+            let suffix: String
+            switch item.requirement {
+            case .informational:
+                suffix = ok ? item.detail : "\(item.detail)（不影响开录）"
+            case .recordingRequired:
+                suffix = item.detail
+            }
+            row.stringValue = "\(mark) \(item.title) — \(suffix)"
+            row.textColor = ok ? OnboardingBubbleLayout.creamText : OnboardingBubbleLayout.creamSecondary
         }
     }
 
@@ -574,9 +684,9 @@ final class OnboardingBubbleController: NSObject {
         grantButton.isEnabled = false
         skipButton.isEnabled = false
         prevButton.isEnabled = false
-        AppLog.info(.app, "onboarding grantPermissions tapped")
+        AppLog.info(.app, "onboarding grantPermissions tapped startIntent=\(startIntent)")
 
-        // 1) Login Item preference ON + register.
+        // 1) Login Item preference ON + register (informational — never blocks start).
         var cfg = AppConfigStore.load()
         cfg.openAtLogin = true
         AppConfigStore.save(cfg)
@@ -598,22 +708,90 @@ final class OnboardingBubbleController: NSObject {
                 PermissionStatus.logSnapshot(reason: "onboarding_complete")
                 self.grantButton.isEnabled = true
                 self.skipButton.isEnabled = true
-                self.prevButton.isEnabled = true
-                self.finish()
+                self.prevButton.isEnabled = self.presentation == .firstRun
+                self.handlePostGrantOutcome()
             }
         }
     }
 
-    @objc private func skipForNow() {
-        // Still mark completed so we do not re-spam the intro every cold start;
-        // user can grant later via Settings / first record.
-        OnboardingStore.markCompleted()
-        AppLog.info(.app, "onboarding skipped")
-        finish()
+    private func handlePostGrantOutcome() {
+        let flags = currentPermissionFlags()
+        let missing = OnboardingFlow.missingRecordingRequired(flags: flags)
+        if missing.isEmpty {
+            let kind: AckKind = startIntent ? .readyToWork : .returnToBackground
+            showConversationalAck(kind)
+            return
+        }
+        // Still missing required — stay open so the user can grant again; login item ignored.
+        bodyLabel.stringValue = OnboardingFlow.missingRequiredMessage(
+            missingTitles: missing.map(\.title)
+        )
+        phase = .permissions
+        checklistStack.isHidden = false
+        grantButton.isHidden = false
+        skipButton.isHidden = false
+        nextButton.isHidden = true
+        updatePrevButtonVisibility(typing: false)
+        AppLog.info(
+            .app,
+            "onboarding grant incomplete missing=\(missing.map(\.id).joined(separator: ","))"
+        )
     }
 
-    private func finish() {
+    @objc private func skipForNow() {
+        // Mark completed so we do not re-spam the intro every cold start;
+        // conversational deferral, then soft-close — never start capture.
+        OnboardingStore.markCompleted()
+        AppLog.info(.app, "onboarding skipped (deferred ack)")
+        showConversationalAck(.deferredSkip)
+    }
+
+    private func showConversationalAck(_ kind: AckKind) {
+        phase = .conversationalAck
+        typeTimer?.invalidate()
+        typeTimer = nil
+        dismissTimer?.invalidate()
+        dismissTimer = nil
+        layoutChrome(height: OnboardingBubbleLayout.bubbleHeightIntro)
+        checklistStack.isHidden = true
+        grantButton.isHidden = true
+        skipButton.isHidden = true
+        nextButton.isHidden = true
+        prevButton.isHidden = true
+        bodyLabel.isHidden = false
+        let text: String
+        switch kind {
+        case .deferredSkip:
+            text = OnboardingFlow.deferredSkipMessage
+        case .readyToWork:
+            text = OnboardingFlow.readyToWorkMessage
+        case .returnToBackground:
+            text = OnboardingFlow.returnToBackgroundMessage
+        }
+        startTyping(text)
+        // Soft-close after typing duration + brief hold; do not start capture on deferred.
+        let typeSeconds = ceil(Double(text.count) / Double(Self.charsPerTick)) * Self.tickInterval
+        let delay = typeSeconds + Self.ackHoldInterval
+        dismissTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            switch kind {
+            case .deferredSkip, .returnToBackground:
+                self.finish(startRecording: false)
+            case .readyToWork:
+                self.finish(startRecording: true)
+            }
+        }
+        if let dismissTimer {
+            RunLoop.main.add(dismissTimer, forMode: .common)
+        }
+        reposition()
+    }
+
+    private func finish(startRecording: Bool) {
         dismiss()
+        if startRecording {
+            onReadyToStartRecording?()
+        }
         onFinished?()
     }
 
