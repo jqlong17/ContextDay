@@ -54,4 +54,32 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertNil(OnboardingFlow.introSegment(at: -1))
         XCTAssertNil(OnboardingFlow.introSegment(at: OnboardingFlow.introCount))
     }
+
+    func testMayAutoSyncSystemPreferencesDefersWhileOnboardingOwnsCTA() {
+        // First-run bubble path: incomplete + gate not ready → no auto Login Item / TCC on launch.
+        XCTAssertFalse(
+            OnboardingFlow.mayAutoSyncSystemPreferences(completed: false, gateReady: false)
+        )
+        // After onboarding finished (grant or skip) → launch may sync Login Item preference.
+        XCTAssertTrue(
+            OnboardingFlow.mayAutoSyncSystemPreferences(completed: true, gateReady: false)
+        )
+        // Gate already green (permissions ready) even if flag unset → bubble skipped; sync OK.
+        XCTAssertTrue(
+            OnboardingFlow.mayAutoSyncSystemPreferences(completed: false, gateReady: true)
+        )
+        XCTAssertTrue(
+            OnboardingFlow.mayAutoSyncSystemPreferences(completed: true, gateReady: true)
+        )
+        // Inverse of shouldPresent.
+        for completed in [false, true] {
+            for gateReady in [false, true] {
+                let present = OnboardingFlow.shouldPresent(completed: completed, gateReady: gateReady)
+                let maySync = OnboardingFlow.mayAutoSyncSystemPreferences(
+                    completed: completed, gateReady: gateReady
+                )
+                XCTAssertEqual(maySync, !present, "completed=\(completed) gateReady=\(gateReady)")
+            }
+        }
+    }
 }

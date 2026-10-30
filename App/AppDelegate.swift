@@ -14,8 +14,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         PermissionStatus.logSnapshot(reason: "launch")
 
-        // Spec §2.2 / §2.10: Login Item preference → SMAppService (default ON; user can disable).
-        LoginItemService.syncFromPreference(AppConfigStore.load().openAtLogin)
+        // Spec §2.7.6 / §2.10: Login Item sync can prompt (SMAppService.register / requiresApproval).
+        // Defer while first-run bubble owns the permission CTA — do not chain system dialogs on install.
+        let gateReadyAtLaunch = LaunchReadyGate.isReady()
+        let onboardingDone = OnboardingStore.isCompleted
+        if OnboardingFlow.mayAutoSyncSystemPreferences(
+            completed: onboardingDone,
+            gateReady: gateReadyAtLaunch
+        ) {
+            LoginItemService.syncFromPreference(AppConfigStore.load().openAtLogin)
+        } else {
+            AppLog.info(
+                .app,
+                "login item sync deferred until onboarding finishes completed=\(onboardingDone) gateReady=\(gateReadyAtLaunch)"
+            )
+        }
 
         RetentionPurger.purgeIfNeeded()
         if let warning = DiskSpaceGuard.status().warning {

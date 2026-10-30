@@ -45,6 +45,14 @@ enum OnboardingFlow {
         !completed && !gateReady
     }
 
+    /// Cold start may sync Login Item (and similar preference→system bridges) only when the
+    /// first-run bubble is *not* owning the permission CTA (Spec §2.7.6).
+    /// While `shouldPresent` is true, launch must not fire `SMAppService.register` / TCC prompts;
+    /// the bubble's 「授予权限」 (or later Settings / first record) owns those requests.
+    static func mayAutoSyncSystemPreferences(completed: Bool, gateReady: Bool) -> Bool {
+        !shouldPresent(completed: completed, gateReady: gateReady)
+    }
+
     static func introSegment(at index: Int) -> String? {
         guard introSegments.indices.contains(index) else { return nil }
         return introSegments[index]
