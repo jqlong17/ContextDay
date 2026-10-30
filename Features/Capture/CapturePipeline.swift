@@ -19,6 +19,8 @@ final class CapturePipeline {
     /// Wall-clock [t0,t1] already sent to ASR — survives ring trim (sample-index dedupe does not).
     private var emittedMic: [(Int64, Int64)] = []
     private var emittedSystem: [(Int64, Int64)] = []
+    /// Rate-limit empty-buffer / no-utt triage logs on the process queue.
+    private var processTick: Int = 0
     private var converter: AVAudioConverter?
     private let targetSampleRate: Double = 16_000
     private var systemCapture: AnyObject?
@@ -55,6 +57,7 @@ final class CapturePipeline {
         guard !isRunning else { return }
         emittedMic.removeAll()
         emittedSystem.removeAll()
+        processTick = 0
         let sessionStart = Int64(Date().timeIntervalSince1970 * 1000)
         micBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
         systemBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
@@ -186,24 +189,51 @@ final class CapturePipeline {
         let ring = track == .mic ? micBuffer : systemBuffer
         var emitted = track == .mic ? emittedMic : emittedSystem
         let snap = ring.snapshot()
-        guard snap.data.count > 3200 else { return }
+        if track == .mic { processTick += 1 }
+        guard snap.data.count > 3200 else {
+            if track == .mic && processTick % 10 == 1 {
+                AppLog.info(
+                    .vad,
+                    "process track=\(track.rawValue) pcmBytes=\(snap.data.count) (below VAD threshold) tick=\(processTick)"
+                )
+            }
+            return
+        }
         let utterances = vad.segment(pcm: snap.data, streamStartMs: snap.streamStartMs, sampleRate: snap.sampleRate)
         AppLog.debug(
             .vad,
             "track=\(track.rawValue) utterances=\(utterances.count) pcmBytes=\(snap.data.count) forceFlush=\(forceFlush)"
         )
+        var skippedDup = 0
+        var skippedPending = 0
+        var sent = 0
         for utt in utterances {
-            // Single-flight by wall-clock window (Spec v0.3.23). Sample-index ±800 failed after
-            // ring trim shifted indices while t0/t1 only jittered 1–2ms — same utterance re-ASR'd dozens of times.
+            // Single-flight by wall-clock cover (Spec v0.3.24). Must NOT use overlap/min(dur)
+            // (`isNearDuplicateInterval`) — that treats a longer refinement of a short prior
+            // emit as a dup and can starve all later ASR. Sample-index ±800 still fails after ring trim.
             if emitted.contains(where: {
-                SegmentMerger.isNearDuplicateInterval(a0: $0.0, a1: $0.1, b0: utt.t0Ms, b1: utt.t1Ms)
+                SegmentMerger.isAlreadyEmittedInterval(a0: $0.0, a1: $0.1, b0: utt.t0Ms, b1: utt.t1Ms)
             }) {
+                skippedDup += 1
                 continue
             }
             let samplesNow = snap.data.count / 2
-            if !forceFlush && utt.endSample > samplesNow - snap.sampleRate { continue }
+            if !forceFlush && utt.endSample > samplesNow - snap.sampleRate {
+                skippedPending += 1
+                continue
+            }
             emitted.append((utt.t0Ms, utt.t1Ms))
+            sent += 1
             handleUtterance(utt, pcm: snap.data, track: track)
+        }
+        let interesting = sent > 0 || skippedDup > 0 || !utterances.isEmpty
+        if interesting || (track == .mic && processTick % 10 == 1) {
+            AppLog.info(
+                .vad,
+                "process track=\(track.rawValue) utt=\(utterances.count) sent=\(sent) "
+                    + "skip_dup=\(skippedDup) skip_pending=\(skippedPending) "
+                    + "pcmBytes=\(snap.data.count) emittedN=\(emitted.count) forceFlush=\(forceFlush)"
+            )
         }
         // Drop emission records older than the ring's stream start (already trimmed away).
         let pruned = emitted.filter { $0.1 >= snap.streamStartMs - 2_000 }
@@ -227,6 +257,10 @@ final class CapturePipeline {
         var gateLabel: GateLabel?
         if cfg.gateEnabled {
             // Per-track only: system Music must never mute mic ASR (Spec §1.4 dual-rail).
+            AppLog.info(
+                .gate,
+                "classify begin track=\(track.rawValue) dur_ms=\(durationMs) pcmBytes=\(slice.count)"
+            )
             let result = gate.classify(
                 track: track, pcmWindow: slice,
                 windowStartMs: utt.t0Ms, windowEndMs: utt.t1Ms
