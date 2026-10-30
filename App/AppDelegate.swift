@@ -14,8 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         PermissionStatus.logSnapshot(reason: "launch")
 
-        // Spec §2.7.6 / §2.10: Login Item sync can prompt (SMAppService.register / requiresApproval).
-        // Defer while first-run bubble owns the permission CTA — do not chain system dialogs on install.
+        // Spec §2.7.6 / §2.10 / v0.3.21: Login Item sync can prompt (SMAppService.register /
+        // requiresApproval). Launch never auto-requests TCC / Login Item while onboarding is
+        // incomplete — bubble 「授予权限」 (or Settings / first record) owns those prompts.
         let gateReadyAtLaunch = LaunchReadyGate.isReady()
         let onboardingDone = OnboardingStore.isCompleted
         if OnboardingFlow.mayAutoSyncSystemPreferences(

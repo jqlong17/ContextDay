@@ -64,9 +64,10 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
 
         window = win
         orbView = orb
-        // Spec §2.7.5: not recording → sleep idle loop (placeholder frames until designer art).
-        orb.prefersSleepIdle = true
-        orb.startSleepIdleLoop()
+        // Spec §2.7.5 / v0.3.21: cold start uses keyed idle (blink / ready path), not sleep.
+        // Sleep loop is for after pause — see setRecording(false).
+        orb.prefersSleepIdle = false
+        orb.stopSleepIdleLoop()
         win.orderFrontRegardless()
     }
 
@@ -214,7 +215,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Spec §2.7.6: first-run speech bubble above orb when permissions not yet ready.
+    /// Spec §2.7.6: first-run speech bubble above orb while onboarding incomplete (v0.3.21).
     func considerOnboarding() {
         let gateReady = LaunchReadyGate.isReady()
         guard OnboardingFlow.shouldPresent(

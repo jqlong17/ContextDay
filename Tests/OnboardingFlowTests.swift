@@ -13,10 +13,11 @@ final class OnboardingFlowTests: XCTestCase {
         super.tearDown()
     }
 
-    func testShouldPresentOnlyWhenIncompleteAndNotReady() {
+    func testShouldPresentWhileOnboardingIncomplete() {
+        // v0.3.21: gateReady no longer suppresses the bubble — first-run owns permission CTA.
         XCTAssertTrue(OnboardingFlow.shouldPresent(completed: false, gateReady: false))
         XCTAssertFalse(OnboardingFlow.shouldPresent(completed: true, gateReady: false))
-        XCTAssertFalse(OnboardingFlow.shouldPresent(completed: false, gateReady: true))
+        XCTAssertTrue(OnboardingFlow.shouldPresent(completed: false, gateReady: true))
         XCTAssertFalse(OnboardingFlow.shouldPresent(completed: true, gateReady: true))
     }
 
@@ -56,30 +57,32 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertNil(OnboardingFlow.introSegment(at: OnboardingFlow.introCount))
     }
 
-    func testMayAutoSyncSystemPreferencesDefersWhileOnboardingOwnsCTA() {
-        // First-run bubble path: incomplete + gate not ready → no auto Login Item / TCC on launch.
+    func testMayAutoSyncSystemPreferencesOnlyAfterOnboardingCompleted() {
+        // v0.3.21: launch never auto-syncs Login Item / TCC while onboarding incomplete,
+        // even when the ready gate is already green (bubble still owns the CTA).
         XCTAssertFalse(
             OnboardingFlow.mayAutoSyncSystemPreferences(completed: false, gateReady: false)
+        )
+        XCTAssertFalse(
+            OnboardingFlow.mayAutoSyncSystemPreferences(completed: false, gateReady: true)
         )
         // After onboarding finished (grant or skip) → launch may sync Login Item preference.
         XCTAssertTrue(
             OnboardingFlow.mayAutoSyncSystemPreferences(completed: true, gateReady: false)
         )
-        // Gate already green (permissions ready) even if flag unset → bubble skipped; sync OK.
-        XCTAssertTrue(
-            OnboardingFlow.mayAutoSyncSystemPreferences(completed: false, gateReady: true)
-        )
         XCTAssertTrue(
             OnboardingFlow.mayAutoSyncSystemPreferences(completed: true, gateReady: true)
         )
-        // Inverse of shouldPresent.
+        // maySync == completed; shouldPresent == !completed (gateReady ignored for both).
         for completed in [false, true] {
             for gateReady in [false, true] {
                 let present = OnboardingFlow.shouldPresent(completed: completed, gateReady: gateReady)
                 let maySync = OnboardingFlow.mayAutoSyncSystemPreferences(
                     completed: completed, gateReady: gateReady
                 )
-                XCTAssertEqual(maySync, !present, "completed=\(completed) gateReady=\(gateReady)")
+                XCTAssertEqual(present, !completed, "present completed=\(completed) gateReady=\(gateReady)")
+                XCTAssertEqual(maySync, completed, "maySync completed=\(completed) gateReady=\(gateReady)")
+                XCTAssertEqual(maySync, !present, "inverse completed=\(completed) gateReady=\(gateReady)")
             }
         }
     }

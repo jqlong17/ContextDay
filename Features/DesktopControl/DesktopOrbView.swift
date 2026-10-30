@@ -3,7 +3,7 @@ import AVFoundation
 import CoreGraphics
 import ImageIO
 
-/// Twin-eye 3D orb: sleep frame-loop when idle, one-shot clips (eye-click / ready), keyed idle settle (Spec §2.7).
+/// Twin-eye 3D orb: keyed idle by default, optional sleep loop after pause, one-shot clips (eye-click / ready) (Spec §2.7).
 final class DesktopOrbView: NSView {
     private let idleLayer = CALayer()
     private let playerView = NSView()
@@ -15,8 +15,8 @@ final class DesktopOrbView: NSView {
     var onPrimaryClick: (() -> Void)?
 
     private let sleepLoop = OrbFrameLoopPlayer()
-    /// When true (not recording), settle / show paths prefer looping sleep frames.
-    var prefersSleepIdle = true
+    /// When true, settle / show paths prefer looping sleep frames (after pause). Cold start default is false.
+    var prefersSleepIdle = false
     private var isPlayingOneShot = false
 
     var onSecondaryClick: ((NSPoint) -> Void)?
@@ -265,7 +265,7 @@ final class DesktopOrbView: NSView {
     }
 
     /// Plays rematted `eye-click-2s.mov` once, then settles to sleep loop (if prefersSleepIdle)
-    /// or keyed idle.png. Legacy greenscreen `.mp4` is never used.
+    /// or keyed idle.png (cold-start / interactive default). Legacy greenscreen `.mp4` is never used.
     func playEyeClickOnce() {
         guard let url = Self.eyeClickURL() else {
             NSLog("ContextDay: eye-click-2s.mov not found in bundle (alpha rematte required)")

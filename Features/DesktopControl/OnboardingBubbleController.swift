@@ -45,6 +45,9 @@ final class OnboardingBubbleController: NSObject {
     private var fullSegment = ""
     private var orbWindow: NSWindow?
     private var moveObserver: NSObjectProtocol?
+    /// Live follow while orb is dragged via `isMovableByWindowBackground` (didMove alone can lag / skip).
+    private var frameObservation: NSKeyValueObservation?
+    private var dragFollowTimer: Timer?
 
     private enum Phase {
         case intro
@@ -75,18 +78,42 @@ final class OnboardingBubbleController: NSObject {
         ) { [weak self] _ in
             self?.reposition()
         }
+        // `isMovableByWindowBackground` often does not post didMove on every drag tick.
+        // KVO on frame + a short drag timer keep the bubble glued above the orb in real time.
+        frameObservation = orbWindow.observe(\.frame, options: [.new]) { [weak self] _, _ in
+            self?.reposition()
+        }
+        startDragFollowTimer()
         AppLog.info(.app, "onboarding bubble presented")
     }
 
     func dismiss() {
         typeTimer?.invalidate()
         typeTimer = nil
+        stopDragFollowTimer()
+        frameObservation?.invalidate()
+        frameObservation = nil
         if let moveObserver {
             NotificationCenter.default.removeObserver(moveObserver)
             self.moveObserver = nil
         }
         window?.orderOut(nil)
         AppLog.info(.app, "onboarding bubble dismissed")
+    }
+
+    private func startDragFollowTimer() {
+        stopDragFollowTimer()
+        // ~60 Hz reposition while presented — cheap; covers any frame-KVO miss during drag.
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            self?.reposition()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        dragFollowTimer = timer
+    }
+
+    private func stopDragFollowTimer() {
+        dragFollowTimer?.invalidate()
+        dragFollowTimer = nil
     }
 
     // MARK: - Layout
@@ -219,7 +246,8 @@ final class OnboardingBubbleController: NSObject {
                 origin.y = max(vis.minY + 8, vis.maxY - size.height - 8)
             }
         }
-        window.setFrame(NSRect(origin: origin, size: size), display: true)
+        // Origin-only update avoids resize flicker while following a live drag.
+        window.setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
     }
 
     // MARK: - Intro typing
