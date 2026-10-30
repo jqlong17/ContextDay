@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Play eye-click once when mic + screen + records root are OK; at most one blink per cold start.
+    /// Play ready clip once when mic + screen + records root are OK; at most one per cold start.
     private func scheduleReadyBlink() {
         desktopControl?.considerReadyBlink()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in

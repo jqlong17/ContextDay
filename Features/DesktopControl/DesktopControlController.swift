@@ -213,7 +213,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Spec §2.7.4: after cold start reaches ready (mic + screen + records writable), play eye-click once.
+    /// Spec §2.7.4: after cold start reaches ready (mic + screen + records writable), play ready clip once.
     func considerReadyBlink() {
         guard !didPlayReadyBlink else { return }
         let gate = LaunchReadyGate.evaluate()
@@ -225,8 +225,8 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
             return
         }
         didPlayReadyBlink = true
-        orbView?.playEyeClickOnce()
-        AppLog.info(.app, "ready-blink played (cold start all-good)")
+        orbView?.playReadyOnce()
+        AppLog.info(.app, "ready-blink played (cold start all-good, ready-2s)")
     }
 
     /// Called on system sleep / terminate — stop capture; do not auto-resume on wake.
