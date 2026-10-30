@@ -12,7 +12,8 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     private var timelineWindow: TimelineWindowController?
     private var aboutWindow: AboutPrivacyWindowController?
 
-    /// Wired to 右键「开始录音 / 暂停录音」/ 睡眠暂停. Left-click does **not** toggle recording (Spec §2.7.3).
+    /// Wired to left-click start (idle only) / 右键「开始录音 / 暂停录音」/ 睡眠暂停.
+    /// Left-click never pauses — pause/stop stays on the right-click menu (Spec §2.7.3).
     private(set) var isRecording = false
     private let capture = CapturePipeline()
     /// One-shot ready blink per cold start (Spec §2.7.4) — never spam.
@@ -50,8 +51,11 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         win.isReleasedWhenClosed = false
 
         let orb = DesktopOrbView(frame: NSRect(origin: .zero, size: size))
-        // Left-click: drag only (via isMovableByWindowBackground). Recording / eye-click
-        // are right-menu (and smoke) paths — align with Notta Input: no record on primary click.
+        // Left-click (not drag): start recording when idle — guide into capture faster.
+        // Already recording → no-op (pause/stop only via right-click menu). Spec §2.7.3.
+        orb.onPrimaryClick = { [weak self] in
+            self?.startRecordingFromPrimaryClick()
+        }
         orb.onSecondaryClick = { [weak self] point in
             self?.showContextMenu(at: point)
         }
@@ -62,7 +66,7 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         win.orderFrontRegardless()
     }
 
-    /// Activate/stop path for 开始录音 / 暂停录音 (and smoke). Not bound to left-click.
+    /// Activate/stop path for left-click start / 开始录音 / 暂停录音 (and smoke).
     private func setRecording(_ recording: Bool, playEyeClick: Bool) {
         guard recording != isRecording else { return }
         isRecording = recording
@@ -122,6 +126,12 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
         default:
             return true
         }
+    }
+
+    /// Left-click shortcut: start only when not already recording (no toggle-off).
+    private func startRecordingFromPrimaryClick() {
+        guard !isRecording else { return }
+        setRecording(true, playEyeClick: true)
     }
 
     @objc private func startRecordingFromMenu() {

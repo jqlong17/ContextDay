@@ -11,7 +11,14 @@ final class DesktopOrbView: NSView {
     private var playerLayer: AVPlayerLayer?
     private var endObserver: NSObjectProtocol?
 
+    /// Fired on left-button click (not drag). Controller may start recording when idle.
+    var onPrimaryClick: (() -> Void)?
     var onSecondaryClick: ((NSPoint) -> Void)?
+
+    private var mouseDownLocationInWindow: NSPoint?
+    private var primaryDidDrag = false
+    /// Movement beyond this (pt) counts as drag, not click — keep left-drag movable.
+    private static let primaryClickSlop: CGFloat = 4
 
     /// Must be false so AppKit composites clear/orb alpha instead of an opaque plate.
     override var isOpaque: Bool { false }
@@ -296,9 +303,42 @@ final class DesktopOrbView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        // Left-click: window drag only (`isMovableByWindowBackground`). Do not toggle
-        // recording or play eye-click here — those stay on the right-click menu (Spec §2.7.3).
+        // Track for click-vs-drag. Window drag still works via `isMovableByWindowBackground`.
+        mouseDownLocationInWindow = event.locationInWindow
+        primaryDidDrag = false
         super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        if let start = mouseDownLocationInWindow {
+            let p = event.locationInWindow
+            let dx = p.x - start.x
+            let dy = p.y - start.y
+            if (dx * dx + dy * dy) > (Self.primaryClickSlop * Self.primaryClickSlop) {
+                primaryDidDrag = true
+            }
+        }
+        super.mouseDragged(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer {
+            mouseDownLocationInWindow = nil
+            primaryDidDrag = false
+            super.mouseUp(with: event)
+        }
+        guard event.type == .leftMouseUp else { return }
+        guard !primaryDidDrag else { return }
+        if let start = mouseDownLocationInWindow {
+            let p = event.locationInWindow
+            let dx = p.x - start.x
+            let dy = p.y - start.y
+            if (dx * dx + dy * dy) > (Self.primaryClickSlop * Self.primaryClickSlop) {
+                return
+            }
+        }
+        // Spec §2.7.3: idle/paused left-click starts recording (controller decides).
+        onPrimaryClick?()
     }
 
     override func rightMouseDown(with event: NSEvent) {
