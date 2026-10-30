@@ -96,11 +96,21 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(OnboardingBubbleLayout.cornerRadius, 12)
         XCTAssertGreaterThanOrEqual(OnboardingBubbleLayout.tailHeight, 8)
         XCTAssertEqual(OnboardingBubbleLayout.pillHeight, 28, accuracy: 0.1)
+        XCTAssertGreaterThanOrEqual(OnboardingBubbleLayout.prevButtonWidth, 64)
+        XCTAssertGreaterThan(OnboardingBubbleLayout.gapAboveOrb, 0)
         // Soft green is clearly green-dominant (not gray / pink).
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         OnboardingBubbleLayout.softGreen.getRed(&r, green: &g, blue: &b, alpha: &a)
         XCTAssertGreaterThan(g, r)
         XCTAssertGreaterThan(g, b)
         XCTAssertGreaterThan(a, 0.9)
+    }
+
+    func testIntroSupportsSteppingBackAfterFirstPage() {
+        // v0.3.26: multi-page intro must be reversible after page 0.
+        XCTAssertGreaterThanOrEqual(OnboardingFlow.introCount, 3)
+        for i in 1..<OnboardingFlow.introCount {
+            XCTAssertNotNil(OnboardingFlow.introSegment(at: i - 1), "prev target for page \(i)")
+        }
     }
 }
