@@ -4,7 +4,7 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.16** |
+| Spec 版本 | **v0.3.17** |
 | 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；首启权限未就绪时桌面球上方**引导气泡**（分段打字 +「下一步」+ 权限清单）；未录音睡觉循环；冷启动 ready-2s；左键未录音开录；设置单面板；登录项默认开；§2.8 剪贴板一行指针；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
 | 最后更新 | 2026-10-30 09:15 Asia/Shanghai |
@@ -133,7 +133,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | 资源 | 路径 / Asset 名 | 说明 |
 |------|-----------------|------|
 | Idle（产品 + 桌面） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；醒来 / 录制态静帧底图 |
-| 睡觉循环（未录音） | `Resources/DesktopOrb/sleep/fNN.png` | **首尾针** PNG 序列；`OrbFrameLoopPlayer` 循环；设计稿待替换时可用占位帧 |
+| 睡觉循环（未录音） | `Resources/DesktopOrb/sleep/fNN.png` | **首尾针** PNG 序列；`OrbFrameLoopPlayer` 循环；占位含浮动 **Zzz**；设计稿可替换 |
 | 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4` / `.mov`；可拷入 Bundle | 约 **2s**；首帧=尾帧；仅眼神微动；运行时播 **`.mov`**（ProRes 4444 alpha） |
 | 冷启动就绪 | `Resources/DesktopOrb/ready-2s.mp4`（绿幕源）+ `ready-2s.mov`（rematte） | 约 **2s**；**首尾针**=`idle.png`；轻自信眨眼 / 提神；与 eye-click **分轨** |
 | App Icon 源图 | `Resources/AppIcon/icon-1024.png` → `AppIcon.appiconset` | **与 idle 同款艺术图**；导出各尺寸 |
@@ -200,7 +200,7 @@ MVP 视觉约定：
 1. **开始录音**（右键菜单或左键开录）：立即 `stopSleepIdleLoop()`，切到醒来视觉；可叠播 eye-click。
 2. **暂停录音** / 停止采集后：`prefersSleepIdle = true`；eye-click settle 后重新 `startSleepIdleLoop()`。
 3. 冷启动就绪反馈（§2.7.4）播完后，若未录音，同样回到睡觉循环。
-4. **资源缺口**：若 Bundle 内 sleep 帧 < 2，则保持 keyed `idle.png` 静帧，并在 `Resources/DesktopOrb/sleep/README.md` 标明需设计同学补睡觉艺术图（闭眼 / 轻微呼吸，首尾同帧）。当前仓库可含**占位**帧（由 idle 派生 bob+dim），不视为终稿。
+4. **资源缺口**：若 Bundle 内 sleep 帧 < 2，则保持 keyed `idle.png` 静帧，并在 `Resources/DesktopOrb/sleep/README.md` 标明需设计同学补睡觉艺术图（闭眼 / 轻微呼吸 / **浮动 Zzz**，首尾同帧）。当前仓库可含**占位**帧（由 idle 派生 bob+dim + 浮动 Zzz，`scripts/generate_sleep_zzz_frames.py`），不视为终稿；预览见 `design/icon-orb-sleep-preview.mp4`。
 5. 播放器 API（`OrbFrameLoopPlayer`）与目录约定独立于 `DesktopOrbView` 的 AVPlayer 眼神片，便于其它帧循环复用。
 
 验收：T26。
@@ -718,7 +718,7 @@ flowchart TB
 | T23 | 调整大小动画 | 右键 → 设置… → 浮控大小，在两档 pt 间切换 | 浮控绕中心平滑缩放（约 0.28s ease-in-out），**不**瞬时跳变；层级仍为 `.normal`；暂停仍仅右键；右键**无**大小子菜单 |
 | T24 | 登录项开关 | 设置 → 登录时打开 开/关 → 保存；查看系统登录项 | 开：`SMAppService` enabled 或 requiresApproval；关：notRegistered；偏好与服务一致 |
 | T25 | 就绪动画 | 冷启动；mic+屏幕录制已授权且记录根可写 | Agent IO 绑定后 orb 播 **ready-2s 一次**（非录音 eye-click）；同一次进程内不再因轮询重复；就绪动画本身不启停录音；左键开录仍见 T22 |
-| T26 | 睡觉循环 | 未录音时球循环 sleep 帧；开始录音离开睡觉；暂停后 settle 回睡觉 | 首尾针无跳变；缺帧时静帧 idle + README 标明设计资产 |
+| T26 | 睡觉循环 | 未录音时球循环 sleep 帧（含浮动 Zzz）；开始录音离开睡觉；暂停后 settle 回睡觉 | 首尾针无跳变；可见上升 Zzz；缺帧时静帧 idle + README 标明设计资产 |
 | T27 | 首启引导气泡 | 清除 `onboarding_completed_v1`；冷启动且 mic/屏幕/记录根未齐 | 球上方气泡分段打字 +「下一步」；末段后权限清单；「授予权限」触发真实 TCC / Login Item / 可写目录；完成后标记完成且不再每冷启动重复；可随后 ready（T25） |
 
 ---
@@ -779,6 +779,7 @@ flowchart TB
 | v0.3.14 | 2026-10-30 08:56 | §2.7.5 未录音睡觉循环（`sleep/fNN.png` + `OrbFrameLoopPlayer` 首尾针）；开录离开睡觉；缺帧占位 + 设计资产 README；T26；**Segment schema 不变** |
 | v0.3.15 | 2026-10-30 09:05 | §2.7.1 / §2.7.4 冷启动改为专用 **ready-2s**（首尾针=`idle`，与 eye-click 分轨）；`playReadyOnce`；T25 更新；播完未录音回到睡觉循环；**Segment schema 不变** |
 | v0.3.16 | 2026-10-30 09:15 | §2.7.6 首启引导气泡（球上方、分段打字 +「下一步」+ 权限清单并触发真实授权）；T27；**Segment schema 不变** |
+| v0.3.17 | 2026-10-30 09:25 | §2.7.5 睡觉占位帧加浮动 **Zzz**（`generate_sleep_zzz_frames.py` + `design/icon-orb-sleep-preview.mp4`）；播放器接线不变；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -800,7 +801,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.16 | **已完成** | v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.17 | **已完成** | v0.3.17 = 睡觉 Zzz；v0.3.16 = 首启引导气泡；v0.3.15 = ready-2s；v0.3.14 = 睡觉；v0.3.12 = 左键开录；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
@@ -814,7 +815,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.17 睡觉浮动 Zzz；v0.3.16 首启引导气泡；v0.3.15 专用 ready-2s；v0.3.14 未录音睡觉循环；v0.3.12 左键未录音开始；正式公证/上架留待人工提交。**
 
 ---
 
