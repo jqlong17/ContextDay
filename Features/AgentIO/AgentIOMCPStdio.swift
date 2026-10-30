@@ -213,8 +213,16 @@ enum AgentIOMCPStdio {
             ],
             [
                 "name": "get_clipboard_prompt",
-                "description": "Return the one-line clipboard pointer (请阅读 …/README.md; same as 复制提示词; not the full brief).",
-                "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
+                "description": "Return the one-line clipboard pointer (请阅读 …/README.md or optional skill file; same as 复制提示词; not the full brief).",
+                "inputSchema": [
+                    "type": "object",
+                    "properties": [
+                        "name": [
+                            "type": "string",
+                            "description": "Optional skill file basename under agent-skills (e.g. uk-mom-brief.md). Omit for README.md index.",
+                        ],
+                    ],
+                ],
             ],
             [
                 "name": "self_check",

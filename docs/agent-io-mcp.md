@@ -33,7 +33,7 @@ curl -s http://127.0.0.1:18787/health
 | `get_agent_skill` | `name` | 读单个文件内容 |
 | `update_agent_skill` | `name`, `content` | 覆盖 App Support 副本（永不写 Bundle） |
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged 模版；跳过 `agent-skills.local.md` |
-| `get_clipboard_prompt` | — | 与右键「复制提示词」相同的**一行指针**（`请阅读 …/README.md`，`kind=index`）；不是完整提示词 |
+| `get_clipboard_prompt` | `name?` | **一行指针**（无 `name` → `请阅读 …/README.md`，`kind=index`；有 basename → 该技能，`kind=skill`）；不是完整提示词 |
 | `self_check` | — | 权限 / DB / 模型 / 录音 desync / 上次错误 / Agent IO 监听 |
 
 ```bash
@@ -43,6 +43,7 @@ curl -s http://127.0.0.1:18787/health
 ./Scripts/contextday-cli.sh reset_agent_skill '{"name":"meeting-minutes.md"}'
 ./Scripts/contextday-cli.sh reset_agent_skill '{}'   # all packaged
 ./Scripts/contextday-cli.sh get_clipboard_prompt '{}'
+./Scripts/contextday-cli.sh get_clipboard_prompt '{"name":"uk-mom-brief.md"}'
 ./Scripts/contextday-cli.sh self_check
 ```
 

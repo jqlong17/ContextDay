@@ -320,12 +320,17 @@ final class AgentIOService: @unchecked Sendable {
     }
 
     /// `get_clipboard_prompt` — same one-line pointer as pasteboard (Spec §2.8); never the full brief.
-    func getClipboardPrompt() -> AgentClipboardPromptDTO {
+    /// Optional `name` points at a specific skill `.md` under Application Support (else README.md).
+    func getClipboardPrompt(name: String? = nil) -> AgentClipboardPromptDTO {
         _ = AgentSkillsStore.ensureSeededFromBundle()
-        let text = AgentPromptTemplate.makeClipboardIndex(recordsRoot: AppPaths.recordsRoot)
+        let skillName = name.flatMap { $0.isEmpty ? nil : ($0 as NSString).lastPathComponent }
+        let text = AgentPromptTemplate.makeClipboardIndex(
+            recordsRoot: AppPaths.recordsRoot,
+            skillFileName: skillName
+        )
         return AgentClipboardPromptDTO(
             text: text,
-            kind: "index",
+            kind: skillName == nil ? "index" : "skill",
             skillsRootPath: AgentSkillsStore.absoluteSkillsRootPath,
             recordsRootPath: AppPaths.recordsRoot.path
         )
@@ -414,7 +419,7 @@ struct AgentSkillResetDTO: Codable, Equatable, Sendable {
 struct AgentClipboardPromptDTO: Codable, Equatable, Sendable {
     /// One-line clipboard pointer (never the full proprietary brief).
     var text: String
-    /// Always `"index"` — pasteboard / tool share the same short body.
+    /// `"index"` → README.md；`"skill"` → optional `name` skill file. Never the full brief.
     var kind: String
     var skillsRootPath: String
     var recordsRootPath: String

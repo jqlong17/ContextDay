@@ -113,7 +113,8 @@ enum AgentIOProtocol {
             return try encodeJSON(try service.resetAgentSkill(name: name))
 
         case "get_clipboard_prompt":
-            return try encodeJSON(service.getClipboardPrompt())
+            let name = arguments["name"] as? String
+            return try encodeJSON(service.getClipboardPrompt(name: name))
 
         case "self_check":
             return try encodeJSON(service.selfCheck())

@@ -8,6 +8,7 @@ enum AgentSkillsStore {
     static let versionFileName = "VERSION"
     static let seededStampName = ".seeded-from-version"
     static let localOverridesFileName = "agent-skills.local.md"
+    static let ukMeetingCategory = "uk-meeting"
 
     /// Packaged template basenames (never includes local overrides).
     static let packagedTemplateNames: [String] = [
@@ -16,7 +17,21 @@ enum AgentSkillsStore {
         "daily-meeting-digest.md",
         "feishu-minutes-lark-cli.md",
         "meeting-notes-weekly-wiki.md",
+        "uk-mom-detailed.md",
+        "uk-mom-brief.md",
+        "uk-weekly.md",
+        "uk-monthly.md",
+        "uk-followup-email.md",
         "VERSION",
+    ]
+
+    /// Stable order for the in-App UK meeting skill shelf (ids match frontmatter + web catalog).
+    static let ukMeetingShelfFileNames: [String] = [
+        "uk-mom-detailed.md",
+        "uk-mom-brief.md",
+        "uk-weekly.md",
+        "uk-monthly.md",
+        "uk-followup-email.md",
     ]
 
     /// XCTest only — redirect writable root away from the user's Application Support.
@@ -115,6 +130,18 @@ enum AgentSkillsStore {
         var localOverride: Bool
     }
 
+    /// Parsed YAML-ish frontmatter + optional `## Example` / `## Preview` body excerpt.
+    struct SkillMeta: Equatable, Sendable {
+        var id: String
+        var title: String
+        var version: String
+        var category: String?
+        var locale: String?
+        var fileName: String
+        var path: String
+        var examplePreview: String
+    }
+
     static func listSkills() -> [SkillFileInfo] {
         ensureSeededFromBundle()
         let root = applicationSupportSkillsRoot
@@ -136,6 +163,15 @@ enum AgentSkillsStore {
                     localOverride: name == localOverridesFileName
                 )
             }
+    }
+
+    /// UK meeting shelf entries in catalog order (stable ids for Mac + web).
+    static func listUKMeetingSkills() -> [SkillMeta] {
+        ensureSeededFromBundle()
+        return ukMeetingShelfFileNames.compactMap { name in
+            guard let content = try? readSkill(named: name).content else { return nil }
+            return parseSkillMeta(fileName: name, content: content)
+        }
     }
 
     static func readSkill(named name: String) throws -> (path: String, content: String) {
@@ -194,6 +230,79 @@ enum AgentSkillsStore {
             )
         }
         return reset
+    }
+
+    // MARK: - Frontmatter / example
+
+    static func parseSkillMeta(fileName: String, content: String) -> SkillMeta {
+        let path = applicationSupportSkillsRoot.appendingPathComponent(fileName).path
+        let fm = parseFrontmatter(content)
+        let fallbackId = (fileName as NSString).deletingPathExtension
+        return SkillMeta(
+            id: fm["id"] ?? fallbackId,
+            title: fm["title"] ?? fallbackId,
+            version: fm["version"] ?? "0",
+            category: fm["category"],
+            locale: fm["locale"],
+            fileName: fileName,
+            path: path,
+            examplePreview: extractExamplePreview(from: content)
+        )
+    }
+
+    /// Minimal `key: value` frontmatter between leading `---` fences.
+    static func parseFrontmatter(_ content: String) -> [String: String] {
+        let normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
+        guard normalized.hasPrefix("---\n") else { return [:] }
+        let afterOpen = normalized.dropFirst(4)
+        guard let endRange = afterOpen.range(of: "\n---") else { return [:] }
+        let block = String(afterOpen[..<endRange.lowerBound])
+        var out: [String: String] = [:]
+        for line in block.split(separator: "\n", omittingEmptySubsequences: false) {
+            let raw = String(line).trimmingCharacters(in: .whitespaces)
+            guard !raw.isEmpty, !raw.hasPrefix("#") else { continue }
+            guard let colon = raw.firstIndex(of: ":") else { continue }
+            let key = String(raw[..<colon]).trimmingCharacters(in: .whitespaces)
+            var value = String(raw[raw.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+            if (value.hasPrefix("\"") && value.hasSuffix("\"")) || (value.hasPrefix("'") && value.hasSuffix("'")) {
+                value = String(value.dropFirst().dropLast())
+            }
+            if !key.isEmpty { out[key] = value }
+        }
+        return out
+    }
+
+    /// Body under `## Example`, `## Preview`, or `## Example / Preview` until the next H2.
+    static func extractExamplePreview(from content: String) -> String {
+        let normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
+        let markers = ["## Example / Preview", "## Example", "## Preview"]
+        var start: String.Index?
+        for marker in markers {
+            if let r = normalized.range(of: "\n\(marker)\n") {
+                start = r.upperBound
+                break
+            }
+            if normalized.hasPrefix("\(marker)\n") {
+                start = normalized.index(normalized.startIndex, offsetBy: marker.count + 1)
+                break
+            }
+        }
+        guard let start else { return "" }
+        let rest = normalized[start...]
+        let end: String.Index
+        if let nextH2 = rest.range(of: "\n## ") {
+            end = nextH2.lowerBound
+        } else {
+            end = rest.endIndex
+        }
+        var body = String(rest[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if body.hasPrefix("```") {
+            var lines = body.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            if lines.first?.hasPrefix("```") == true { lines.removeFirst() }
+            if lines.last?.hasPrefix("```") == true { lines.removeLast() }
+            body = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return body
     }
 
     // MARK: - Name safety

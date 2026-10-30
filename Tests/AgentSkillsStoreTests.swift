@@ -16,13 +16,87 @@ final class AgentSkillsStoreTests: XCTestCase {
         try FileManager.default.createDirectory(at: bundleRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: skillsRoot, withIntermediateDirectories: true)
 
-        let bundled = [
+        let ukDetailed = """
+        ---
+        id: uk-mom-detailed
+        title: Detailed MoM
+        version: 1.0.0
+        category: uk-meeting
+        locale: en-GB
+        ---
+
+        # Skill: Detailed MoM
+
+        ## Example / Preview
+        ```text
+        Title: sample
+        Decisions
+        1. Ship beta
+        ```
+        """
+        let ukBrief = """
+        ---
+        id: uk-mom-brief
+        title: Brief
+        version: 1.0.0
+        category: uk-meeting
+        locale: en-GB
+        ---
+
+        # Brief
+
+        ## Example / Preview
+        • one liner preview
+        """
+        let ukWeekly = """
+        ---
+        id: uk-weekly
+        title: Weekly
+        version: 1.0.0
+        category: uk-meeting
+        locale: en-GB
+        ---
+        # Weekly
+        ## Preview
+        week progress sample
+        """
+        let ukMonthly = """
+        ---
+        id: uk-monthly
+        title: Monthly
+        version: 1.0.0
+        category: uk-meeting
+        locale: en-GB
+        ---
+        # Monthly
+        ## Example
+        monthly themes sample
+        """
+        let ukFollowup = """
+        ---
+        id: uk-followup-email
+        title: Follow-up email
+        version: 1.0.0
+        category: uk-meeting
+        locale: en-GB
+        ---
+        # Follow-up
+        ## Example / Preview
+        Subject: Follow-up
+        """
+
+        let bundled: [String: String] = [
             "README.md": "# bundled README\n",
             "meeting-minutes.md": "# bundled minutes\n",
             "daily-meeting-digest.md": "# bundled digest\n",
             "feishu-minutes-lark-cli.md": "# bundled feishu\n",
             "meeting-notes-weekly-wiki.md": "# bundled wiki\n",
-            "VERSION": "0.3.4\n",
+            "uk-mom-detailed.md": ukDetailed,
+            "uk-mom-brief.md": ukBrief,
+            "uk-weekly.md": ukWeekly,
+            "uk-monthly.md": ukMonthly,
+            "uk-followup-email.md": ukFollowup,
+            "VERSION": "0.4.0\n",
         ]
         for (name, body) in bundled {
             try body.write(to: bundleRoot.appendingPathComponent(name), atomically: true, encoding: .utf8)
@@ -55,6 +129,39 @@ final class AgentSkillsStoreTests: XCTestCase {
         }
         let listed = AgentSkillsStore.listSkills()
         XCTAssertTrue(listed.contains { $0.name == "meeting-minutes.md" && $0.packaged })
+        XCTAssertTrue(listed.contains { $0.name == "uk-mom-detailed.md" && $0.packaged })
+    }
+
+    func testUKMeetingShelfMetaAndExample() {
+        _ = AgentSkillsStore.ensureSeededFromBundle()
+        let shelf = AgentSkillsStore.listUKMeetingSkills()
+        XCTAssertEqual(shelf.map(\.id), [
+            "uk-mom-detailed",
+            "uk-mom-brief",
+            "uk-weekly",
+            "uk-monthly",
+            "uk-followup-email",
+        ])
+        XCTAssertEqual(shelf[0].title, "Detailed MoM")
+        XCTAssertEqual(shelf[0].category, "uk-meeting")
+        XCTAssertEqual(shelf[0].locale, "en-GB")
+        XCTAssertTrue(shelf[0].examplePreview.contains("Ship beta"))
+        XCTAssertTrue(shelf[1].examplePreview.contains("one liner"))
+        XCTAssertTrue(shelf[2].examplePreview.contains("week progress"))
+    }
+
+    func testClipboardSkillPointerIsOneLiner() {
+        _ = AgentSkillsStore.ensureSeededFromBundle()
+        let index = AgentPromptTemplate.makeClipboardIndex(skillFileName: nil)
+        XCTAssertTrue(index.hasPrefix("请阅读 "))
+        XCTAssertTrue(index.hasSuffix("README.md"))
+        XCTAssertLessThan(index.count, 400)
+
+        let skill = AgentPromptTemplate.makeClipboardIndex(skillFileName: "uk-mom-brief.md")
+        XCTAssertTrue(skill.hasPrefix("请阅读 "))
+        XCTAssertTrue(skill.contains(skillsRoot.appendingPathComponent("uk-mom-brief.md").path))
+        XCTAssertFalse(skill.contains("## Example"))
+        XCTAssertLessThan(skill.count, 400)
     }
 
     func testUpdateWritesAppSupportOnlyNotBundle() throws {
@@ -139,6 +246,17 @@ final class AgentSkillsStoreTests: XCTestCase {
         XCTAssertFalse(prompt.text.contains("Spec §"))
         XCTAssertFalse(prompt.text.contains("Segment 字段摘要"))
         XCTAssertFalse(prompt.text.contains("/health"))
+
+        let skillPromptData = try AgentIOProtocol.dispatch(
+            tool: "get_clipboard_prompt",
+            arguments: ["name": "uk-followup-email.md"],
+            service: service
+        )
+        let skillPrompt = try JSONDecoder().decode(AgentClipboardPromptDTO.self, from: skillPromptData)
+        XCTAssertEqual(skillPrompt.kind, "skill")
+        XCTAssertTrue(skillPrompt.text.contains("uk-followup-email.md"))
+        XCTAssertFalse(skillPrompt.text.contains("Subject:"))
+        XCTAssertLessThan(skillPrompt.text.count, 400)
     }
 
     func testClipboardIndexUsesAbsoluteAppSupportPaths() {
