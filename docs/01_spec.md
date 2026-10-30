@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.9** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；浮控左键**不**启停录音；「调整大小」平滑缩放；§2.8 剪贴板=一行「请阅读 …/README.md」；诊断 + `self_check`；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
+| Spec 版本 | **v0.3.10** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；登录项默认开（可关）；冷启动就绪眨眼一次；浮控左键**不**启停录音；§2.8 剪贴板=一行「请阅读 …/README.md」；正式公证/上架 **待人提交**。Agent IO **post-MVP 优化**见 [`docs/02_spec.md`](02_spec.md)（不替代本文件） |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 08:36 Asia/Shanghai |
+| 最后更新 | 2026-10-30 08:50 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -55,7 +55,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 ### 2.1 核心体验
 
-1. 用户打开并**激活** ContextDay → 立即开始 24h 采集与（按策略）转写。
+1. 用户打开并**激活** ContextDay → 立即开始 24h 采集与（按策略）转写。默认**登录时打开**（`SMAppService.mainApp` Login Item，设置可关）；冷启动若权限与记录根就绪，桌面球**眨眼一次**作「一切正常」反馈（§2.7.4）。
 2. 默认开启**分类过滤**：约每 5s 对环缓冲已有音频打标；仅判定为 **Speech** 的片段送入 SenseVoice Core ML int8。
 3. 时间线展示：**起止时间 + 文本**；落库时对邻近碎片自动合并，避免过于零散。
 4. 配置页可关过滤、可选择是否保留音频及质量；未开过滤时**只能保留全部音频**（不可选「仅人声」）。
@@ -86,6 +86,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 | VAD | 静音结束约 1.5–2s；最短送识 **3s**；最长 **30s** | 与「展示合并 gap」分开配置 |
 | 合并 gap | **2s**（可配 1–3s） | 同轨、相邻段间隔 ≤ gap 则合并（见 §3.3） |
 | 滚动保留天数 | **建议默认 30** | 可改；**nil = 不自动删**（仍提供手动清空）；设置里可发现 |
+| 登录时打开 | **开**（Debug/dev 默认） | `SMAppService.mainApp` Login Item（macOS 13+）；设置 checkbox 可关；上架须保留用户关闭路径（见 §2.10） |
 
 ### 2.3 分段与合并
 
@@ -163,13 +164,28 @@ MVP 视觉约定：
 | 数据 | **打开记录文件夹** | Finder 打开**当前记录根**（可见 `db/` / `audio/`；无每日 txt） |
 | 数据 | **复制提示词** | 将 §2.8 **一行指针**写入剪贴板（**不是**全文） |
 | — | （分隔） | |
-| 设置▾ | **偏好设置…** | 配置窗：门控、留音/Opus、保留天数、系统声；含「查看完整提示词…」只读 sheet |
+| 设置▾ | **偏好设置…** | 配置窗：门控、留音/Opus、保留天数、系统声、**登录时打开**；含「查看完整提示词…」只读 sheet |
 | 设置▾ | **时间线…** | 只读时间线（SQLite） |
 | 设置▾ | **修改保存文件夹…** | `NSOpenPanel` → `recordsRootPath`；Store 重开 DB |
 | 设置▾ | **调整大小** | 子菜单 48 / 64 / 80 / 96 / 128 pt；默认 **64**；切换时窗口绕中心 **ease-in-out 平滑缩放**（约 0.28s，`NSAnimationContext` / `animator`），禁止瞬时跳变 |
 | 设置▾ | **关于与隐私…** | 路径、删除/保留、睡眠边界、Agent IO |
 | — | （分隔） | |
 | 退出 | **退出 ContextDay** | `NSApp.terminate` |
+
+#### 2.7.4 冷启动就绪眨眼（all-good）
+
+冷启动（进程新建）在 Agent IO HTTP 绑定尝试完成之后，若同时满足：
+
+1. 麦克风权限 = **authorized**
+2. 屏幕录制权限 = **authorized**（`CGPreflightScreenCaptureAccess`；系统声 / SCK 所需）
+3. 当前**记录根**可写（可创建目录树）
+
+则桌面球调用既有 `playEyeClickOnce()`（`eye-click-2s.mov`）**眨眼一次**，表示「权限与落盘都 OK」。规则：
+
+- **每冷启动最多一次**；不得轮询每几秒再眨。
+- 未就绪时可短延迟再评一次（例如 +2s）；仍未就绪则本轮不眨，不阻塞主流程。
+- 与右键「开始/暂停录音」的 eye-click **共用**同一播放路径；就绪眨眼**不**启停录音。
+- 左键仍无录音 / 无 eye-click 副作用（§2.7.3 / T22）。
 
 ### 2.8 剪贴板索引与完整提示词（Agent IO 轻量路径）
 
@@ -303,6 +319,19 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 
 
 ---
+
+
+### 2.10 登录项（Login Item）
+
+| 项 | 定稿 |
+|----|------|
+| API | `SMAppService.mainApp`（macOS 13+；本工程 deployment ≥14） |
+| 默认 | **开**（偏好 `open_at_login`；首装未写键时按默认开） |
+| 设置 | 偏好设置 checkbox「登录时打开（Login Item）」；保存时 `register` / `unregister` |
+| 启动 | `applicationDidFinishLaunching` 将偏好同步到 `SMAppService` |
+| 上架 | 用户**必须能关闭**；若系统返回 `requiresApproval`，引导在「系统设置 → 通用 → 登录项」批准（不静默失败） |
+| 不做 | 隐藏 LaunchAgent / 无用户可控的常驻；不在未提示时反复弹系统批准 |
+
 
 ## 3. 技术架构设计
 
@@ -596,6 +625,7 @@ flowchart TB
 - [x] 双轨采集 + 环缓冲（mic AVAudioEngine + 可选 ScreenCaptureKit 系统声）
 - [x] YAMNet 5s 双轨标签 + Music 优先（`decideLabel`；ONNX 需 `Scripts/fetch-models.sh`）
 - [x] DesktopControl：`.normal` 窗口、orb idle；左键仅拖动（不启停录音）；右键菜单开始/暂停 + eye-click（末帧 settle）；麦权限引导
+- [x] 登录项 `SMAppService.mainApp` + 设置开关（默认开）；冷启动就绪眨眼一次（§2.7.4）
 - [x] 右键：打开记录根；复制 §2.8 提示词；开始/暂停录音；修改保存文件夹；调整大小（ease-in-out 平滑缩放）；设置/时间线/关于与隐私
 - [x] MVP 录制态可与 idle 同视觉；录制态额外线索（光环等）= 二期
 
@@ -604,7 +634,7 @@ flowchart TB
 - [x] SenseVoice Core ML int8 接入（失败明确报错；禁止静默 ONNX ASR）
 - [x] VAD 3–30s + 落库合并（多段音频保留最早文件；XCTest 覆盖）
 - [x] 时间线 UI（时间点 + 文本；读自 SQLite）
-- [x] 配置：门控开关、留音、Opus 质量、预估占用、仅人声/全部约束、`retention_days`（默认 30）、系统声开关
+- [x] 配置：门控开关、留音、Opus 质量、预估占用、仅人声/全部约束、`retention_days`（默认 30）、系统声开关、登录时打开（Login Item）
 
 ### Phase 3 — 稳固与商店向
 
@@ -652,6 +682,8 @@ flowchart TB
 | T21 | 眼神微动 | 右键 → 开始录音或暂停录音 | 播放约 2s eye-click；首尾同帧 settle；球身无明显缩放/位移 |
 | T22 | 左键无录音 | 左键单击浮控（不经右键菜单） | **不**开始/暂停/切换采集；**不**播放 eye-click；按住拖动仍可移动浮控 |
 | T23 | 调整大小动画 | 右键 → 设置 → 调整大小，在两档 pt 间切换 | 浮控绕中心平滑缩放（约 0.28s ease-in-out），**不**瞬时跳变；层级仍为 `.normal`；左键仍无录音副作用 |
+| T24 | 登录项开关 | 设置 → 登录时打开 开/关 → 保存；查看系统登录项 | 开：`SMAppService` enabled 或 requiresApproval；关：notRegistered；偏好与服务一致 |
+| T25 | 就绪眨眼 | 冷启动；mic+屏幕录制已授权且记录根可写 | Agent IO 绑定后 orb **眨眼一次**；同一次进程内不再因轮询重复眨眼；左键仍无副作用 |
 
 ---
 
@@ -666,6 +698,8 @@ flowchart TB
 7. 命名与商店素材使用 ContextDay，不与输入法产品混品牌。
 8. 桌面浮控：透明 idle 双眼球；右键开始/暂停时 eye-click ~2s；**左键不启停录音**；「调整大小」平滑缩放；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
 9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 一行指针；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
+10. 登录项：设置可开关；默认开时登录后应拉起 App（或进入 `requiresApproval` 待用户在系统设置批准）；关闭后不再自动登录启动。
+11. 冷启动就绪眨眼：mic + 屏幕录制 + 记录根可写时，orb **仅一次** eye-click；未就绪不眨、不刷屏。
 
 ---
 
@@ -679,6 +713,7 @@ flowchart TB
 - **已知限制**：Music>Speech 偏置可能导致**同一轨**上「有 BGM 的说话」被标成 music 而不送 ASR（例如麦拾到外放音乐+人声）；须在产品已知问题 / 设置说明中披露，不可静默。这**不是**跨轨抑制：系统轨 Music 不关麦轨。
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
 - 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
+- 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪眨眼与录音 eye-click 共用 `playEyeClickOnce`，每冷启动 ≤1 次。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
 
 ---
@@ -699,6 +734,7 @@ flowchart TB
 | v0.3.7 | 2026-10-29 12:45 | 「调整大小」定稿为绕中心 ease-in-out 平滑缩放（约 0.28s，`NSAnimationContext`）；窗口 `animationBehavior = .documentWindow` 保证 borderless 浮控可见动画；补 T23；左键无录音 / `.normal` 层级 / Segment schema **不变** |
 | v0.3.8 | 2026-10-29 20:50 | 交叉链接 [`docs/02_spec.md`](02_spec.md)（Agent IO 优化轨）；本文件仍为 MVP SSOT；§2.9 / Segment schema **合同正文不迁** |
 | v0.3.9 | 2026-10-30 08:36 | §2.8 剪贴板收短为一行「请阅读 {AGENT_SKILLS_ROOT}/README.md」；keep-audio MVP interim 改纯 Swift WAV（避开 AVAudioFile/ExtAudioFile SIGTRAP）；**Segment schema 不变** |
+| v0.3.10 | 2026-10-30 08:50 | §2.2 / §2.10 登录项（`SMAppService.mainApp`，默认开、设置可关）；§2.7.4 冷启动就绪眨眼一次（mic+屏幕录制+记录根可写）；T24/T25；**Segment schema 不变** |
 
 变更规则：改需求或架构时升次版本号（v0.x）；破坏性改 schema 在备忘与验收中标明，并更新「最后更新」。Agent IO 表面优化优先升 **02**，避免把航运 MVP 与优化轨混写。
 
@@ -720,21 +756,21 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.9 | **已完成** | v0.3.9 = 剪贴板一行指针 + keep-audio WAV interim；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.10 | **已完成** | v0.3.10 = 登录项 + 就绪眨眼；v0.3.9 = 剪贴板一行 + WAV interim；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
-| DesktopControl | **已完成（MVP）** | `.normal` / 左键仅拖动 / 右键启停+eye-click / 调整大小 ease-in-out / 64pt / 菜单 |
+| DesktopControl | **已完成（MVP）** | `.normal` / 左键仅拖动 / 右键启停+eye-click / 就绪眨眼一次 / 调整大小 ease-in-out / 64pt / 菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly** |
-| 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置… / 时间线… / 关于与隐私… |
+| 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…（含登录时打开）/ 时间线… / 关于与隐私… |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
 | Agent IO | **已完成（MVP + 02 优化已合入）** | 一行指针剪贴板 + HTTP `18787–18797` + MCP `--mcp` + 技能 + `self_check`；02 分轨/ISO/`list_speech_blocks`/错误分页见 [#9](https://github.com/jqlong17/ContextDay/pull/9) |
 | 诊断 / 权限日志 | **已完成（MVP）** | `Features/Diagnostics`；采集失败 / 设置 / 启动打权限快照 |
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.8 交叉链接 Agent IO 优化轨 `02_spec`；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.10 登录项 + 就绪眨眼；v0.3.8 交叉链接 Agent IO 优化轨 `02_spec`；正式公证/上架留待人工提交。**
 
 ---
 
