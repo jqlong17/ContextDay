@@ -50,6 +50,12 @@ enum AppLog {
         appendFile(level: "info", category: category, message: text)
     }
 
+    static func warn(_ category: Category, _ message: @autoclosure () -> String) {
+        let text = message()
+        loggers[category]?.warning("\(text, privacy: .public)")
+        appendFile(level: "warn", category: category, message: text)
+    }
+
     static func error(_ category: Category, _ message: @autoclosure () -> String) {
         let text = message()
         loggers[category]?.error("\(text, privacy: .public)")

@@ -46,4 +46,16 @@ final class SenseVoiceASRTests: XCTestCase {
         }
         XCTAssertFalse(asr.isModelLoaded)
     }
+
+    func testClampWaveformCapsOverlong() {
+        let over = [Float](repeating: 0.1, count: SenseVoiceASR.maxWaveformSamples + 9_400)
+        let capped = SenseVoiceASR.clampWaveform(over)
+        XCTAssertEqual(capped.count, SenseVoiceASR.maxWaveformSamples)
+
+        let ok = [Float](repeating: 0, count: 16_000)
+        XCTAssertEqual(SenseVoiceASR.clampWaveform(ok).count, 16_000)
+
+        XCTAssertEqual(SenseVoiceASR.minWaveformSamples, 3_200)
+        XCTAssertEqual(SenseVoiceASR.maxWaveformSamples, 480_000)
+    }
 }
