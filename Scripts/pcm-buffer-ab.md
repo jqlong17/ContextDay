@@ -34,9 +34,11 @@ defaults delete app.contextday pcm_buffer_seconds
 | Metric | 做法 | Pass（可默认 B） |
 |--------|------|------------------|
 | Peak PCM buffer bytes（每轨 + sum） | 录音 >=10 min（让 A 顶到 soft-cap）或读日志 `pcm_ab ... peakBytes=`；亦可跑 XCTest `testABHarnessPeakRatioAtSoftCap` | B <= A x 0.15（约 10x 更小） |
-| Process `phys_footprint`（录 3 min，闲聊+安静） | 同机同包：`footprint -p $(pgrep -x ContextDay)` 或 Activity Monitor；先 A 后 B | B <= A - 20 MB **或** B <= 150 MB（取更严且可达） |
-| 转写质量代理 | 同一段 ~60s 连说 + 短停顿；数非空 text 段；看有无「在说话却 utt=0 长时间」 | B 段数在 A 的 +/-20%；30s 强切不回退 |
+| Process `phys_footprint`（录 3 min，闲聊+安静） | 同机同包：`footprint -p $(pgrep -x ContextDay)` 或 Activity Monitor；先 A 后 B | **可选**（live A/B 已取消不阻塞默认 B）；若跑：B <= A - 20 MB **或** B <= 150 MB |
+| 转写质量代理 | 同一段 ~60s 连说 + 短停顿；数非空 text 段；看有无「在说话却 utt=0 长时间」 | 完整 App 路径可选；B 段数在 A 的 +/-20%；30s 强切不回退 |
 | Correctness | `xcodebuild ... test`（`PCMRingBufferTests` 等） | 0 failures |
+
+**默认 B 已由 Mac unit/sim + XCTest 证明**（peak ratio 0.10；全绿）。无需为 flip 再跑 live footprint（TCC）。有权限时仍可按下列流程做可选复核。
 
 启动日志应含：`pcm_variant=A|B pcm_cap_sec=600|60`。  
 运行中约每 30s：`pcm_ab pcm_buf variant=... filledBytes=... peakBytes=... | system ... sumFilled=... sumPeak=...`。
@@ -69,5 +71,6 @@ python3 Scripts/pcm-buffer-ab-sim.py
 
 ## 决策
 
-- 指标全过 -> 保持默认 **B**；A 留 `pcm_buffer_variant=A` 回滚。
-- 任一项失败 -> `defaults write ... pcm_buffer_variant A` 作默认前报告数字，勿翻转产品默认。
+- **已采纳**：Mac unit/sim（peak 0.10）+ XCTest 全绿 → 产品默认 **B**；A 留 `pcm_buffer_variant=A` 回滚。
+- Live footprint / 需 TCC 的开录对比 **不阻塞** 默认 B（用户已取消）；有权限时可作可选 post-install 复核。
+- 若日后 unit/sim 或 XCTest 回退失败 -> 报告数字并用 A 作默认，勿静默保持 B。

@@ -7,7 +7,7 @@
 | Spec 版本 | **v0.3.29** |
 | 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.29 PCM 环缓冲收紧（默认 B≈60s）+ A/B 开关；v0.3.28 VAD 自适应噪声底；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-31 09:45 Asia/Shanghai |
+| 最后更新 | 2026-10-31 10:05 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -497,11 +497,13 @@ ContextDay/
 | Metric | 量法 | Pass |
 |--------|------|------|
 | Peak PCM buffer bytes（每轨 + sum） | 仪器 `filled`/`capacity`/`peak`；A 需写满 soft-cap（≥10 min）或 XCTest harness；短跑仅观察 B 是否 plateau@60s | B ≤ A × 0.15（约 10×） |
-| Process `phys_footprint`（录 3 min，闲聊+安静） | 同机同包 `footprint -p` / Activity Monitor | B ≤ A − 20 MB **或** B ≤ 150 MB（取更严且可达） |
-| 转写质量代理 | 同一 ~60s 连说+短停；非空 text 段数；无长时间「在说却 utt=0」 | B 段数在 A ±20%；30s 强切不回退 |
+| Process `phys_footprint`（录 3 min，闲聊+安静） | 同机同包 `footprint -p` / Activity Monitor | **可选**（见下）；若跑：B ≤ A − 20 MB **或** B ≤ 150 MB |
+| 转写质量代理 | 同一 ~60s 连说+短停；非空 text 段数；无长时间「在说却 utt=0」 | B 段数在 A ±20%；30s 强切不回退（完整 App 路径可选） |
 | Correctness | `PCMRingBufferTests` 等 XCTest | 0 failures |
 
-Linux CI 只验证容量比与 XCTest 逻辑；**Mac footprint A/B 由父机安装后实测**。测量步骤见 [`Scripts/pcm-buffer-ab.md`](../Scripts/pcm-buffer-ab.md) 与 `Scripts/pcm-buffer-ab-sim.py`。
+**产品默认翻到 B 的依据（v0.3.29 执行结论）**：Mac **unit/sim A/B（无需装 App / 免 TCC）已通过**——peak ratio 0.10 ≤ 0.15，且 `ContextDayTests` 全绿。据此将产品默认定为 **B**；A 仍可 `pcm_buffer_variant=A` 回滚。
+
+**Live `phys_footprint` A/B（需授权开录）已由用户取消**（TCC 成本高）。footprint **不再阻塞**默认 B；仅在用户日后能一次授齐权限时作为**可选** post-install 复核。测量步骤仍见 [`Scripts/pcm-buffer-ab.md`](../Scripts/pcm-buffer-ab.md) 与 `Scripts/pcm-buffer-ab-sim.py`。
 
 假设（非绑定）：`MALLOC_LARGE` 主要随更小 PCM + 更小 snapshot 下降；ASR Core ML 堆大体不变。
 
@@ -786,7 +788,7 @@ flowchart TB
 | T13 | 权限拒绝 | 拒麦 | 无法激活；可跳转设置 |
 | T14 | 双轨同时 | 麦说话 + 系统放歌 | 两轨标签独立；系统 Music **不**跳过麦 Speech ASR；日志含 `per-track gate track=… scope=this_track_only` |
 | T15 | 内存 | 记录 1h | 本进程内存保持 Core ML 档；PCM 默认 B（≤60s/轨），见 §3.2.1 / T28 |
-| T28 | PCM 缓冲 A/B | `defaults write … pcm_buffer_variant A` 与 `B` 各录；对读 `pcm_ab` peak + footprint + 同脚本段数 | B peak ≤ A×0.15（A 写满 soft-cap 时）；footprint / 质量见 §3.2.1 表；XCTest 绿 |
+| T28 | PCM 缓冲 A/B | XCTest harness + `pcm-buffer-ab-sim.py`；可选 `defaults` 开录对读 `pcm_ab`/footprint | **必过**：B peak ≤ A×0.15 + XCTest 绿（已过）。footprint / 开录质量为可选，不阻塞默认 B（§3.2.1） |
 | T16 | 浮控层级 | 浮控（orb）可见时打开浏览器全屏/前置窗口 | 浏览器**可遮盖**浮控；非 always-on-top |
 | T17 | 打开记录文件夹 | 右键 → 打开记录文件夹 | Finder 打开 Application Support 根；可见 `db/`（及可选 `audio/`）；**无**要求存在每日 txt |
 | T18 | 复制提示词（一行指针） | 右键 → 复制提示词 → 粘贴 | 仅 `请阅读 …/agent-skills/README.md`；**无** health/工具列表/sqlite 长段 / Segment 字段摘要 / 完整专有正文 |
@@ -868,7 +870,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
-| v0.3.29 | 2026-10-31 09:45 | §3.2.1：PCM 环缓冲收紧——默认 **B=60s** 固定环；**A=600s** soft-cap 对照可 UserDefaults/编译旗标回滚；A/B 成功指标表 + `Scripts/pcm-buffer-ab.md`；T28；**Segment schema 不变** |
+| v0.3.29 | 2026-10-31 10:05 | §3.2.1：PCM 环缓冲收紧——默认 **B=60s** 固定环；**A=600s** soft-cap 对照可 UserDefaults/编译旗标回滚；A/B 成功指标表 + `Scripts/pcm-buffer-ab.md`；Mac unit/sim 已过（peak 0.10），live footprint A/B **取消不阻塞**默认 B；T28；**Segment schema 不变** |
 | v0.3.28 | 2026-10-30 22:10 | §2.2 / §2.3 / VAD：噪声底相对能量门限（替脆弱绝对 RMS 0.012）+ 连续有声强制 max 切；utt=0 诊断附 rms/peak/voicedFrac；SCK 注册 no-op screen 输出抑 Dropping frame；T06/T06b；**Segment schema 不变** |
 | v0.3.27 | 2026-10-30 21:50 | §2.7.6：权限气泡对话化——「稍后再说」推迟文案；开录再检必需权限并点名缺失；Login Item 仅信息、不挡开录；齐备后短「那开始工作」/「我先回到后台」；T27b；**Segment schema 不变** |
 | v0.3.26 | 2026-10-30 21:35 | §2.7.6：气泡拖拽跟随改为 `addChildWindow`（禁拖中用滞后 AppKit frame 硬 setFrame）；介绍/权限页加「上一步」；正文/清单去掉近黑 `NSTextField` 实心底；T27 更新；**Segment schema 不变** |
@@ -913,7 +915,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.29 PCM 环默认 B≈60s（A/B 可翻）；v0.3.28 VAD 自适应噪声底；正式公证/上架留待人工提交。Mac footprint A/B 待父机按 `Scripts/pcm-buffer-ab.md` 实测确认。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.29 PCM 环默认 B≈60s（A/B 可翻；unit/sim 已过，live footprint A/B 取消不阻塞）；v0.3.28 VAD 自适应噪声底；正式公证/上架留待人工提交。**
 
 ---
 

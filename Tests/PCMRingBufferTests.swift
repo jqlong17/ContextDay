@@ -189,8 +189,10 @@ final class PCMRingBufferTests: XCTestCase {
     }
 
     func testPolicySecondsKeyMapsToVariant() {
-        let suite = UserDefaults(suiteName: "app.contextday.pcm-ab-test-\(UUID().uuidString)")!
-        defer { suite.removePersistentDomain(forName: suite.suiteName!) }
+        // Keep suite name in a local — `UserDefaults` has no `suiteName` property (Mac compile).
+        let suiteName = "app.contextday.pcm-ab-test-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        defer { suite.removePersistentDomain(forName: suiteName) }
 
         suite.set(600, forKey: PCMBufferPolicy.secondsDefaultsKey)
         // resolveVariant reads .standard by default — exercise mapping logic inline:
