@@ -35,7 +35,7 @@ curl -s http://127.0.0.1:18787/health
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged 模版；跳过 `agent-skills.local.md` |
 | `get_clipboard_prompt` | `name?` | **一行指针**（无 `name` → `请阅读 …/README.md`，`kind=index`；有 basename → 该技能，`kind=skill`）；不是完整提示词 |
 | `self_check` | — | 权限 / DB / 模型 / 录音 desync / 上次错误 / Agent IO 监听 |
-| `inject_pcm` | `track?`, `path?` **或** `pcm_base64?`, `sample_rate?`, `auto_arm?` | **Debug only**（v0.3.30）：注入 mono Int16 LE 到 mic/system 环；默认 auto-arm inject session（无 TCC）。见 `docs/fixtures/` + `Scripts/pcm-inject-example.sh` |
+| `inject_pcm` | `track?`, `path?` **或** `pcm_base64?`, `sample_rate?`, `auto_arm?` | **Debug only**（v0.3.30+）：注入 mono Int16 LE 到 mic/system 环；沙盒优先 base64；fixture `speech_zh_16k_mono.pcm`（v0.3.31） |
 
 ```bash
 ./Scripts/contextday-cli.sh list_agent_skills '{}'

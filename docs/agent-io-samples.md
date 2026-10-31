@@ -176,28 +176,26 @@ Content-Type: application/json
 
 期望含：`ok`、`service`、`permissions`、`runtime`、`database`、`models`、`agent_io`、`notes`。
 
-## Debug：`inject_pcm`（v0.3.30，仅 localhost）
+## Debug：`inject_pcm`（v0.3.30+，仅 localhost）
 
-无人麦 / 无扬声器驱动 VAD→YAMNet→SenseVoice→SQLite。优先 `path`（大 clip）；短段可用 `pcm_base64`。
+无人麦 / 无扬声器驱动 VAD→YAMNet→SenseVoice→SQLite。**App Sandbox 下仓库 `path` 通常失败** → 用 `pcm_base64` 或拷到记录根 `scratch/`。
 
 ```bash
-./Scripts/pcm-inject-example.sh mic
-# 等价：
-curl -s -X POST http://127.0.0.1:18787/v1/tools/inject_pcm \
-  -H 'Content-Type: application/json' \
-  -d '{"track":"mic","path":"docs/fixtures/speech_16k_mono_s4.pcm","sample_rate":16000}'
-# 等待数秒后：
+./Scripts/pcm-inject-example.sh mic   # 默认 base64 + speech_zh_16k_mono.pcm
+# 等待后：
 ./Scripts/contextday-cli.sh get_recent '{"limit":5,"track":"mic"}'
 ```
 
-响应示意（**无**转写正文；再 poll `get_recent`）：
+Fixture：`docs/fixtures/speech_zh_16k_mono.pcm`（中文 TTS；再生 `./Scripts/generate-pcm-inject-fixture.sh`）。**勿**用旧 buzz 音（YAMNet→`music`）。
+
+响应示意（**无**转写正文；再 poll `get_recent` 应有非空 `text`）：
 
 ```json
 {
   "ok": true,
   "track": "mic",
-  "accepted_bytes": 192000,
-  "duration_ms": 6000,
+  "accepted_bytes": 169768,
+  "duration_ms": 5305,
   "source_sample_rate": 16000,
   "pipeline_running": true,
   "inject_session": true,
