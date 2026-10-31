@@ -35,6 +35,7 @@ curl -s http://127.0.0.1:18787/health
 | `reset_agent_skill` | `name?` | 从 Bundle 重置一个或全部 packaged 模版；跳过 `agent-skills.local.md` |
 | `get_clipboard_prompt` | `name?` | **一行指针**（无 `name` → `请阅读 …/README.md`，`kind=index`；有 basename → 该技能，`kind=skill`）；不是完整提示词 |
 | `self_check` | — | 权限 / DB / 模型 / 录音 desync / 上次错误 / Agent IO 监听 |
+| `inject_pcm` | `track?`, `path?` **或** `pcm_base64?`, `sample_rate?`, `auto_arm?` | **Debug only**（v0.3.30）：注入 mono Int16 LE 到 mic/system 环；默认 auto-arm inject session（无 TCC）。见 `docs/fixtures/` + `Scripts/pcm-inject-example.sh` |
 
 ```bash
 ./Scripts/contextday-cli.sh list_agent_skills '{}'
@@ -45,6 +46,7 @@ curl -s http://127.0.0.1:18787/health
 ./Scripts/contextday-cli.sh get_clipboard_prompt '{}'
 ./Scripts/contextday-cli.sh get_clipboard_prompt '{"name":"uk-mom-brief.md"}'
 ./Scripts/contextday-cli.sh self_check
+./Scripts/pcm-inject-example.sh mic
 ```
 
 ## MCP stdio（无 GUI）
@@ -60,7 +62,7 @@ curl -s http://127.0.0.1:18787/health
 | command | `…/ContextDay.app/Contents/MacOS/ContextDay` |
 | args | `["--mcp"]` |
 
-协议：JSON-RPC 2.0 + `Content-Length` framing；`initialize` / `tools/list` / `tools/call`。工具实现仍走 `AgentIOProtocol.dispatch`（与 HTTP 同层）；`tools/list` 含 Segment 四工具 + 上表技能工具 + `self_check`。
+协议：JSON-RPC 2.0 + `Content-Length` framing；`initialize` / `tools/list` / `tools/call`。工具实现仍走 `AgentIOProtocol.dispatch`（与 HTTP 同层）；`tools/list` 含 Segment 工具 + 技能工具 + `self_check` + debug `inject_pcm`。
 
 ## 剪贴板索引（Grok Bot 轻量路径）
 
@@ -73,5 +75,6 @@ App 右键「复制提示词」→ 粘贴一行 `请阅读 …/agent-skills/READ
 - Segment HTTP / MCP **只读**；不提供删除/改 schema 工具。
 - 技能工具仅写 Application Support；**永不**改 Bundle / 仓库。
 - HTTP 仅 localhost；沙盒已开 `network.server`。
+- `inject_pcm` 为 debug 注入（同环路径）；路径 allowlist；勿写入 App Store 叙事。
 - 勿把记录根或 `--mcp` 进程暴露到公网。
 - 个人 Feishu/Lark ID 放本机 `agent-skills.local.md` 或 AppConfig；**勿**提交仓库。

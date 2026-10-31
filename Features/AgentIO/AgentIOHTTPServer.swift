@@ -153,18 +153,88 @@ final class AgentIOHTTPServer {
         }
     }
 
+    /// Max HTTP request size (inject_pcm base64 of ~30s @16k ≈ 1.3MB encoded).
+    private static let maxRequestBytes = 2 * 1024 * 1024
+
     private func handle(connection: NWConnection) {
-        connection.start(queue: .global(qos: .utility))
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, _, error in
-            guard let self, let data, error == nil else {
-                connection.cancel()
-                return
+        // Extra belt: refuse non-loopback peers if the stack exposes a remote endpoint.
+        if let remote = connection.currentPath?.remoteEndpoint {
+            switch remote {
+            case .hostPort(let host, _):
+                let h = "\(host)"
+                if h != "127.0.0.1" && h != "::1" && h != "localhost" {
+                    AppLog.info(.agentIO, "refusing non-loopback peer host=\(h)")
+                    connection.cancel()
+                    return
+                }
+            default:
+                break
             }
-            let response = self.respond(to: data)
+        }
+        connection.start(queue: .global(qos: .utility))
+        receiveHTTP(connection: connection, buffer: Data())
+    }
+
+    private func receiveHTTP(connection: NWConnection, buffer: Data) {
+        let remaining = AgentIOHTTPServer.maxRequestBytes - buffer.count
+        guard remaining > 0 else {
+            let response = httpJSON(400, [
+                "error": "invalid_argument",
+                "message": "request too large (max \(AgentIOHTTPServer.maxRequestBytes) bytes)",
+            ])
             connection.send(content: response, completion: .contentProcessed { _ in
                 connection.cancel()
             })
+            return
         }
+        connection.receive(minimumIncompleteLength: 1, maximumLength: min(65536, remaining)) { [weak self] data, _, isComplete, error in
+            guard let self else {
+                connection.cancel()
+                return
+            }
+            if error != nil {
+                connection.cancel()
+                return
+            }
+            var next = buffer
+            if let data, !data.isEmpty {
+                next.append(data)
+            }
+            if let response = self.tryCompleteHTTP(next) {
+                connection.send(content: response, completion: .contentProcessed { _ in
+                    connection.cancel()
+                })
+                return
+            }
+            if isComplete {
+                let response = self.respond(to: next)
+                connection.send(content: response, completion: .contentProcessed { _ in
+                    connection.cancel()
+                })
+                return
+            }
+            self.receiveHTTP(connection: connection, buffer: next)
+        }
+    }
+
+    /// When headers + Content-Length body are complete, return the response; else nil to keep reading.
+    private func tryCompleteHTTP(_ data: Data) -> Data? {
+        guard let raw = String(data: data, encoding: .utf8) else { return nil }
+        guard let headerEnd = raw.range(of: "\r\n\r\n") else { return nil }
+        let header = String(raw[..<headerEnd.lowerBound])
+        var contentLength = 0
+        for line in header.split(separator: "\r\n") {
+            let parts = line.split(separator: ":", maxSplits: 1)
+            if parts.count == 2,
+               parts[0].lowercased().trimmingCharacters(in: .whitespaces) == "content-length" {
+                contentLength = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
+            }
+        }
+        // Prefer byte-accurate split via Data search for \r\n\r\n.
+        guard let sep = data.range(of: Data([13, 10, 13, 10])) else { return nil }
+        let body = data.subdata(in: sep.upperBound..<data.endIndex)
+        if body.count < contentLength { return nil }
+        return respond(to: data)
     }
 
     private func respond(to requestData: Data) -> Data {

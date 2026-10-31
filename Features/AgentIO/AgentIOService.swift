@@ -341,6 +341,57 @@ final class AgentIOService: @unchecked Sendable {
         SelfCheck.run()
     }
 
+    // MARK: - Debug PCM inject (localhost / CI; not App Store narrative)
+
+    /// `inject_pcm` — feed mono PCM into the live CapturePipeline mic/system rail.
+    /// Prefers `path` under records/scratch/fixtures for large clips; `pcm_base64` for short ones.
+    func injectPCM(
+        trackRaw: String?,
+        pcmBase64: String?,
+        path: String?,
+        sampleRate: Int?,
+        autoArm: Bool = true,
+        padSilenceMs: Int? = nil,
+        pipeline: CapturePipeline? = CaptureInjectHost.current()
+    ) throws -> AgentPCMInjectDTO {
+        let trackName = (trackRaw?.isEmpty == false ? trackRaw! : "mic")
+        guard let track = SegmentTrack(rawValue: trackName) else {
+            throw AgentIOError.invalidArgument("track must be mic or system")
+        }
+        let resolved = try PCMInject.resolve(
+            pcmBase64: pcmBase64,
+            path: path,
+            sampleRate: sampleRate
+        )
+        guard let pipeline else {
+            throw AgentIOError.unavailable(
+                tool: "inject_pcm",
+                reason: "CapturePipeline not registered (App UI not running?); use ContextDay.app + Agent IO HTTP"
+            )
+        }
+        let pad = padSilenceMs ?? PCMInject.defaultPadSilenceMs
+        let accept = try pipeline.injectPCM(
+            track: track,
+            pcm16kMono: resolved.data16kMono,
+            padSilenceMs: pad,
+            autoArm: autoArm
+        )
+        return AgentPCMInjectDTO(
+            ok: true,
+            track: accept.track,
+            acceptedBytes: accept.acceptedBytes,
+            durationMs: accept.durationMs,
+            sourceSampleRate: resolved.sourceSampleRate,
+            sourceBytes: resolved.sourceBytes,
+            source: resolved.source,
+            pipelineWasRunning: accept.pipelineWasRunning,
+            pipelineRunning: accept.pipelineRunning,
+            injectSession: accept.injectSession,
+            padSilenceMs: accept.padSilenceMs,
+            pollHint: "Wait ~3–8s for VAD→gate→ASR, then POST /v1/tools/get_recent {\"limit\":5,\"track\":\"\(accept.track)\"}"
+        )
+    }
+
     private func mapSkillsError(_ err: AgentSkillsStore.AgentSkillsError) -> AgentIOError {
         switch err {
         case .notFound(let n):
@@ -428,5 +479,34 @@ struct AgentClipboardPromptDTO: Codable, Equatable, Sendable {
         case text, kind
         case skillsRootPath = "skills_root_path"
         case recordsRootPath = "records_root_path"
+    }
+}
+
+/// Debug inject response — no transcript text (poll `get_recent` for segments).
+struct AgentPCMInjectDTO: Codable, Equatable, Sendable {
+    var ok: Bool
+    var track: String
+    var acceptedBytes: Int
+    var durationMs: Int
+    var sourceSampleRate: Int
+    var sourceBytes: Int
+    var source: String
+    var pipelineWasRunning: Bool
+    var pipelineRunning: Bool
+    var injectSession: Bool
+    var padSilenceMs: Int
+    var pollHint: String
+
+    enum CodingKeys: String, CodingKey {
+        case ok, track, source
+        case acceptedBytes = "accepted_bytes"
+        case durationMs = "duration_ms"
+        case sourceSampleRate = "source_sample_rate"
+        case sourceBytes = "source_bytes"
+        case pipelineWasRunning = "pipeline_was_running"
+        case pipelineRunning = "pipeline_running"
+        case injectSession = "inject_session"
+        case padSilenceMs = "pad_silence_ms"
+        case pollHint = "poll_hint"
     }
 }

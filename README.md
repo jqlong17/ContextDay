@@ -56,6 +56,7 @@ MCP / Grok 样例：[docs/agent-io-mcp.md](docs/agent-io-mcp.md)
 | `SegmentStoreMergeTests` | gap≤2s 合并、最早 `audio_path` |
 | `AgentIOServiceTests` | §2.9 四工具 + unavailable |
 | `AgentIOMeetingFixtureTests` | 会议 fixture → search/get_window/… 往返 |
+| `PCMInjectTests` | debug `inject_pcm` 环缓冲 + VAD；缺模型 XCTSkip E2E |
 | `DiagnosticsSelfCheckTests` | 权限 / self_check / 剪贴板一行指针 |
 | `YamNetGateTests` | Music>Speech；有模型再跑 fixture |
 | `SenseVoiceASRTests` | load 或 XCTSkip |

@@ -75,6 +75,9 @@
 		B16ONB000000000000001 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000001 /* OnboardingFlow.swift */; };
 		B16ONB000000000000002 /* OnboardingBubbleController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000002 /* OnboardingBubbleController.swift */; };
 		B16ONB000000000000003 /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000003 /* OnboardingFlowTests.swift */; };
+		B18INJECT00000000000001 /* CaptureInjectHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18INJECT00000000000001 /* CaptureInjectHost.swift */; };
+		B18INJECT00000000000002 /* PCMInject.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18INJECT00000000000002 /* PCMInject.swift */; };
+		B18INJECT00000000000003 /* PCMInjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18INJECT00000000000003 /* PCMInjectTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -157,6 +160,9 @@
 		A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbFrameLoopPlayerTests.swift; sourceTree = "<group>"; };
 		A16PCMBUF00000000000001 /* PCMRingBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMRingBufferTests.swift; sourceTree = "<group>"; };
 		A17PCMPOL00000000000001 /* PCMBufferPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMBufferPolicy.swift; sourceTree = "<group>"; };
+		A18INJECT00000000000001 /* CaptureInjectHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureInjectHost.swift; sourceTree = "<group>"; };
+		A18INJECT00000000000002 /* PCMInject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMInject.swift; sourceTree = "<group>"; };
+		A18INJECT00000000000003 /* PCMInjectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMInjectTests.swift; sourceTree = "<group>"; };
 		A16VADTEST0000000000001 /* VoiceActivityDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceActivityDetectorTests.swift; sourceTree = "<group>"; };
 		A16ONB000000000000001 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
 		A16ONB000000000000002 /* OnboardingBubbleController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingBubbleController.swift; sourceTree = "<group>"; };
@@ -231,6 +237,8 @@
 				A17PCMPOL00000000000001 /* PCMBufferPolicy.swift */,
 				244B02B1AC0E42508BAE94D3 /* PCMRingBuffer.swift */,
 				7FF2CFA738984C4B80DC4517 /* CapturePipeline.swift */,
+				A18INJECT00000000000001 /* CaptureInjectHost.swift */,
+				A18INJECT00000000000002 /* PCMInject.swift */,
 				526517D2FA7F4B3A8BADF347 /* SystemAudioCapture.swift */,
 			);
 			path = Capture;
@@ -352,6 +360,7 @@
 				A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */,
 				A16PCMBUF00000000000001 /* PCMRingBufferTests.swift */,
 				A16VADTEST0000000000001 /* VoiceActivityDetectorTests.swift */,
+				A18INJECT00000000000003 /* PCMInjectTests.swift */,
 				A16ONB000000000000003 /* OnboardingFlowTests.swift */,
 			);
 			path = Tests;
@@ -497,6 +506,8 @@
 				B16ONB000000000000002 /* OnboardingBubbleController.swift in Sources */,
 				BE1D1B5209E04D1E8181E172 /* AgentPromptTemplate.swift in Sources */,
 				AC6186876BFA44D99FB7086B /* CapturePipeline.swift in Sources */,
+				B18INJECT00000000000001 /* CaptureInjectHost.swift in Sources */,
+				B18INJECT00000000000002 /* PCMInject.swift in Sources */,
 				253123C68A824FC79A909C2B /* SystemAudioCapture.swift in Sources */,
 				7875F45993BD434993694637 /* YamNetGate.swift in Sources */,
 				7A6CF9D40235420C90FFB9A7 /* VoiceActivityDetector.swift in Sources */,
@@ -540,6 +551,7 @@
 				B15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift in Sources */,
 				B16PCMBUF00000000000001 /* PCMRingBufferTests.swift in Sources */,
 				B16VADTEST0000000000001 /* VoiceActivityDetectorTests.swift in Sources */,
+				B18INJECT00000000000003 /* PCMInjectTests.swift in Sources */,
 				B16ONB000000000000003 /* OnboardingFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

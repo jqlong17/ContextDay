@@ -26,6 +26,11 @@ enum AgentIOProtocol {
         "self_check",
     ]
 
+    /// Debug-only（localhost Agent IO；不写进 App Store 叙事）。
+    static let debugTools: [String] = [
+        "inject_pcm",
+    ]
+
     /// 非首波：必须返回 unavailable，禁止静默空成功。
     static let unavailableTools: [String] = [
         "summarize_window",
@@ -118,6 +123,17 @@ enum AgentIOProtocol {
 
         case "self_check":
             return try encodeJSON(service.selfCheck())
+
+        case "inject_pcm":
+            let dto = try service.injectPCM(
+                trackRaw: arguments["track"] as? String,
+                pcmBase64: arguments["pcm_base64"] as? String,
+                path: arguments["path"] as? String,
+                sampleRate: arguments["sample_rate"] as? Int ?? intArg(arguments["sample_rate"]),
+                autoArm: boolArg(arguments["auto_arm"]) ?? true,
+                padSilenceMs: arguments["pad_silence_ms"] as? Int ?? intArg(arguments["pad_silence_ms"])
+            )
+            return try encodeJSON(dto)
 
         case "summarize_window":
             throw AgentIOError.unavailable(

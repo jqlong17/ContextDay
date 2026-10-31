@@ -5,6 +5,8 @@ import ScreenCaptureKit
 /// Dual-rail capture (mic + optional system) → VAD → YAMNet → SenseVoice → Store (+ optional keep-audio).
 final class CapturePipeline {
     private(set) var isRunning = false
+    /// True when armed via debug inject (models + process loop; no mic tap / no TCC).
+    private(set) var isInjectSession = false
 
     private let engine = AVAudioEngine()
     private let pcmVariant: PCMBufferVariant
@@ -13,7 +15,7 @@ final class CapturePipeline {
     private let vad = VoiceActivityDetector()
     private let gate = YamNetGate()
     private let asr = SenseVoiceASR()
-    private let store = SegmentStore.shared
+    private let store: SegmentStore
 
     private var processQueue = DispatchQueue(label: "app.contextday.capture.process")
     private var processTimer: DispatchSourceTimer?
@@ -28,10 +30,24 @@ final class CapturePipeline {
 
     var onStatus: ((String) -> Void)?
 
-    init(pcmVariant: PCMBufferVariant = PCMBufferPolicy.resolveVariant()) {
+    init(
+        pcmVariant: PCMBufferVariant = PCMBufferPolicy.resolveVariant(),
+        store: SegmentStore = .shared
+    ) {
         self.pcmVariant = pcmVariant
+        self.store = store
         self.micBuffer = PCMRingBuffer(variant: pcmVariant)
         self.systemBuffer = PCMRingBuffer(variant: pcmVariant)
+    }
+
+    struct InjectAccept: Equatable, Sendable {
+        var track: String
+        var acceptedBytes: Int
+        var durationMs: Int
+        var pipelineWasRunning: Bool
+        var pipelineRunning: Bool
+        var injectSession: Bool
+        var padSilenceMs: Int
     }
 
     /// Dual-track PCM metrics for A/B harness (sum = mic + system peak/filled).
@@ -42,8 +58,9 @@ final class CapturePipeline {
     }
 
     func start() {
-        guard !isRunning else { return }
-        AppLog.info(.capture, "start requested")
+        // Already on live mic/engine — no-op. Inject-only session may upgrade to real mic.
+        if isRunning && !isInjectSession { return }
+        AppLog.info(.capture, "start requested inject_session=\(isInjectSession)")
         requestMicAccess { [weak self] granted in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -52,7 +69,10 @@ final class CapturePipeline {
                 } else {
                     PermissionStatus.logSnapshot(reason: "capture_fail_mic")
                     RuntimeHealth.shared.noteCaptureError("Microphone permission denied")
-                    RuntimeHealth.shared.setPipelineRunning(false)
+                    // Keep inject session alive if it was already processing.
+                    if !self.isInjectSession {
+                        RuntimeHealth.shared.setPipelineRunning(false)
+                    }
                     self.onStatus?("Microphone permission denied — enable in System Settings")
                 }
             }
@@ -68,13 +88,17 @@ final class CapturePipeline {
     }
 
     private func startAfterPermission() {
-        guard !isRunning else { return }
-        emittedMic.removeAll()
-        emittedSystem.removeAll()
-        processTick = 0
-        let sessionStart = Int64(Date().timeIntervalSince1970 * 1000)
-        micBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
-        systemBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
+        if isRunning && !isInjectSession { return }
+        let upgradingInject = isRunning && isInjectSession
+        // Preserve inject-fed ring contents when upgrading; only reset on a fresh start.
+        if !upgradingInject {
+            emittedMic.removeAll()
+            emittedSystem.removeAll()
+            processTick = 0
+            let sessionStart = Int64(Date().timeIntervalSince1970 * 1000)
+            micBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
+            systemBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
+        }
 
         do { try gate.loadModelIfNeeded() } catch {
             AppLog.error(.gate, "load failed: \(error.localizedDescription)")
@@ -90,7 +114,9 @@ final class CapturePipeline {
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
             PermissionStatus.logSnapshot(reason: "capture_fail_input")
             RuntimeHealth.shared.noteCaptureError("Microphone unavailable / permission denied")
-            RuntimeHealth.shared.setPipelineRunning(false)
+            if !upgradingInject {
+                RuntimeHealth.shared.setPipelineRunning(false)
+            }
             onStatus?("Microphone unavailable / permission denied")
             return
         }
@@ -109,21 +135,27 @@ final class CapturePipeline {
         do {
             try engine.start()
             isRunning = true
+            isInjectSession = false
             RuntimeHealth.shared.setPipelineRunning(true)
             RuntimeHealth.shared.clearCaptureError()
-            startProcessingLoop()
+            if processTimer == nil {
+                startProcessingLoop()
+            }
             onStatus?("Recording (mic)")
             let capSec = PCMBufferPolicy.capacitySeconds(for: pcmVariant)
             AppLog.info(
                 .capture,
                 "mic started sampleRate=\(Int(inputFormat.sampleRate)) ch=\(Int(inputFormat.channelCount)) "
-                    + "pcm_variant=\(pcmVariant.rawValue) pcm_cap_sec=\(capSec)"
+                    + "pcm_variant=\(pcmVariant.rawValue) pcm_cap_sec=\(capSec) "
+                    + "upgraded_from_inject=\(upgradingInject)"
             )
         } catch {
             input.removeTap(onBus: 0)
             PermissionStatus.logSnapshot(reason: "capture_fail_engine")
             RuntimeHealth.shared.noteCaptureError("Capture start failed: \(error.localizedDescription)")
-            RuntimeHealth.shared.setPipelineRunning(false)
+            if !upgradingInject {
+                RuntimeHealth.shared.setPipelineRunning(false)
+            }
             onStatus?("Capture start failed: \(error.localizedDescription)")
             return
         }
@@ -155,11 +187,15 @@ final class CapturePipeline {
     func stop() {
         guard isRunning else { return }
         isRunning = false
+        isInjectSession = false
         RuntimeHealth.shared.setPipelineRunning(false)
         processTimer?.cancel()
         processTimer = nil
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        // Inject-only session never installed a tap / started the engine.
+        if engine.isRunning {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
         if #available(macOS 13.0, *), let capture = systemCapture as? SystemAudioCapture {
             capture.stop()
         }
@@ -171,6 +207,95 @@ final class CapturePipeline {
         AppLog.info(.capture, "stopped")
         onStatus?("Stopped")
     }
+
+    // MARK: - Debug PCM inject (Agent IO / XCTest)
+
+    /// Arm models + VAD process loop **without** mic tap / TCC.
+    /// Live mic/system capture (if already running) is left alone; inject only appends to one rail.
+    @discardableResult
+    func ensureDebugInjectSession() -> Bool {
+        if isRunning { return true }
+        emittedMic.removeAll()
+        emittedSystem.removeAll()
+        processTick = 0
+        let sessionStart = Int64(Date().timeIntervalSince1970 * 1000)
+        micBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
+        systemBuffer.reset(streamStartMs: sessionStart, sampleRate: Int(targetSampleRate))
+
+        do { try gate.loadModelIfNeeded() } catch {
+            AppLog.error(.gate, "inject session gate load: \(error.localizedDescription)")
+        }
+        do { try asr.loadModelIfNeeded() } catch {
+            AppLog.error(.asr, "inject session asr load: \(error.localizedDescription)")
+        }
+
+        isRunning = true
+        isInjectSession = true
+        RuntimeHealth.shared.setPipelineRunning(true)
+        RuntimeHealth.shared.clearCaptureError()
+        startProcessingLoop()
+        AppLog.info(
+            .capture,
+            "debug inject session armed pcm_variant=\(pcmVariant.rawValue) (no mic tap / no TCC)"
+        )
+        onStatus?("Inject session (debug)")
+        return true
+    }
+
+    /// Append Int16 LE mono PCM into the live mic **or** system ring (same path as capture).
+    /// Does **not** stop the other rail. Pads trailing silence so VAD can close + leave pending window.
+    @discardableResult
+    func injectPCM(
+        track: SegmentTrack,
+        pcm16kMono: Data,
+        padSilenceMs: Int = PCMInject.defaultPadSilenceMs,
+        autoArm: Bool = true
+    ) throws -> InjectAccept {
+        let wasRunning = isRunning
+        if !isRunning {
+            guard autoArm else {
+                throw AgentIOError.invalidArgument(
+                    "pipeline not running; start recording or pass auto_arm=true for debug inject session"
+                )
+            }
+            _ = ensureDebugInjectSession()
+        }
+        guard !pcm16kMono.isEmpty else {
+            throw AgentIOError.invalidArgument("PCM payload is empty")
+        }
+        var even = pcm16kMono
+        if even.count % 2 != 0 {
+            even = even.prefix(even.count - 1)
+        }
+        let padded = PCMInject.withTrailingSilence(Data(even), silenceMs: max(0, padSilenceMs))
+        let ring = track == .mic ? micBuffer : systemBuffer
+        ring.append(int16LE: padded)
+        let durationMs = padded.count / 2 * 1000 / Int(targetSampleRate)
+        AppLog.info(
+            .capture,
+            "inject_pcm track=\(track.rawValue) bytes=\(padded.count) dur_ms=\(durationMs) "
+                + "pad_ms=\(padSilenceMs) was_running=\(wasRunning) inject_session=\(isInjectSession)"
+        )
+        // Kick an early process pass so agents need not wait a full timer tick.
+        processQueue.async { [weak self] in
+            self?.processTrack(track, forceFlush: false)
+        }
+        return InjectAccept(
+            track: track.rawValue,
+            acceptedBytes: padded.count,
+            durationMs: durationMs,
+            pipelineWasRunning: wasRunning,
+            pipelineRunning: isRunning,
+            injectSession: isInjectSession,
+            padSilenceMs: padSilenceMs
+        )
+    }
+
+    /// Test helper: mic ring filled bytes after inject (no raw audio).
+    func debugMicFilledBytes() -> Int { micBuffer.metrics().filledBytes }
+
+    /// Test helper: system ring filled bytes after inject.
+    func debugSystemFilledBytes() -> Int { systemBuffer.metrics().filledBytes }
 
     private func appendConverted(_ pcm: AVAudioPCMBuffer, to format: AVAudioFormat, into ring: PCMRingBuffer?) {
         guard let converter, let ring else { return }
