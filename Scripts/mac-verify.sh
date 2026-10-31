@@ -58,4 +58,8 @@ cat <<'EOF'
 Port override: defaults write app.contextday agentIOHTTPPort <port>
             or ContextDay --port <port>
 Models: ./Scripts/fetch-models.sh  (SenseVoice / YAMNet tests XCTSkip if absent)
+
+PCM A/B (Spec v0.3.29): see Scripts/pcm-buffer-ab.md
+  defaults write app.contextday pcm_buffer_variant A|B   # restart App
+  python3 Scripts/pcm-buffer-ab-sim.py                  # capacity ratio on any host
 EOF

@@ -2,7 +2,7 @@
 
 本机 24h 语音上下文（Mac App Store 向），供 Grok Bot 类助手使用。
 
-产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（**MVP SSOT**，当前 **v0.3.8**）。  
+产品与技术细节以 [docs/01_spec.md](docs/01_spec.md) 为准（**MVP SSOT**，当前 **v0.3.29**）。  
 Agent IO post-MVP 优化（分轨 activity / ISO / speech blocks / 统一错误与分页）见 [docs/02_spec.md](docs/02_spec.md)；样例 [docs/agent-io-samples.md](docs/agent-io-samples.md)。
 
 助手技能模板（脱敏）：仓库 [docs/agent-skills/](docs/agent-skills/)（Git SSOT）；运行时播种到 `~/Library/Application Support/ContextDay/agent-skills/`，可经 Agent IO 读写（见 [docs/agent-io-mcp.md](docs/agent-io-mcp.md)）。
@@ -60,6 +60,19 @@ MCP / Grok 样例：[docs/agent-io-mcp.md](docs/agent-io-mcp.md)
 | `YamNetGateTests` | Music>Speech；有模型再跑 fixture |
 | `SenseVoiceASRTests` | load 或 XCTSkip |
 | `RetentionDiskTests` | 滚动删除 + 磁盘状态 |
+| `PCMRingBufferTests` | 固定环裁切 / `streamStartMs` / 双轨独立 / A/B peak 比 |
+| `VoiceActivityDetectorTests` | max 强切、安静麦、噪声底 |
+
+### PCM 缓冲 A/B（v0.3.29）
+
+默认 **B**（每轨 ~60s 固定环）。对照 **A**（~10 min soft-cap）可用 UserDefaults 翻转后重启 App：
+
+```bash
+defaults write app.contextday pcm_buffer_variant A   # 对照
+defaults write app.contextday pcm_buffer_variant B   # 默认
+```
+
+测量步骤与成功表：[Scripts/pcm-buffer-ab.md](Scripts/pcm-buffer-ab.md)。Linux 容量仿真：`python3 Scripts/pcm-buffer-ab-sim.py`。
 
 ## 模型
 

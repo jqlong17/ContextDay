@@ -70,6 +70,7 @@
 		B15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15SLEEP00000000000001 /* OrbFrameLoopPlayer.swift */; };
 		B15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */; };
 		B16PCMBUF00000000000001 /* PCMRingBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16PCMBUF00000000000001 /* PCMRingBufferTests.swift */; };
+		B17PCMPOL00000000000001 /* PCMBufferPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17PCMPOL00000000000001 /* PCMBufferPolicy.swift */; };
 		B16VADTEST0000000000001 /* VoiceActivityDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16VADTEST0000000000001 /* VoiceActivityDetectorTests.swift */; };
 		B16ONB000000000000001 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000001 /* OnboardingFlow.swift */; };
 		B16ONB000000000000002 /* OnboardingBubbleController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16ONB000000000000002 /* OnboardingBubbleController.swift */; };
@@ -155,6 +156,7 @@
 		A14READY000000000000002 /* LaunchReadyGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchReadyGateTests.swift; sourceTree = "<group>"; };
 		A15SLEEP00000000000002 /* OrbFrameLoopPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbFrameLoopPlayerTests.swift; sourceTree = "<group>"; };
 		A16PCMBUF00000000000001 /* PCMRingBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMRingBufferTests.swift; sourceTree = "<group>"; };
+		A17PCMPOL00000000000001 /* PCMBufferPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCMBufferPolicy.swift; sourceTree = "<group>"; };
 		A16VADTEST0000000000001 /* VoiceActivityDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceActivityDetectorTests.swift; sourceTree = "<group>"; };
 		A16ONB000000000000001 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
 		A16ONB000000000000002 /* OnboardingBubbleController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingBubbleController.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 		09E05BC9B76547388BD2558A /* Capture */ = {
 			isa = PBXGroup;
 			children = (
+				A17PCMPOL00000000000001 /* PCMBufferPolicy.swift */,
 				244B02B1AC0E42508BAE94D3 /* PCMRingBuffer.swift */,
 				7FF2CFA738984C4B80DC4517 /* CapturePipeline.swift */,
 				526517D2FA7F4B3A8BADF347 /* SystemAudioCapture.swift */,
@@ -477,6 +480,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AB9910F7340D45258F713E25 /* PCMRingBuffer.swift in Sources */,
+				B17PCMPOL00000000000001 /* PCMBufferPolicy.swift in Sources */,
 				6162761D467545EB90D2B88F /* ModelBundlePaths.swift in Sources */,
 				4A8B8A9121A347CCBA82D239 /* AgentSegmentDTO.swift in Sources */,
 				0F9025C722234D91B7029921 /* AgentIOError.swift in Sources */,

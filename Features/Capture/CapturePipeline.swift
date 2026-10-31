@@ -7,8 +7,9 @@ final class CapturePipeline {
     private(set) var isRunning = false
 
     private let engine = AVAudioEngine()
-    private let micBuffer = PCMRingBuffer()
-    private let systemBuffer = PCMRingBuffer()
+    private let pcmVariant: PCMBufferVariant
+    private let micBuffer: PCMRingBuffer
+    private let systemBuffer: PCMRingBuffer
     private let vad = VoiceActivityDetector()
     private let gate = YamNetGate()
     private let asr = SenseVoiceASR()
@@ -26,6 +27,19 @@ final class CapturePipeline {
     private var systemCapture: AnyObject?
 
     var onStatus: ((String) -> Void)?
+
+    init(pcmVariant: PCMBufferVariant = PCMBufferPolicy.resolveVariant()) {
+        self.pcmVariant = pcmVariant
+        self.micBuffer = PCMRingBuffer(variant: pcmVariant)
+        self.systemBuffer = PCMRingBuffer(variant: pcmVariant)
+    }
+
+    /// Dual-track PCM metrics for A/B harness (sum = mic + system peak/filled).
+    func pcmABMetrics() -> (mic: PCMBufferMetrics, system: PCMBufferMetrics, sumFilled: Int, sumPeak: Int) {
+        let mic = micBuffer.metrics()
+        let sys = systemBuffer.metrics()
+        return (mic, sys, mic.filledBytes + sys.filledBytes, mic.peakFilledBytes + sys.peakFilledBytes)
+    }
 
     func start() {
         guard !isRunning else { return }
@@ -99,7 +113,12 @@ final class CapturePipeline {
             RuntimeHealth.shared.clearCaptureError()
             startProcessingLoop()
             onStatus?("Recording (mic)")
-            AppLog.info(.capture, "mic started sampleRate=\(Int(inputFormat.sampleRate)) ch=\(Int(inputFormat.channelCount))")
+            let capSec = PCMBufferPolicy.capacitySeconds(for: pcmVariant)
+            AppLog.info(
+                .capture,
+                "mic started sampleRate=\(Int(inputFormat.sampleRate)) ch=\(Int(inputFormat.channelCount)) "
+                    + "pcm_variant=\(pcmVariant.rawValue) pcm_cap_sec=\(capSec)"
+            )
         } catch {
             input.removeTap(onBus: 0)
             PermissionStatus.logSnapshot(reason: "capture_fail_engine")
@@ -243,6 +262,15 @@ final class CapturePipeline {
                 )
             }
             AppLog.info(.vad, line)
+        }
+        // A/B harness: dump dual-track buffer metrics ~every 30s on the mic tick.
+        if track == .mic && processTick > 0 && processTick % 30 == 0 {
+            let ab = pcmABMetrics()
+            AppLog.info(
+                .capture,
+                "pcm_ab \(ab.mic.logLine) | system \(ab.system.logLine) "
+                    + "sumFilled=\(ab.sumFilled) sumPeak=\(ab.sumPeak)"
+            )
         }
         // Drop emission records older than the ring's stream start (already trimmed away).
         let pruned = emitted.filter { $0.1 >= snap.streamStartMs - 2_000 }
