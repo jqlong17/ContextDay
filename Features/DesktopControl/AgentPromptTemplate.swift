@@ -59,6 +59,7 @@ enum AgentPromptTemplate {
         期望 JSON 含 "service":"ContextDay"。
         转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
         技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
+        调试（仅本机）：POST /v1/tools/inject_pcm — path 或 pcm_base64 → 同环缓冲；见 docs/fixtures + Scripts/pcm-inject-example.sh
         说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」（可选 name 指向某一技能文件），不是下方全文。
         长会议：list_activity（分轨）→ list_speech_blocks → 每块 get_window；勿调用 summarize_window。段 DTO 含派生 t0_iso/t1_iso（权威仍为 t0_ms/t1_ms）。
 

@@ -176,6 +176,37 @@ Content-Type: application/json
 
 期望含：`ok`、`service`、`permissions`、`runtime`、`database`、`models`、`agent_io`、`notes`。
 
+## Debug：`inject_pcm`（v0.3.30，仅 localhost）
+
+无人麦 / 无扬声器驱动 VAD→YAMNet→SenseVoice→SQLite。优先 `path`（大 clip）；短段可用 `pcm_base64`。
+
+```bash
+./Scripts/pcm-inject-example.sh mic
+# 等价：
+curl -s -X POST http://127.0.0.1:18787/v1/tools/inject_pcm \
+  -H 'Content-Type: application/json' \
+  -d '{"track":"mic","path":"docs/fixtures/speech_16k_mono_s4.pcm","sample_rate":16000}'
+# 等待数秒后：
+./Scripts/contextday-cli.sh get_recent '{"limit":5,"track":"mic"}'
+```
+
+响应示意（**无**转写正文；再 poll `get_recent`）：
+
+```json
+{
+  "ok": true,
+  "track": "mic",
+  "accepted_bytes": 192000,
+  "duration_ms": 6000,
+  "source_sample_rate": 16000,
+  "pipeline_running": true,
+  "inject_session": true,
+  "poll_hint": "Wait ~3–8s for VAD→gate→ASR, then POST /v1/tools/get_recent …"
+}
+```
+
+`auto_arm` 默认 true：管线未跑时启动 debug inject session（加载模型 + 处理循环，不开麦 / 不触发 TCC）。
+
 ## 错误形（统一）
 
 ```bash
@@ -211,4 +242,4 @@ HTTP **501**。`export_audio` 同理。未知路径 **404** → `{ "error":"not_
 | `summarize_window` / `export_audio` | 仍 **unavailable** |
 | 统一错误 JSON + 50/500 上限文档 | 02 §2.8–2.9 |
 | SQLite Segment schema | **未破改**（派生字段仅 DTO） |
-| 无头机完整 PCM→ASR→落库 | 需父机 Mac；云端用 fixture 插入代替 |
+| 无头机完整 PCM→ASR→落库 | 父机 Mac：`inject_pcm` + fixture；云端单测用 SQLite fixture 插入代替 |

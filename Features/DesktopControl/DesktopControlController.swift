@@ -20,6 +20,12 @@ final class DesktopControlController: NSObject, NSMenuItemValidation {
     /// One-shot ready blink per cold start (Spec §2.7.4) — never spam.
     private var didPlayReadyBlink = false
 
+    override init() {
+        super.init()
+        // Agent IO `inject_pcm` reaches this live pipeline (localhost debug only).
+        CaptureInjectHost.register(capture)
+    }
+
     func show() {
         let pt = OrbSizeStore.load()
         let size = NSSize(width: pt, height: pt)

@@ -229,6 +229,21 @@ enum AgentIOMCPStdio {
                 "description": "Offline-friendly triage: permissions, DB, models, recording desync, last capture error.",
                 "inputSchema": ["type": "object", "properties": [:] as [String: Any]],
             ],
+            [
+                "name": "inject_pcm",
+                "description": "DEBUG: inject mono Int16 LE PCM into mic/system capture rail (localhost). Prefer path under docs/fixtures or records scratch; or pcm_base64. Auto-arms inject session (no TCC).",
+                "inputSchema": [
+                    "type": "object",
+                    "properties": [
+                        "track": ["type": "string", "enum": ["mic", "system"]],
+                        "path": ["type": "string"],
+                        "pcm_base64": ["type": "string"],
+                        "sample_rate": ["type": "integer", "description": "16000 (preferred) or 48000"],
+                        "auto_arm": ["type": "boolean"],
+                        "pad_silence_ms": ["type": "integer"],
+                    ],
+                ],
+            ],
         ]
         return first
     }
