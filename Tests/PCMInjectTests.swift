@@ -82,6 +82,7 @@ final class PCMInjectTests: XCTestCase {
         XCTAssertTrue(accept.pipelineRunning)
         XCTAssertTrue(accept.injectSession)
         XCTAssertEqual(accept.track, "mic")
+        XCTAssertGreaterThan(accept.acceptedBytes, 0)
         XCTAssertGreaterThan(pipeline.debugMicFilledBytes(), 0)
         XCTAssertEqual(pipeline.debugSystemFilledBytes(), 0)
 
@@ -94,17 +95,27 @@ final class PCMInjectTests: XCTestCase {
         pipeline.stop()
     }
 
-    func testSyntheticFixturePassesVADMinSpeech() {
+    func testEnergySyntheticPassesVADMinSpeech() {
         let vad = VoiceActivityDetector()
         let pcm = PCMInject.makeSyntheticSpeechFixture(speechSeconds: 4.0, silenceSeconds: 2.0)
         let utts = vad.segment(pcm: pcm, streamStartMs: 1_000_000, sampleRate: 16_000)
-        XCTAssertFalse(utts.isEmpty, "synthetic fixture must produce ≥1 VAD utterance")
+        XCTAssertFalse(utts.isEmpty, "energy synthetic must produce ≥1 VAD utterance")
         let minSamples = 16_000 * vad.minSpeechMs / 1000
         XCTAssertGreaterThanOrEqual(utts[0].endSample - utts[0].startSample, minSamples)
     }
 
+    func testCheckedInChineseFixturePassesVAD() throws {
+        guard let url = Self.locateCheckedInFixture() else {
+            throw XCTSkip("checked-in speech_zh_16k_mono.pcm not found (cwd=\(FileManager.default.currentDirectoryPath))")
+        }
+        let pcm = try Data(contentsOf: url)
+        XCTAssertGreaterThan(pcm.count, 16_000 * 2 * 3, "fixture should be >3s")
+        let vad = VoiceActivityDetector()
+        let utts = vad.segment(pcm: pcm, streamStartMs: 1_000_000, sampleRate: 16_000)
+        XCTAssertFalse(utts.isEmpty, "Chinese speech fixture must clear VAD min speech")
+    }
+
     func testAgentIOInjectWithoutPipelineIsUnavailable() {
-        // Explicit nil pipeline — simulates App UI not registering CaptureInjectHost.
         let service = AgentIOService(store: store)
         XCTAssertThrowsError(
             try service.injectPCM(
@@ -122,17 +133,21 @@ final class PCMInjectTests: XCTestCase {
         }
     }
 
-    func testProtocolDispatchInjectPcm() throws {
+    func testProtocolDispatchInjectPcmAccepted() throws {
         let pipeline = CapturePipeline(pcmVariant: .b, store: store)
         CaptureInjectHost.register(pipeline)
         let service = AgentIOService(store: store)
-        let pcm = PCMInject.makeSyntheticSpeechFixture(speechSeconds: 3.2, silenceSeconds: 0)
-        let b64 = pcm.base64EncodedString()
+        let pcm: Data
+        if let url = Self.locateCheckedInFixture() {
+            pcm = try Data(contentsOf: url)
+        } else {
+            pcm = PCMInject.makeSyntheticSpeechFixture(speechSeconds: 3.2, silenceSeconds: 0)
+        }
         let data = try AgentIOProtocol.dispatch(
             tool: "inject_pcm",
             arguments: [
                 "track": "mic",
-                "pcm_base64": b64,
+                "pcm_base64": pcm.base64EncodedString(),
                 "sample_rate": 16_000,
                 "auto_arm": true,
                 "pad_silence_ms": 500,
@@ -142,6 +157,7 @@ final class PCMInjectTests: XCTestCase {
         let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         XCTAssertEqual(obj?["ok"] as? Bool, true)
         XCTAssertEqual(obj?["track"] as? String, "mic")
+        XCTAssertGreaterThan(obj?["accepted_bytes"] as? Int ?? 0, 0)
         XCTAssertNotNil(obj?["poll_hint"] as? String)
         // Privacy: response must not include transcript text.
         XCTAssertNil(obj?["text"])
@@ -149,9 +165,9 @@ final class PCMInjectTests: XCTestCase {
         pipeline.stop()
     }
 
-    /// When YAMNet + SenseVoice models are present, inject should eventually insert a segment.
-    /// Cloud/Linux CI without models → XCTSkip (clear signal, not a red fail).
-    func testInjectToSegmentIfModelsPresent() throws {
+    /// Gate ON + models present → expect a mic segment with non-empty ASR text.
+    /// Missing models → XCTSkip (CI without fetch-models).
+    func testInjectToNonEmptySegmentIfModelsPresent() throws {
         let hasYam =
             ModelBundlePaths.yamnetONNX.map { FileManager.default.fileExists(atPath: $0.path) } == true
         let hasAsr =
@@ -161,12 +177,14 @@ final class PCMInjectTests: XCTestCase {
         guard hasYam, hasAsr else {
             throw XCTSkip("YAMNet/SenseVoice models missing — run Scripts/fetch-models.sh on Mac")
         }
+        guard let fixtureURL = Self.locateCheckedInFixture() else {
+            throw XCTSkip("speech_zh_16k_mono.pcm missing — run Scripts/generate-pcm-inject-fixture.sh")
+        }
 
-        // Prove same VAD→ASR→SQLite path. Disable gate so synthetic fixture is not
-        // rejected as YAMNet `other` (live Mac retest keeps gate on via pcm-inject-example).
+        // Keep gate ON: Chinese TTS fixture must get speech / send_asr (not music buzz).
         var cfg = AppConfigStore.load()
         let previousGate = cfg.gateEnabled
-        cfg.gateEnabled = false
+        cfg.gateEnabled = true
         AppConfigStore.save(cfg)
         defer {
             var restore = AppConfigStore.load()
@@ -176,35 +194,45 @@ final class PCMInjectTests: XCTestCase {
 
         let pipeline = CapturePipeline(pcmVariant: .b, store: store)
         CaptureInjectHost.register(pipeline)
-        let before = store.queryRecent(limit: 5, track: .mic).count
+        let beforeIDs = Set(store.queryRecent(limit: 20, track: .mic).map(\.id))
 
-        let fixtureURL = Self.locateCheckedInFixture()
-        let pcm: Data
-        if let fixtureURL {
-            pcm = try Data(contentsOf: fixtureURL)
-        } else {
-            pcm = PCMInject.makeSyntheticSpeechFixture()
-        }
-        _ = try pipeline.injectPCM(track: .mic, pcm16kMono: pcm, padSilenceMs: 0, autoArm: true)
+        let pcm = try Data(contentsOf: fixtureURL)
+        let accept = try pipeline.injectPCM(track: .mic, pcm16kMono: pcm, padSilenceMs: 0, autoArm: true)
+        XCTAssertGreaterThan(accept.acceptedBytes, 0)
+        XCTAssertTrue(accept.pipelineRunning)
 
-        let deadline = Date().addingTimeInterval(45)
-        var after = before
+        let deadline = Date().addingTimeInterval(60)
+        var newest: Segment?
         while Date() < deadline {
-            after = store.queryRecent(limit: 5, track: .mic).count
-            if after > before { break }
+            let rows = store.queryRecent(limit: 20, track: .mic)
+            newest = rows.first { !beforeIDs.contains($0.id) }
+            if let text = newest?.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                break
+            }
             Thread.sleep(forTimeInterval: 0.5)
         }
         pipeline.stop()
-        XCTAssertGreaterThan(after, before, "expected new mic segment after inject")
+
+        guard let seg = newest else {
+            return XCTFail("expected new mic segment after inject (gate ON + Chinese fixture)")
+        }
+        let text = (seg.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(text.isEmpty, "ASR text must be non-empty (got gate/ASR empty)")
+        // Soft content check — SenseVoice may paraphrase; require CJK presence.
+        let hasCJK = text.unicodeScalars.contains { $0.value >= 0x4E00 && $0.value <= 0x9FFF }
+        XCTAssertTrue(hasCJK, "expected some Chinese characters in ASR text, got chars=\(text.count)")
     }
 
     private static func locateCheckedInFixture() -> URL? {
+        let name = "speech_zh_16k_mono.pcm"
         let candidates = [
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                .appendingPathComponent("Tests/Fixtures/speech_16k_mono_s4.pcm"),
+                .appendingPathComponent("Tests/Fixtures/\(name)"),
             URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                .appendingPathComponent("docs/fixtures/speech_16k_mono_s4.pcm"),
-        ]
+                .appendingPathComponent("docs/fixtures/\(name)"),
+            Bundle(for: PCMInjectTests.self).resourceURL?
+                .appendingPathComponent("Fixtures/\(name)"),
+        ].compactMap { $0 }
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 }

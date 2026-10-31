@@ -82,7 +82,8 @@ enum PCMInject {
         return out
     }
 
-    /// Synthetic voiced formant-ish clip (~4s speech + silence) for offline tests / agents.
+    /// Energy-only synthetic clip for **VAD unit tests** (not for YAMNet/ASR).
+    /// Formant buzz is labeled `music` by YAMNet — use `docs/fixtures/speech_zh_16k_mono.pcm` for gate/ASR.
     static func makeSyntheticSpeechFixture(
         speechSeconds: Double = 4.0,
         silenceSeconds: Double = 2.0,

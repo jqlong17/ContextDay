@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.30** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.30 localhost debug `inject_pcm`（无扬声器/无人麦自测）；v0.3.29 PCM 环缓冲收紧（默认 B≈60s）+ A/B；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.31** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.31 inject 中文语音 fixture（替 buzz）+ 沙盒用 base64/scratch；v0.3.30 `inject_pcm`；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-31 11:00 Asia/Shanghai |
+| 最后更新 | 2026-10-31 11:20 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -295,7 +295,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 转写工具：POST /v1/tools/{search_segments|get_recent|get_window|list_activity|list_speech_blocks|self_check}
 （`list_speech_blocks` 与分轨 activity / ISO 派生见 docs/02_spec.md）
 技能工具：POST /v1/tools/{list_agent_skills|get_agent_skill|update_agent_skill|reset_agent_skill|get_clipboard_prompt}
-调试（仅本机，v0.3.30）：POST /v1/tools/inject_pcm — 见 §2.9.1c / docs/fixtures / Scripts/pcm-inject-example.sh
+调试（仅本机，v0.3.30+）：POST /v1/tools/inject_pcm — 见 §2.9.1c；fixture `speech_zh_16k_mono.pcm`；沙盒用 base64 / scratch
 说明：get_clipboard_prompt / 右键「复制提示词」仅返回一行「请阅读 …/agent-skills/README.md」（可选 name 指向某一技能），不是本全文。
 
 助手技能模版（本机可发现绝对路径；由 App Bundle 播种到 Application Support，可经 Agent IO 更新）：
@@ -365,13 +365,13 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 
 播种：启动时若缺文件或 Bundle `VERSION` 与 `.seeded-from-version` 不一致，从 Bundle 复制 packaged 文件；永不覆盖 `agent-skills.local.md`。
 
-#### 2.9.1c Debug PCM inject（v0.3.30）
+#### 2.9.1c Debug PCM inject（v0.3.30；fixture v0.3.31）
 
 | 工具 | 参数 | 说明 |
 |------|------|------|
-| `inject_pcm` | `track?`（`mic`\|`system`，默认 mic）、`path?` **或** `pcm_base64?`、`sample_rate?`（**16000** 优先；**48000** 则本机每 3 样点抽 1）、`auto_arm?`（默认 true）、`pad_silence_ms?`（默认 2000） | **仅 localhost Agent IO**。把 mono Int16 LE PCM 写入与实采相同的环缓冲 → 同一 VAD→YAMNet→SenseVoice→SQLite 路径。`path` 须在记录根 / `scratch/` / `docs/fixtures/` / `Tests/Fixtures/`。`auto_arm=true` 时若管线未跑，启动 **debug inject session**（加载模型 + 处理循环，**不开麦 tap、不触发 TCC**）。双轨独立：注 mic 不停 system（反之亦然）。响应含 `accepted_bytes` / `duration_ms` / `pipeline_running` / `poll_hint`（再 `get_recent`）；**不**回传转写正文。 |
+| `inject_pcm` | `track?`（`mic`\|`system`，默认 mic）、`path?` **或** `pcm_base64?`、`sample_rate?`（**16000** 优先；**48000** 则本机每 3 样点抽 1）、`auto_arm?`（默认 true）、`pad_silence_ms?`（默认 2000） | **仅 localhost Agent IO**。把 mono Int16 LE PCM 写入与实采相同的环缓冲 → 同一 VAD→YAMNet→SenseVoice→SQLite 路径。`path` 须在记录根 / `scratch/` / `docs/fixtures/` / `Tests/Fixtures/`（**App Sandbox 下仓库路径通常不可读** → 优先 `pcm_base64` 或先拷到记录根 `scratch/`）。`auto_arm=true` 时若管线未跑，启动 **debug inject session**（加载模型 + 处理循环，**不开麦 tap、不触发 TCC**）。双轨独立：注 mic 不停 system（反之亦然）。响应含 `accepted_bytes` / `duration_ms` / `pipeline_running` / `poll_hint`（再 `get_recent`）；**不**回传转写正文。 |
 
-安全：HTTP 已绑 `127.0.0.1`；实现宜拒绝非 loopback peer。fixture：`docs/fixtures/speech_16k_mono_s4.pcm`（约 4s 合成浊音 + 2s 静音）。示例：`Scripts/pcm-inject-example.sh`。**不**写入 App Store / 审核文案叙事。
+安全：HTTP 已绑 `127.0.0.1`；实现宜拒绝非 loopback peer。fixture（v0.3.31）：`docs/fixtures/speech_zh_16k_mono.pcm`（中文 TTS 短句 + 静音；**勿**用 buzz/formant——YAMNet 会标 `music`）。再生：`Scripts/generate-pcm-inject-fixture.sh`。示例：`Scripts/pcm-inject-example.sh`（默认 base64）。**不**写入 App Store / 审核文案叙事。
 
 #### 2.9.2 非首波（明确不可用）
 
@@ -392,7 +392,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 - **权限**：启动 / 打开设置 / 采集失败时记录 Microphone、Screen Recording（系统声）状态；Accessibility / Automation 若未使用则标 `not_applicable`（不伪造授权）。
 - **日志**：`AppLog` → OSLog（subsystem `app.contextday` + category）；可选滚动文件 `{recordsRoot}/logs/contextday-YYYY-MM-DD.log`。info **不**写转写正文（可用 id / 字符数）。VAD 麦轨 ~10s 诊断在 `utt=0` 时附 `rms` / `peak` / `thr` / `noise` / `voicedFrac`（**禁止**写原始音频）。
 - **自检**：`POST /v1/tools/self_check` 或 `./Scripts/contextday-cli.sh self_check`；`GET /health` 保持轻量（含 `recording_desync` / `last_capture_error`，完整报告走 `self_check`）。
-- **Debug inject**（v0.3.30）：`POST /v1/tools/inject_pcm` — 见 §2.9.1c；无扬声器 / 无人麦即可驱动门控与 ASR 落库。
+- **Debug inject**（v0.3.30+）：`POST /v1/tools/inject_pcm` — 见 §2.9.1c；v0.3.31 中文语音 fixture；沙盒优先 base64。
 
 
 ---
@@ -464,11 +464,12 @@ ContextDay/
     fetch-models.sh
     mac-verify.sh
     contextday-cli.sh
-    pcm-inject-example.sh       # debug inject_pcm curl 示例（v0.3.30）
+    pcm-inject-example.sh       # debug inject_pcm（base64；沙盒友好）
+    generate-pcm-inject-fixture.sh  # 再生中文语音 fixture（edge-tts/espeak/say）
     pcm-buffer-ab.md            # PCM A/B 测量说明（v0.3.29）
     pcm-buffer-ab-sim.py        # Linux 容量比仿真
   docs/fixtures/
-    speech_16k_mono_s4.pcm      # inject 合成浊音 fixture（16k Int16）
+    speech_zh_16k_mono.pcm      # inject 中文 TTS fixture（16k Int16；v0.3.31）
 ```
 
 **资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `sleep/` Concept A 帧循环 + `wake-shy-S1` + `eye-click-2s` + `ready-2s`（`.mov` 运行时 / `.mp4` 绿幕源）；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。`DesktopButton/` 已删除，勿再引用。
@@ -883,7 +884,8 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
-| v0.3.30 | 2026-10-31 11:00 | §2.9.1c：localhost debug `inject_pcm`（path/base64 → 同环缓冲 VAD→gate→ASR）；auto-arm inject session（无麦 TCC）；fixture `docs/fixtures/speech_16k_mono_s4.pcm` + `Scripts/pcm-inject-example.sh`；**Segment schema 不变** |
+| v0.3.31 | 2026-10-31 11:20 | §2.9.1c fixture：替换 buzz 为中文 TTS `speech_zh_16k_mono.pcm`；沙盒注入改 base64/`scratch`；`generate-pcm-inject-fixture.sh`；**Segment schema 不变** |
+| v0.3.30 | 2026-10-31 11:00 | §2.9.1c：localhost debug `inject_pcm`（path/base64 → 同环缓冲 VAD→gate→ASR）；auto-arm inject session（无麦 TCC）；初版 fixture + `Scripts/pcm-inject-example.sh`；**Segment schema 不变** |
 | v0.3.29 | 2026-10-31 10:05 | §3.2.1：PCM 环缓冲收紧——默认 **B=60s** 固定环；**A=600s** soft-cap 对照可 UserDefaults/编译旗标回滚；A/B 成功指标表 + `Scripts/pcm-buffer-ab.md`；Mac unit/sim 已过（peak 0.10），live footprint A/B **取消不阻塞**默认 B；T28；**Segment schema 不变** |
 | v0.3.28 | 2026-10-30 22:10 | §2.2 / §2.3 / VAD：噪声底相对能量门限（替脆弱绝对 RMS 0.012）+ 连续有声强制 max 切；utt=0 诊断附 rms/peak/voicedFrac；SCK 注册 no-op screen 输出抑 Dropping frame；T06/T06b；**Segment schema 不变** |
 | v0.3.27 | 2026-10-30 21:50 | §2.7.6：权限气泡对话化——「稍后再说」推迟文案；开录再检必需权限并点名缺失；Login Item 仅信息、不挡开录；齐备后短「那开始工作」/「我先回到后台」；T27b；**Segment schema 不变** |
@@ -914,7 +916,7 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.30 | **已完成** | v0.3.30 = debug `inject_pcm`；v0.3.29 = PCM 60s 环默认 B + A/B；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.31 | **已完成** | v0.3.31 = 中文 inject fixture；v0.3.30 = debug `inject_pcm`；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
@@ -929,7 +931,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.30 localhost `inject_pcm` 可无人麦驱动 ASR 落库；v0.3.29 PCM 环默认 B≈60s；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.31 中文语音 inject fixture（沙盒 base64）；v0.3.30 `inject_pcm`；正式公证/上架留待人工提交。**
 
 ---
 

@@ -49,8 +49,9 @@ Example:
   $0 list_agent_skills '{}'
   $0 get_agent_skill '{"name":"meeting-minutes.md"}'
   $0 update_agent_skill '{"name":"meeting-minutes.md","content":"# custom\\n"}'
-  $0 inject_pcm '{"track":"mic","path":"docs/fixtures/speech_16k_mono_s4.pcm","sample_rate":16000}'
-  # or: ./Scripts/pcm-inject-example.sh mic
+  # Sandbox-safe inject (preferred):
+  ./Scripts/pcm-inject-example.sh mic
+  # or path under records scratch/ after copying speech_zh_16k_mono.pcm
 EOF
     ;;
 esac
