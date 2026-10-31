@@ -81,6 +81,8 @@ enum AppConfigStore {
         static let captureSystemAudio = "capture_system_audio"
         static let openAtLogin = "open_at_login"
         static let retentionNil = "retention_days_is_nil"
+        // PCM A/B (Spec §3.2.1) — resolved by `PCMBufferPolicy`, not shown in settings UI.
+        // Keys: `pcm_buffer_variant` ("A"|"B"), optional `pcm_buffer_seconds`.
     }
 
     private static var defaults: UserDefaults { .standard }

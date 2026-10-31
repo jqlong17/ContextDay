@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.28** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.28 VAD 自适应噪声底（修麦轨 utt=0 饿死）；v0.3.27 权限气泡对话化；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.29** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.29 PCM 环缓冲收紧（默认 B≈60s）+ A/B 开关；v0.3.28 VAD 自适应噪声底；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-30 22:10 Asia/Shanghai |
+| 最后更新 | 2026-10-31 10:05 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -47,7 +47,7 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 - **生活日志长期后台**：SenseVoice **Core ML int8**（本进程约 20–36 MB；~11.7s 试音识别约 2.6s）。
 - **短时听写**（非本产品主路径）：SenseVoice ONNX 更快但内存高峰约 800–900+ MB。
 - **音频门控**：YAMNet-ONNX，约 5s 窗；麦 / 系统**双轨独立标签与独立送识决策**；Music 与 Speech 同高时 **Music 优先**（**仅作用于该轨本窗**）。系统轨判为 Music **不得**抑制麦轨采集或 ASR。
-- **采集策略**：环缓冲连续采 PCM；分类只打标，不挡采集。PCM 仅作内存环缓冲 / 调试暂存，**不是**用户可选手动「全日留音」质量档。
+- **采集策略**：环缓冲连续采 PCM；分类只打标，不挡采集。PCM 仅作内存环缓冲 / 调试暂存，**不是**用户可选手动「全日留音」质量档。容量策略见 **§3.2.1**（默认 ≈60s/轨，非历史 ~10 min soft-cap）。
 
 ---
 
@@ -408,7 +408,7 @@ http://127.0.0.1:{AGENT_IO_PORT}/health
 |------|------|
 | `App` | `@main`、生命周期；可选 AppDelegate / 菜单栏入口 |
 | `Features/DesktopControl` | 浮控 `NSWindow`（层级见 §2.7.2）、`DesktopOrb` sleep 循环 + idle + eye-click + ready、首启引导气泡深色毛玻璃（§2.7.6）、右键菜单、剪贴板写入 |
-| `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ 环缓冲 |
+| `Features/Capture` | 双轨采集（AVAudioEngine 麦 + ScreenCaptureKit 系统声）→ PCM 环缓冲（默认 60s/轨，A/B 见 §3.2.1） |
 | `Features/Gate` | YAMNet-ONNX，~5s 窗；双轨独立标签与送识；Music>Speech 偏置仅限本轨本窗 |
 | `Features/VAD` | 断句；min 3s / max 30s；噪声底相对能量门限 + 绝对下限；静音门槛与合并 gap 分离；utt=0 诊断附 rms/peak/voicedFrac |
 | `Features/ASR` | SenseVoice Core ML int8（主力）；失败时明确降级策略（不默认偷开 ONNX） |
@@ -454,6 +454,8 @@ ContextDay/
     fetch-models.sh
     mac-verify.sh
     contextday-cli.sh
+    pcm-buffer-ab.md            # PCM A/B 测量说明（v0.3.29）
+    pcm-buffer-ab-sim.py        # Linux 容量比仿真
 ```
 
 **资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `sleep/` Concept A 帧循环 + `wake-shy-S1` + `eye-click-2s` + `ready-2s`（`.mov` 运行时 / `.mp4` 绿幕源）；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。`DesktopButton/` 已删除，勿再引用。
@@ -465,6 +467,45 @@ ContextDay/
 - **本进程内存优先**：长期只留 Core ML；不把听写用 ONNX 绑进常驻路径。
 - **轨语义**：过滤默认作用于「是否转写」；「全部保留音频」时非 Speech 仍可只存不转。
 - **转写权威唯一**：Segment.`text` 只写 SQLite；禁止生成「每日转写 txt」作为产品路径。
+
+#### 3.2.1 PCM 环缓冲容量与 A/B（v0.3.29）
+
+**背景**：`PCMRingBuffer` 曾为可增长 `Data` + soft-cap `sampleRate*2*60*10`（~10 min Int16@16k），注释写明仅为 smoke-test 边界。识别路径只需约 40–60s 近期 PCM（VAD max 30s + 门控 ~5s + 余量）。用户机实测录音中 `phys_footprint` ~170–180 MB，`MALLOC_LARGE` ~115 MB（含缓冲 + ASR 堆）。
+
+**产品决策（已批准）**：保留缓冲（VAD/ASR 需要）；去掉不必要的 ~10 min 软顶；优先真实固定容量环（或等价硬裁）。
+
+| 变体 | 角色 | 容量 | 实现 |
+|------|------|------|------|
+| **A** | 对照（control） | ~**600s**/轨 soft-cap | 可增长 `Data`，顶满后 `removeFirst` + 推进 `streamStartMs`（旧语义） |
+| **B** | 处理组 / **产品默认** | **60s**/轨 hard | 预分配固定环；覆写最旧样本并推进 `streamStartMs` |
+
+**为何选 60s（非 45）**：`maxSpeech` 30 + gate ~5 + `silenceEnd` ~2 + process tick/pending ~2 + ASR/snapshot 滞后余量 ~21 ≈ **60**。落在 45–60s 目标带上沿，保证 30s 强切窗 + 门控窗始终留在环内。
+
+**开关**（同包可翻，无需两套商店包；**改后须重启 App**）：
+
+| 方式 | 键 / 旗标 | 说明 |
+|------|-----------|------|
+| UserDefaults | `pcm_buffer_variant` = `A` \| `B` | 主开关 |
+| UserDefaults | `pcm_buffer_seconds` | ≥300 → A；(0,300) → B |
+| 编译期 | `-DCONTEXTDAY_PCM_VARIANT_A` / `_B` | `OTHER_SWIFT_FLAGS`；优先于 UserDefaults |
+| 默认 | **B** | 指标失败时可用 A 回滚，勿在未测过时改回默认 A |
+
+麦 / 系统**双轨各一**缓冲，互不共享存储。指标日志约每 30s：`pcm_ab … filledBytes/peakBytes/sum*`（无原始音频）。
+
+**成功指标（B 胜出 / 可默认 B）**：
+
+| Metric | 量法 | Pass |
+|--------|------|------|
+| Peak PCM buffer bytes（每轨 + sum） | 仪器 `filled`/`capacity`/`peak`；A 需写满 soft-cap（≥10 min）或 XCTest harness；短跑仅观察 B 是否 plateau@60s | B ≤ A × 0.15（约 10×） |
+| Process `phys_footprint`（录 3 min，闲聊+安静） | 同机同包 `footprint -p` / Activity Monitor | **可选**（见下）；若跑：B ≤ A − 20 MB **或** B ≤ 150 MB |
+| 转写质量代理 | 同一 ~60s 连说+短停；非空 text 段数；无长时间「在说却 utt=0」 | B 段数在 A ±20%；30s 强切不回退（完整 App 路径可选） |
+| Correctness | `PCMRingBufferTests` 等 XCTest | 0 failures |
+
+**产品默认翻到 B 的依据（v0.3.29 执行结论）**：Mac **unit/sim A/B（无需装 App / 免 TCC）已通过**——peak ratio 0.10 ≤ 0.15，且 `ContextDayTests` 全绿。据此将产品默认定为 **B**；A 仍可 `pcm_buffer_variant=A` 回滚。
+
+**Live `phys_footprint` A/B（需授权开录）已由用户取消**（TCC 成本高）。footprint **不再阻塞**默认 B；仅在用户日后能一次授齐权限时作为**可选** post-install 复核。测量步骤仍见 [`Scripts/pcm-buffer-ab.md`](../Scripts/pcm-buffer-ab.md) 与 `Scripts/pcm-buffer-ab-sim.py`。
+
+假设（非绑定）：`MALLOC_LARGE` 主要随更小 PCM + 更小 snapshot 下降；ASR Core ML 堆大体不变。
 
 ### 3.3 数据模型（定稿）
 
@@ -746,7 +787,8 @@ flowchart TB
 | T12 | Core ML 失败 | 移走模型 | 明确错误；不静默切 ONNX |
 | T13 | 权限拒绝 | 拒麦 | 无法激活；可跳转设置 |
 | T14 | 双轨同时 | 麦说话 + 系统放歌 | 两轨标签独立；系统 Music **不**跳过麦 Speech ASR；日志含 `per-track gate track=… scope=this_track_only` |
-| T15 | 内存 | 记录 1h | 本进程内存保持 Core ML 档（量级几十 MB，允许波动） |
+| T15 | 内存 | 记录 1h | 本进程内存保持 Core ML 档；PCM 默认 B（≤60s/轨），见 §3.2.1 / T28 |
+| T28 | PCM 缓冲 A/B | XCTest harness + `pcm-buffer-ab-sim.py`；可选 `defaults` 开录对读 `pcm_ab`/footprint | **必过**：B peak ≤ A×0.15 + XCTest 绿（已过）。footprint / 开录质量为可选，不阻塞默认 B（§3.2.1） |
 | T16 | 浮控层级 | 浮控（orb）可见时打开浏览器全屏/前置窗口 | 浏览器**可遮盖**浮控；非 always-on-top |
 | T17 | 打开记录文件夹 | 右键 → 打开记录文件夹 | Finder 打开 Application Support 根；可见 `db/`（及可选 `audio/`）；**无**要求存在每日 txt |
 | T18 | 复制提示词（一行指针） | 右键 → 复制提示词 → 粘贴 | 仅 `请阅读 …/agent-skills/README.md`；**无** health/工具列表/sqlite 长段 / Segment 字段摘要 / 完整专有正文 |
@@ -787,6 +829,7 @@ flowchart TB
 
 - 门控 5s 与 VAD 切段是两级，不要合成一个旋钮。
 - VAD 能量门限勿回到单一绝对 RMS 0.012；安静 Mac/USB 麦会 `utt=0` 饿死 ASR。优先噪声底相对 + 绝对下限；连续有声必须 max 强切。
+- PCM 环默认 **B=60s/轨**（§3.2.1）；勿再把 ~10 min soft-cap 当产品需要。回滚对照用 `pcm_buffer_variant=A`；Mac footprint 须父机按 `Scripts/pcm-buffer-ab.md` 复核后再宣布内存结论。
 - 留音默认关；开则默认 Opus 24，可选 12 / 64——为证据回听而非 hi-fi；禁止全日 WAV/PCM 预设；m4a/mp4 仅作日后导出。
 - 审核叙事：用户显式激活的本机上下文工具，服务个人助手；非隐蔽监控。
 - 与既有 YamnetGate / AsrCompare 实验代码可参考，但 ContextDay 工程独立，避免绑听写 ONNX 生命周期。
@@ -827,6 +870,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.29 | 2026-10-31 10:05 | §3.2.1：PCM 环缓冲收紧——默认 **B=60s** 固定环；**A=600s** soft-cap 对照可 UserDefaults/编译旗标回滚；A/B 成功指标表 + `Scripts/pcm-buffer-ab.md`；Mac unit/sim 已过（peak 0.10），live footprint A/B **取消不阻塞**默认 B；T28；**Segment schema 不变** |
 | v0.3.28 | 2026-10-30 22:10 | §2.2 / §2.3 / VAD：噪声底相对能量门限（替脆弱绝对 RMS 0.012）+ 连续有声强制 max 切；utt=0 诊断附 rms/peak/voicedFrac；SCK 注册 no-op screen 输出抑 Dropping frame；T06/T06b；**Segment schema 不变** |
 | v0.3.27 | 2026-10-30 21:50 | §2.7.6：权限气泡对话化——「稍后再说」推迟文案；开录再检必需权限并点名缺失；Login Item 仅信息、不挡开录；齐备后短「那开始工作」/「我先回到后台」；T27b；**Segment schema 不变** |
 | v0.3.26 | 2026-10-30 21:35 | §2.7.6：气泡拖拽跟随改为 `addChildWindow`（禁拖中用滞后 AppKit frame 硬 setFrame）；介绍/权限页加「上一步」；正文/清单去掉近黑 `NSTextField` 实心底；T27 更新；**Segment schema 不变** |
@@ -856,13 +900,13 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.28 | **已完成** | v0.3.28 = VAD 自适应噪声底 / max 强切 / utt=0 能量诊断；v0.3.27 = 权限气泡对话化；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.29 | **已完成** | v0.3.29 = PCM 60s 环默认 B + A/B；v0.3.28 = VAD 自适应噪声底；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
 | DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
 | DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡 / 冷启动醒来 idle、暂停直进 Concept A、开录 wake S1 / 左键未录音开录 / 右键启停 / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
-| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝；**v0.3.28** VAD 噪声底相对门限 + SCK no-op screen 输出 |
+| 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝；**v0.3.28** VAD 噪声底相对门限；**v0.3.29** PCM 默认 60s 环（A=10min 可回滚） |
 | 时间线 / 配置 / 隐私 | **已完成（轻量）** | 设置…单面板（含登录时打开 + 浮控大小 + UK skill shelf）/ 时间线… / 关于与隐私… |
 | UK meeting skill shelf | **已完成（首批 5 styles）** | v0.3.25：bundled markdown + 设置浏览/预览/复制一行指针；导出后端后续 |
 | 落库合并 / keep-audio / 磁盘 | **已完成（MVP）** | gap≤2s；retention；DiskSpaceGuard |
@@ -871,7 +915,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.28 VAD 自适应噪声底（修麦轨饿死）；v0.3.27 权限气泡对话化；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.29 PCM 环默认 B≈60s（A/B 可翻；unit/sim 已过，live footprint A/B 取消不阻塞）；v0.3.28 VAD 自适应噪声底；正式公证/上架留待人工提交。**
 
 ---
 
