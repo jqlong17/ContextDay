@@ -4,10 +4,10 @@
 |------|-----|
 | 产品名 | ContextDay |
 | Spec 文件 | `docs/01_spec.md` |
-| Spec 版本 | **v0.3.31** |
-| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.31 inject 中文语音 fixture（替 buzz）+ 沙盒用 base64/scratch；v0.3.30 `inject_pcm`；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
+| Spec 版本 | **v0.3.32** |
+| 状态 | Phase 0–4 §5 清单全部 `[x]`（**MVP SSOT**）；v0.3.32 App Icon = Grok 暗绿孪生产品标（可与 DesktopOrb idle 分轨）；v0.3.31 inject 中文语音 fixture；正式公证/上架 **待人提交**。Agent IO post-MVP 见 [`docs/02_spec.md`](02_spec.md) |
 | 创建时间 | 2026-10-28 23:13 Asia/Shanghai |
-| 最后更新 | 2026-10-31 11:20 Asia/Shanghai |
+| 最后更新 | 2026-11-01 08:50 Asia/Shanghai |
 | 目标平台 | macOS（计划独立上架 Mac App Store） |
 | 主工程路径（Mac） | `/Users/ruska/projects/ContextDay` |
 | 云端工作区 | `/workspace/ContextDay`（经 GitHub 同步，独立于 notta） |
@@ -124,20 +124,20 @@ ContextDay 定位为：**本机 24h 语音上下文采集与转写层**，把可
 
 ### 2.7 桌面控制（双眼 3D 拟物球）
 
-产品主壳是桌面上的**双眼 3D 拟物小球**（台球质感、双胶囊竖眼；与 Grok Bot 结合叙事）。用户已确认定稿艺术图与点击眼神微动 clip。
+产品主壳是桌面上的**双眼 3D 拟物小球**（台球质感、双胶囊竖眼；与 Grok Bot 结合叙事）。用户已确认定稿艺术图与点击眼神微动 clip。**App Icon** 为独立产品标识（Grok 中心对称暗绿孪生），**不必**与 DesktopOrb idle 同图（v0.3.32；by Notta 叙事）。
 
-设计参考（**仅参考 / 备份，不作为唯一运行时路径**）：`design/icon-orb-eyes-v1.png`、`design/icon-orb-eye-click-2s.mp4`、`design/icon-orb-ready-2s.mp4`、`design/ref-icon-billiard.png`。早期 Bauhaus 圆角方钮探索（`design/btn-b-*`、`Resources/DesktopButton/`）已**废弃**，见下表。
+设计参考（**仅参考 / 备份，不作为唯一运行时路径**）：`design/appicon-gemini-vision-2026-11-01/`（App Icon 定稿 + Grok 并排对照）、`design/icon-orb-eyes-v1.png`、`design/icon-orb-eye-click-2s.mp4`、`design/icon-orb-ready-2s.mp4`、`design/ref-icon-billiard.png`。早期 Bauhaus 圆角方钮探索（`design/btn-b-*`、`Resources/DesktopButton/`）已**废弃**，见下表。
 
 #### 2.7.1 视觉资源
 
 | 资源 | 路径 / Asset 名 | 说明 |
 |------|-----------------|------|
-| Idle（产品 + 桌面） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；醒来 / 录制态静帧底图 |
+| Idle（桌面浮控） | `Resources/DesktopOrb/idle.png`；Asset Catalog：`DesktopOrbIdle` | **透明背景** 1024 PNG；醒来 / 录制态静帧底图；可与 App Icon **分轨** |
 | 睡觉循环（暂停后） | `Resources/DesktopOrb/sleep/fNN.png` | **Concept A**（闭眼 + 奶油色浮动 Zzz）；**首尾针**；`OrbFrameLoopPlayer` ~10fps；由 `scripts/generate_sleep_wake_assets.py` 从 `design/sleep-concepts/A-zzz.jpg` / `preview-sleep-A.mp4` 生成 |
 | 起床（离开睡觉） | `Resources/DesktopOrb/wake-shy-S1.mov`（+ `.mp4` 绿幕源） | 约 **2s**；**A → S1（轻柔害羞腮红，无星星）→ idle**；运行时 `.mov` ProRes 4444 alpha |
 | 点击眼神微动 | `Resources/DesktopOrb/eye-click-2s.mp4` / `.mov`；可拷入 Bundle | 约 **2s**；首帧=尾帧；仅眼神微动；用于**已醒**态开录；运行时 `.mov` |
 | 冷启动就绪 | `Resources/DesktopOrb/ready-2s.mp4`（绿幕源）+ `ready-2s.mov`（rematte） | 约 **2s**；**首尾针**=`idle.png`；轻自信眨眼 / 提神；与 eye-click / wake **分轨** |
-| App Icon 源图 | `Resources/AppIcon/icon-1024.png` → `AppIcon.appiconset` | **与 idle 同款艺术图**；导出各尺寸 |
+| App Icon 源图 | `Resources/AppIcon/icon-1024.png` → `AppIcon.appiconset` | **产品标识**（Grok 180° 中心对称暗绿孪生：深绿球体自右上进入、双 pill 眼朝左下；黑负空间；无嘴无字）；`scripts/generate_appicon.py` 自 master 导出各尺寸；**允许与 idle 不同** |
 
 | 废弃（已删） | `Resources/DesktopButton/` | 旧 Bauhaus 双态；已被 DesktopOrb 取代；仓库中已移除 |
 
@@ -451,7 +451,7 @@ ContextDay/
       eye-click-2s.mp4/.mov    # ~2s 眼神微动；已醒开录
       ready-2s.mp4/.mov        # ~2s 就绪；首尾针=idle
     AppIcon/
-      icon-1024.png            # 与 idle 同款 → Assets.xcassets/AppIcon.appiconset
+      icon-1024.png            # 产品标（Grok 暗绿孪生；可≠idle）→ AppIcon.appiconset
     AgentSkills/               # 打包技能模版 → Application Support
   docs/
     01_spec.md                 # MVP SSOT
@@ -472,7 +472,7 @@ ContextDay/
     speech_zh_16k_mono.pcm      # inject 中文 TTS fixture（16k Int16；v0.3.31）
 ```
 
-**资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `sleep/` Concept A 帧循环 + `wake-shy-S1` + `eye-click-2s` + `ready-2s`（`.mov` 运行时 / `.mp4` 绿幕源）；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon 源图与 `DesktopOrb/idle.png` 同艺术。`DesktopButton/` 已删除，勿再引用。
+**资源引用**：Bundle `DesktopOrb/idle.png`（运行时 chroma-key）+ `sleep/` Concept A 帧循环 + `wake-shy-S1` + `eye-click-2s` + `ready-2s`（`.mov` 运行时 / `.mp4` 绿幕源）；`DesktopControl` 拥有窗口 level、点击播片与菜单；`Store` 拥有 SQLite 与可选 `audio/`；二者之间无平行转写文件通道。App Icon（`AppIcon/icon-1024.png`）为独立产品标识，**允许**与 `DesktopOrb/idle.png` 分轨（v0.3.32）。`DesktopButton/` 已删除，勿再引用。
 
 ### 3.2 运行时原则
 
@@ -744,7 +744,7 @@ flowchart TB
 - [x] 桌面浮控 / 右键与剪贴板提示词写入 Spec（v0.3.0）
 - [x] 双眼 3D 球定稿：`DesktopOrb/idle.png`、`eye-click-2s.mp4`、`AppIcon/icon-1024.png`；Spec → v0.3.1
 - [x] 打包 `DesktopOrb/`（idle + eye-click）；idle 走 Bundle PNG + 运行时 chroma-key（不依赖 Assets `DesktopOrbIdle`）
-- [x] App Icon：`AppIcon.appiconset` 自 `icon-1024.png` 导出各尺寸（炭灰不透明底）
+- [x] App Icon：`AppIcon.appiconset` 自 `icon-1024.png` 导出各尺寸（v0.3.32 起 master = Grok 暗绿孪生产品标；可与 idle 分轨）
 - [x] Xcode / SPM 工程骨架、bundle id `app.contextday`、权限 plist / entitlements
 - [x] Spec v0.3.2 §2.9 Agent IO 语义工具首波定稿
 - [x] 废弃 `DesktopButton/`：仓库中已无该目录；源码树说明保留「勿再引用」
@@ -831,7 +831,7 @@ flowchart TB
 5. 主力 ASR 为 SenseVoice Core ML int8；文档与关于页写明本机推理。
 6. 隐私：默认不上云；Application Support 路径与删除方式可查（§3.4）。
 7. 命名与商店素材使用 ContextDay，不与输入法产品混品牌。
-8. 桌面浮控：透明 idle 双眼球；未录音左键开始 + eye-click ~2s；录中左键不关；右键可开始/暂停；设置面板内「浮控大小」平滑缩放；窗口可被其它 App 遮盖；`icon-1024.png`（同 idle）可作 App Icon；MVP 录制态可与 idle 同视觉。
+8. 桌面浮控：透明 idle 双眼球；未录音左键开始 + eye-click ~2s；录中左键不关；右键可开始/暂停；设置面板内「浮控大小」平滑缩放；窗口可被其它 App 遮盖；`icon-1024.png` 作 App Icon（Grok 暗绿孪生产品标，可与 idle 分轨）；MVP 录制态可与 idle 同视觉。
 9. 右键「打开记录文件夹」打开记录根；「复制提示词」符合 §2.8.1 一行指针；全文仅 §2.8.2 设置内查看；转写**仅**在 SQLite，无每日 txt 要求。
 10. 登录项：设置可开关；默认开时登录后应拉起 App（或进入 `requiresApproval` 待用户在系统设置批准）；关闭后不再自动登录启动。
 11. 冷启动就绪：mic + 屏幕录制 + 记录根可写时，orb **仅一次** `ready-2s`；未就绪不播、不刷屏；与录音 eye-click 分轨。
@@ -850,7 +850,7 @@ flowchart TB
 - 中文连续数字 Core ML 仍可能弱于 ONNX；生活日志可接受，需在已知问题中披露。
 - **已知限制**：Music>Speech 偏置可能导致**同一轨**上「有 BGM 的说话」被标成 music 而不送 ASR（例如麦拾到外放音乐+人声）；须在产品已知问题 / 设置说明中披露，不可静默。这**不是**跨轨抑制：系统轨 Music 不关麦轨。
 - Agent IO：§2.8 剪贴板 + HTTP `18787–18797` + MCP stdio（`--mcp`）共用 `AgentIOProtocol.dispatch`（Segment 只读 + 技能 App Support 可写）。Schema 自 v0.2.0 定稿；v0.3.x **未改** Segment 字段列表。
-- 产品图标：v0.3.1 起以双眼 3D 球为准；`DesktopButton/` 已从仓库移除，勿再引用。
+- 产品图标：v0.3.1 起桌面浮控以双眼 3D 球为准；v0.3.32 起 **App Icon** 定为 Grok 中心对称暗绿孪生（可与 idle 分轨）；`DesktopButton/` 已从仓库移除，勿再引用。
 - 登录项：只用 `SMAppService.mainApp`；勿改用隐藏 LaunchAgent。就绪用 `playReadyOnce`（`ready-2s.mov`）；已醒开录用 `playEyeClickOnce`；离开睡觉用 `playWakeOnce`（`wake-shy-S1.mov`）；暂停直进睡觉、不播 eye-click；每冷启动就绪 ≤1 次。
 - 首启气泡：`OnboardingFlow` + `OnboardingBubbleController`（Concept A 深色毛玻璃 + 柔绿胶囊，v0.3.20；拖拽 child-window 实时跟随 +「上一步」+ 正文无黑底，v0.3.26；对话化推迟/缺权再提示 + Login Item 不挡开录，v0.3.27）；完成键 `onboarding_completed_v1`；「稍后再说」也写完成以免刷屏；引导未完成时启动路径不 `SMAppService.register` / 不请求麦与屏幕——与就绪门无关（v0.3.21）；冷启动默认醒来 idle，睡觉留给暂停后（v0.3.21）。
 - 飞书 ASR 对比文已入个人总索引「个人 · 其他」。
@@ -884,6 +884,7 @@ flowchart TB
 | v0.3.18 | 2026-10-30 10:28 | 采集热修：`PCMRingBuffer.snapshot` 锁内拷贝 + `PCMInt16Slice` 越界跳过（修 `handleUtterance`/`Data.subdata` SIGTRAP）；**Segment schema 不变** |
 | v0.3.19 | 2026-10-30 10:35 | §2.7.6 / §2.10：引导未完成时冷启动不自动同步 Login Item、不抢弹 TCC；权限由气泡「授予权限」或首次录音触发；**Segment schema 不变** |
 | v0.3.20 | 2026-10-30 10:36 | §2.7.6：首启气泡视觉 Concept A——深色毛玻璃 vibrancy、细浅描边、软阴影、紧凑内边距、奶油正文、柔绿胶囊 CTA；文案/分段流不变；**Segment schema 不变** |
+| v0.3.32 | 2026-11-01 08:50 | §2.7.1：App Icon 换为 Grok 180° 中心对称暗绿孪生（`icon-1024.png` + `AppIcon.appiconset`）；允许与 DesktopOrb idle **分轨**；设计源 `design/appicon-gemini-vision-2026-11-01/`；`generate_appicon.py` 默认自 master 导出；**Segment schema 不变**；ASR/采集代码不变 |
 | v0.3.31 | 2026-10-31 11:20 | §2.9.1c fixture：替换 buzz 为中文 TTS `speech_zh_16k_mono.pcm`；沙盒注入改 base64/`scratch`；`generate-pcm-inject-fixture.sh`；**Segment schema 不变** |
 | v0.3.30 | 2026-10-31 11:00 | §2.9.1c：localhost debug `inject_pcm`（path/base64 → 同环缓冲 VAD→gate→ASR）；auto-arm inject session（无麦 TCC）；初版 fixture + `Scripts/pcm-inject-example.sh`；**Segment schema 不变** |
 | v0.3.29 | 2026-10-31 10:05 | §3.2.1：PCM 环缓冲收紧——默认 **B=60s** 固定环；**A=600s** soft-cap 对照可 UserDefaults/编译旗标回滚；A/B 成功指标表 + `Scripts/pcm-buffer-ab.md`；Mac unit/sim 已过（peak 0.10），live footprint A/B **取消不阻塞**默认 B；T28；**Segment schema 不变** |
@@ -916,10 +917,10 @@ flowchart TB
 | 项 | 状态 | 备注 |
 |----|------|------|
 | 命名 ContextDay | 已定 | 2026-10-28 |
-| Spec v0.1.0–v0.3.31 | **已完成** | v0.3.31 = 中文 inject fixture；v0.3.30 = debug `inject_pcm`；schema 自 v0.2.0 未破改 |
+| Spec v0.1.0–v0.3.32 | **已完成** | v0.3.32 = App Icon Grok 暗绿孪生；v0.3.31 = 中文 inject fixture；schema 自 v0.2.0 未破改 |
 | Agent IO 优化（02） | **见 02** | [`docs/02_spec.md`](02_spec.md) post-MVP；不替代本表 MVP 行 |
 | §5 Phase 0–4 工程清单 | **全部 `[x]`** | 与上表快照一致；父机 mac-verify 通过 |
-| DesktopOrb / App Icon | **已完成** | `AppIcon.appiconset`；运行时 chroma-key idle |
+| DesktopOrb / App Icon | **已完成** | App Icon = Grok 暗绿孪生 master→`appiconset`；DesktopOrb idle 仍 chroma-key（可分轨） |
 | 工程骨架 | **已完成** | `ContextDay.xcodeproj` + SPM onnxruntime；`app.contextday` |
 | DesktopControl | **已完成（MVP）** | `.normal` / 首启气泡 / 冷启动醒来 idle、暂停直进 Concept A、开录 wake S1 / 左键未录音开录 / 右键启停 / 就绪 ready-2s 一次 / 设置单面板浮控大小 / 扁平菜单 |
 | 采集 / 门控 / ASR | **已完成（MVP）** | 双轨 + YAMNet `output_0` + SenseVoice Core ML **cpuOnly**；v0.3.18 snapshot 锁内拷贝；**v0.3.28** VAD 噪声底相对门限；**v0.3.29** PCM 默认 60s 环；**v0.3.30** debug inject 同环路径 |
@@ -931,7 +932,7 @@ flowchart TB
 | XCTest | **已完成** | `ContextDayTests`；缺模型 XCTSkip；含 Diagnostics |
 | Mac App Store / 公证 | **待人提交** | 说明草稿已有；**正式公证/上架不在本 PR 自动化范围** |
 
-**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.31 中文语音 inject fixture（沙盒 base64）；v0.3.30 `inject_pcm`；正式公证/上架留待人工提交。**
+**当前总状态：§5 Phase 0–4 工程清单已闭合；v0.3.32 App Icon Grok 暗绿孪生产品标；v0.3.31 中文语音 inject fixture；正式公证/上架留待人工提交。**
 
 ---
 
